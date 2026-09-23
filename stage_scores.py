@@ -10,6 +10,8 @@ retrieve() and, when it goes missing, which stage lost it.
     python stage_scores.py --old           # old regex path, for comparison
     python stage_scores.py --only q38,n10  # just these ids
     python stage_scores.py --tag capped    # name this run: ..._capped.json
+    python stage_scores.py --questions trec_tot_2023.json --split dev   # TREC
+    python stage_scores.py --questions trec_tot_2023.json --split dev --limit 5
 
 Stages, in pipeline order:
   pool          vector search (full record + plot-only), closest first.
@@ -153,11 +155,24 @@ def main():
     if "--only" in args:
         only = set(args[args.index("--only") + 1].split(","))
     tag = args[args.index("--tag") + 1] if "--tag" in args else ""
+    qfile = args[args.index("--questions") + 1] if "--questions" in args else None
+    split = args[args.index("--split") + 1] if "--split" in args else None
+    limit = int(args[args.index("--limit") + 1]) if "--limit" in args else None
     R.USE_QUERY_LLM = not old
 
-    todo = T.cases(fresh_only)
+    if qfile:
+        # Another question file in the test_set.json format, e.g. trec_tot_2023.json.
+        d = json.load(open(qfile))
+        todo = [((q.get("source", "file") + "-" + q.get("split", "")).upper().strip("-"),
+                 q["id"], q["turns"], q.get("expect_retrieved") or [], q.get("expect_year"))
+                for q in (d if isinstance(d, list) else d["questions"])
+                if not split or q.get("split") == split]
+    else:
+        todo = T.cases(fresh_only)
     if only:
         todo = [c for c in todo if c[1] in only]
+    if limit:
+        todo = todo[:limit]
     print(f"{len(todo)} questions, {'old regex path' if old else 'LLM plan'}.\n")
 
     with contextlib.redirect_stdout(io.StringIO()):     # load models before timing
@@ -191,7 +206,7 @@ def main():
               f"{sc['s@3']:6.2f} {sc['s@10']:6.2f} {sc['mrr']:6.2f}")
 
     print()
-    for group in ("TEST SET", "FOLLOW-UP", "FRESH"):
+    for group in dict.fromkeys(r["group"] for r in rows):
         g = [r for r in rows if r["group"] == group]
         if g:
             print(f"{group:10s} pass {sum(r['result']['pass'] for r in g)}/{len(g)}")
@@ -220,7 +235,9 @@ def main():
 
     os.makedirs("results", exist_ok=True)
     out = (f"results/stage_scores_{datetime.date.today()}{'_old' if old else ''}"
-           f"{'_only' if only else ''}{'_' + tag if tag else ''}.json")
+           f"{'_' + os.path.splitext(os.path.basename(qfile))[0] if qfile else ''}"
+           f"{'_' + split if split else ''}"
+           f"{'_only' if only or limit else ''}{'_' + tag if tag else ''}.json")
     with open(out, "w") as f:
         json.dump({"summary": summary, "path": "old" if old else "llm_plan", "rows": rows},
                   f, indent=1, default=str)
