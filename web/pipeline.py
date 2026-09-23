@@ -1,0 +1,237 @@
+"""
+The one place the web server touches the Movie Buff pipeline.
+
+server.py never imports chat.py or retrieve.py directly; it calls the four
+functions below. If chat.py's build_prompt changes shape, this is the only
+file that needs to follow it - and because it calls the SAME build_prompt the
+terminal chat and the eval harness use, the eval numbers still describe what
+people see in the browser.
+
+Set MOVIE_BUFF_MOCK=1 to run the whole site with a fake model (no GPU, no
+Ollama, no movies.db) - useful for checking the page itself.
+"""
+
+import os
+import random
+import sys
+import time
+from pathlib import Path
+
+MOCK = os.environ.get("MOVIE_BUFF_MOCK") == "1"
+
+# This file lives in ~/movie-buff/rag/web/. chat.py, retrieve.py and movies.db
+# live one level up, and retrieve() opens "movies.db" by relative path, so the
+# working directory has to be the rag folder.
+RAG_DIR = Path(__file__).resolve().parent.parent
+
+MAX_HISTORY_MESSAGES = 12   # last 6 exchanges; num_ctx is 8192
+
+if not MOCK:
+    sys.path.insert(0, str(RAG_DIR))
+    os.chdir(RAG_DIR)
+    import ollama
+    import chat  # the terminal chat's module - same prompt, same retrieval
+
+    import inspect
+
+    import functools
+
+    MODEL = chat.MODEL
+    EMBED_MODEL = getattr(chat, "EMBED_MODEL", "mxbai-embed-large")
+    KEEP_ALIVE = getattr(chat, "KEEP_ALIVE", "30m")
+    _BUILD_TAKES_RECENT = "recent_titles" in inspect.signature(chat.build_prompt).parameters
+
+    # Ask retrieve() for its step-by-step notes (title guesses, re-rank pick,
+    # follow-up resolution...). explain=True only attaches h["_notes"] and
+    # prints one log line - the hits and the prompt are unchanged, so the page
+    # still gets exactly what chat.py and the eval get.
+    if "explain" in inspect.signature(chat.retrieve).parameters:
+        chat.build_prompt.__globals__["retrieve"] = functools.partial(chat.retrieve, explain=True)
+else:
+    MODEL = "movie-buff (mock)"
+
+
+# ------------------------------------------------------------------ pipeline
+
+def prepare(question, recent_titles):
+    """Retrieval + prompt building. Returns (prompt, hits)."""
+    if MOCK:
+        return _mock_prepare(question)
+    if _BUILD_TAKES_RECENT:
+        return chat.build_prompt(question, recent_titles=recent_titles or None)
+    return chat.build_prompt(question)
+
+
+def next_recent_titles(hits, previous):
+    """What the next turn's "who directed it?" should resolve to. Mirrors
+    chat.py: only move on when this turn actually retrieved something."""
+    return [h["title"] for h in hits] if hits else list(previous or [])
+
+
+def stream_answer(messages, think, cancel):
+    """Yields ("thinking", text) and ("token", text) until done or cancelled.
+    Leaving the loop closes the HTTP stream to Ollama, which stops generation
+    on the GPU rather than finishing an answer nobody will read."""
+    if MOCK:
+        yield from _mock_stream(messages, think, cancel)
+        return
+
+    stream = ollama.chat(model=MODEL, messages=messages, stream=True,
+                         think=think, keep_alive=KEEP_ALIVE)
+    try:
+        for chunk in stream:
+            if cancel.is_set():
+                break
+            msg = chunk.get("message") if isinstance(chunk, dict) else chunk.message
+            get = (lambda k: msg.get(k)) if isinstance(msg, dict) else (lambda k: getattr(msg, k, None))
+            thought = get("thinking") or ""
+            piece = get("content") or ""
+            if thought:
+                yield "thinking", thought
+            if piece:
+                yield "token", piece
+    finally:
+        close = getattr(stream, "close", None)
+        if close:
+            close()
+
+
+def _rating(hit):
+    """TMDB rating as the model saw it. retrieve.py doesn't carry it, so read
+    it the way chat.context_for does - including its 50-vote minimum, so a
+    chip never shows a rating the model wasn't given."""
+    if "vote_average" in hit:
+        va, vc = hit.get("vote_average"), hit.get("vote_count") or 50
+    elif not MOCK and hit.get("id") is not None and hasattr(chat, "_CTX_DB"):
+        row = chat._CTX_DB.execute(
+            "SELECT vote_average, vote_count FROM movies WHERE id = ?", (hit["id"],)).fetchone()
+        va, vc = row if row else (None, 0)
+    else:
+        return None
+    try:
+        return round(float(va), 1) if va and (vc or 0) >= 50 else None
+    except (TypeError, ValueError):
+        return None
+
+
+def steps(hits):
+    """retrieve()'s notes, turned into short lines for the page's Details view."""
+    notes = (hits[0].get("_notes") if hits else None) or {}
+    out = []
+    if notes.get("followup_resolved_to"):
+        out.append(f'Follow-up: read "it" as {notes["followup_resolved_to"]}')
+    f = notes.get("filters") or {}
+    bits = []
+    if f.get("year_min") is not None:
+        lo, hi = f["year_min"], f.get("year_max")
+        bits.append(str(lo) if lo == hi else f"{lo}–{hi}")
+    if f.get("genres"):
+        bits.append(", ".join(f["genres"]))
+    if bits:
+        out.append("Filtered to " + " · ".join(bits))
+    if notes.get("title_match_injected") or notes.get("title_match_promoted"):
+        out.append(f'Matched the title "{notes.get("title_match_injected") or notes.get("title_match_promoted")}" directly')
+    if notes.get("title_guesses_used"):
+        out.append("Model's guesses that the database confirmed: " + ", ".join(notes["title_guesses_used"]))
+    elif notes.get("title_guesses"):
+        out.append("Model guessed " + ", ".join(notes["title_guesses"]) + " (none close enough to use)")
+    if notes.get("reranked_to"):
+        ms = notes.get("rerank_ms")
+        out.append("Read the candidate plots and picked " + ", ".join(notes["reranked_to"])
+                   + (f" ({ms / 1000:.1f}s)" if ms else ""))
+    if notes.get("kept_guess"):
+        out.append(f'Kept the model\'s guess "{notes["kept_guess"]}" in 2nd place')
+    if notes.get("backfilled"):
+        out.append(f'Added {notes["backfilled"]} well-known films matching the filters')
+    return out
+
+
+def card(hit):
+    """The fields the page shows for each retrieved film. Every field is
+    optional - different versions of retrieve.py carry different columns."""
+    cast = hit.get("top_cast") or ""
+    rating = _rating(hit)
+    return {
+        "title": hit.get("title"),
+        "year": hit.get("release_year"),
+        "director": hit.get("director"),
+        "cast": ", ".join(c.strip() for c in cast.split(",")[:3] if c.strip()) or None,
+        "genres": hit.get("genres"),
+        "rating": rating,
+    }
+
+
+# ------------------------------------------------------------ health + warmup
+
+def health():
+    if MOCK:
+        return {"ok": True, "model": MODEL, "mock": True}
+    try:
+        ollama.show(MODEL)
+    except Exception as e:  # Ollama down, or model not created
+        return {"ok": False, "model": MODEL, "error": str(e)[:200]}
+    if not (RAG_DIR / "movies.db").exists():
+        return {"ok": False, "model": MODEL, "error": f"movies.db not found in {RAG_DIR}"}
+    return {"ok": True, "model": MODEL}
+
+
+def prewarm():
+    """Load both models into VRAM at startup so the first visitor doesn't pay
+    the load time. Same calls as chat.prewarm(), minus the printing."""
+    if MOCK:
+        return
+    try:
+        ollama.embed(model=EMBED_MODEL, input=["warmup"], keep_alive=KEEP_ALIVE)
+        ollama.chat(model=MODEL, messages=[{"role": "user", "content": "hi"}],
+                    options={"num_predict": 1}, keep_alive=KEEP_ALIVE)
+        print("[movie-buff] models warm", flush=True)
+    except Exception as e:
+        print(f"[movie-buff] warmup failed: {e}", flush=True)
+
+
+# ------------------------------------------------------------------- mock
+
+_MOCK_FILMS = [
+    {"title": "Parasite", "release_year": "2019", "director": "Bong Joon Ho",
+     "top_cast": "Song Kang-ho, Lee Sun-kyun, Cho Yeo-jeong, Choi Woo-shik",
+     "genres": "Comedy, Thriller, Drama", "vote_average": 8.5},
+    {"title": "The Joneses", "release_year": "2009", "director": "Derrick Borte",
+     "top_cast": "David Duchovny, Demi Moore, Amber Heard",
+     "genres": "Comedy, Drama", "vote_average": 6.2},
+    {"title": "Six Degrees of Separation", "release_year": "1993", "director": "Fred Schepisi",
+     "top_cast": "Stockard Channing, Will Smith, Donald Sutherland",
+     "genres": "Drama, Comedy", "vote_average": 6.8},
+]
+
+
+def _mock_prepare(question):
+    time.sleep(1.2 if len(question) < 60 else 3.5)
+    if "cobalt hour" in question.lower():
+        return question, []
+    notes = {"title_guesses": ["The Parent Trap (1998)", "Parasite (2019)"],
+             "title_guesses_used": ["Parasite (0.826)"],
+             "reranked_to": ["Parasite", "Six Degrees of Separation", "The Joneses"],
+             "rerank_ms": 1401}
+    return question, [dict(f, _notes=notes) for f in _MOCK_FILMS]
+
+
+def _mock_stream(messages, think, cancel):
+    if think:
+        for w in ("The description mentions a poor family and a wealthy household. "
+                  "Parasite's plot fits that best. ").split(" "):
+            if cancel.is_set():
+                return
+            time.sleep(0.03)
+            yield "thinking", w + " "
+    text = ("That's **Parasite** (2019), directed by Bong Joon Ho. The Kim family, "
+            "all unemployed, talk their way into jobs with the wealthy Park family "
+            "one at a time, without letting on that they're related.\n\n"
+            "It's a sharp, darkly funny thriller about class, and it won Best Picture. "
+            "I'll stop there, since the second half is best seen cold.\n\n"
+            "If you like it, try:\n- *Memories of Murder* (same director)\n- *Burning* (a slow-burn class thriller)")
+    time.sleep(0.8)
+    for w in text.split(" "):
+        if cancel.is_set():
+            return
+        time.sleep(random.uniform(0.02, 0.06))
+        yield "token", w + " "

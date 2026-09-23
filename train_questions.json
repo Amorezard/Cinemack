@@ -1,0 +1,2346 @@
+[
+  {
+    "id": "t0001",
+    "category": "credits",
+    "turns": [
+      "Who directed A Thousand Words?"
+    ],
+    "expect_behavior": "PASS = names Brian Robbins as director, from the context. No review."
+  },
+  {
+    "id": "t0002",
+    "category": "credits",
+    "turns": [
+      "Who stars in Escape from Alcatraz?"
+    ],
+    "expect_behavior": "PASS = names cast from the context, e.g. Clint Eastwood, Patrick McGoohan, Roberts Blossom. No review."
+  },
+  {
+    "id": "t0003",
+    "category": "credits",
+    "turns": [
+      "Who directed A Bug's Life?"
+    ],
+    "expect_behavior": "PASS = names John Lasseter as director, from the context. No review."
+  },
+  {
+    "id": "t0004",
+    "category": "credits",
+    "turns": [
+      "Who stars in Undisputed II: Last Man Standing?"
+    ],
+    "expect_behavior": "PASS = names cast from the context, e.g. Michael Jai White, Scott Adkins, Ben Cross. No review."
+  },
+  {
+    "id": "t0005",
+    "category": "credits",
+    "turns": [
+      "Who directed Jojo Rabbit?"
+    ],
+    "expect_behavior": "PASS = names Taika Waititi as director, from the context. No review."
+  },
+  {
+    "id": "t0006",
+    "category": "credits",
+    "turns": [
+      "Who stars in August: Osage County?"
+    ],
+    "expect_behavior": "PASS = names cast from the context, e.g. Meryl Streep, Julia Roberts, Julianne Nicholson. No review."
+  },
+  {
+    "id": "t0007",
+    "category": "credits",
+    "turns": [
+      "Who directed Fanboys?"
+    ],
+    "expect_behavior": "PASS = names Kyle Newman as director, from the context. No review."
+  },
+  {
+    "id": "t0008",
+    "category": "credits",
+    "turns": [
+      "Who stars in The Rocky Horror Picture Show?"
+    ],
+    "expect_behavior": "PASS = names cast from the context, e.g. Tim Curry, Susan Sarandon, Barry Bostwick. No review."
+  },
+  {
+    "id": "t0009",
+    "category": "credits",
+    "turns": [
+      "Who directed Minions: The Rise of Gru?"
+    ],
+    "expect_behavior": "PASS = names Kyle Balda as director, from the context. No review."
+  },
+  {
+    "id": "t0010",
+    "category": "credits",
+    "turns": [
+      "Who stars in The Mauritanian?"
+    ],
+    "expect_behavior": "PASS = names cast from the context, e.g. Tahar Rahim, Jodie Foster, Benedict Cumberbatch. No review."
+  },
+  {
+    "id": "t0011",
+    "category": "credits",
+    "turns": [
+      "Who directed Predestination?"
+    ],
+    "expect_behavior": "PASS = names Michael Spierig, Peter Spierig as director, from the context. No review."
+  },
+  {
+    "id": "t0012",
+    "category": "credits",
+    "turns": [
+      "Who stars in The Number 23?"
+    ],
+    "expect_behavior": "PASS = names cast from the context, e.g. Jim Carrey, Virginia Madsen, Logan Lerman. No review."
+  },
+  {
+    "id": "t0013",
+    "category": "credits",
+    "turns": [
+      "Who directed Quills?"
+    ],
+    "expect_behavior": "PASS = names Philip Kaufman as director, from the context. No review."
+  },
+  {
+    "id": "t0014",
+    "category": "credits",
+    "turns": [
+      "Who stars in It's Complicated?"
+    ],
+    "expect_behavior": "PASS = names cast from the context, e.g. Meryl Streep, Alec Baldwin, Steve Martin. No review."
+  },
+  {
+    "id": "t0015",
+    "category": "credits",
+    "turns": [
+      "Who directed Rush Hour 3?"
+    ],
+    "expect_behavior": "PASS = names Brett Ratner as director, from the context. No review."
+  },
+  {
+    "id": "t0016",
+    "category": "credits",
+    "turns": [
+      "Who stars in The Ward?"
+    ],
+    "expect_behavior": "PASS = names cast from the context, e.g. Amber Heard, Mamie Gummer, Danielle Panabaker. No review."
+  },
+  {
+    "id": "t0017",
+    "category": "credits",
+    "turns": [
+      "Who directed Raise the Red Lantern?"
+    ],
+    "expect_behavior": "PASS = names Zhang Yimou as director, from the context. No review."
+  },
+  {
+    "id": "t0018",
+    "category": "credits",
+    "turns": [
+      "Who stars in To Live and Die in L.A.?"
+    ],
+    "expect_behavior": "PASS = names cast from the context, e.g. William L. Petersen, Willem Dafoe, John Pankow. No review."
+  },
+  {
+    "id": "t0019",
+    "category": "credits",
+    "turns": [
+      "Who directed Honey, I Blew Up the Kid?"
+    ],
+    "expect_behavior": "PASS = names Randal Kleiser as director, from the context. No review."
+  },
+  {
+    "id": "t0020",
+    "category": "credits",
+    "turns": [
+      "Who stars in Heathers?"
+    ],
+    "expect_behavior": "PASS = names cast from the context, e.g. Winona Ryder, Christian Slater, Shannen Doherty. No review."
+  },
+  {
+    "id": "t0021",
+    "category": "credits",
+    "turns": [
+      "Who directed Willy Wonka & the Chocolate Factory?"
+    ],
+    "expect_behavior": "PASS = names Mel Stuart as director, from the context. No review."
+  },
+  {
+    "id": "t0022",
+    "category": "credits",
+    "turns": [
+      "Who stars in Serial (Bad) Weddings 2?"
+    ],
+    "expect_behavior": "PASS = names cast from the context, e.g. Christian Clavier, Chantal Lauby, Ary Abittan. No review."
+  },
+  {
+    "id": "t0023",
+    "category": "credits",
+    "turns": [
+      "Who directed Traffic?"
+    ],
+    "expect_behavior": "PASS = names Steven Soderbergh as director, from the context. No review."
+  },
+  {
+    "id": "t0024",
+    "category": "credits",
+    "turns": [
+      "Who stars in Best in Show?"
+    ],
+    "expect_behavior": "PASS = names cast from the context, e.g. Bob Balaban, III, Jennifer Coolidge. No review."
+  },
+  {
+    "id": "t0025",
+    "category": "credits",
+    "turns": [
+      "Who directed My First Time?"
+    ],
+    "expect_behavior": "PASS = names Marie-Castille Mention-Schaar as director, from the context. No review."
+  },
+  {
+    "id": "t0026",
+    "category": "credits",
+    "turns": [
+      "Who stars in Above the Law?"
+    ],
+    "expect_behavior": "PASS = names cast from the context, e.g. Steven Seagal, Pam Grier, Henry Silva. No review."
+  },
+  {
+    "id": "t0027",
+    "category": "credits",
+    "turns": [
+      "Who directed Escape to Victory?"
+    ],
+    "expect_behavior": "PASS = names John Huston as director, from the context. No review."
+  },
+  {
+    "id": "t0028",
+    "category": "credits",
+    "turns": [
+      "Who stars in The Time Machine?"
+    ],
+    "expect_behavior": "PASS = names cast from the context, e.g. Guy Pearce, Samantha Mumba, Jeremy Irons. No review."
+  },
+  {
+    "id": "t0029",
+    "category": "credits",
+    "turns": [
+      "Who directed Lady Macbeth?"
+    ],
+    "expect_behavior": "PASS = names William Oldroyd as director, from the context. No review."
+  },
+  {
+    "id": "t0030",
+    "category": "credits",
+    "turns": [
+      "Who stars in The Lords of Salem?"
+    ],
+    "expect_behavior": "PASS = names cast from the context, e.g. Sheri Moon Zombie, Bruce Davison, Jeff Daniel Phillips. No review."
+  },
+  {
+    "id": "t0031",
+    "category": "credits",
+    "turns": [
+      "Who directed Dreamgirls?"
+    ],
+    "expect_behavior": "PASS = names Bill Condon as director, from the context. No review."
+  },
+  {
+    "id": "t0032",
+    "category": "credits",
+    "turns": [
+      "Who stars in Stolen?"
+    ],
+    "expect_behavior": "PASS = names cast from the context, e.g. Nicolas Cage, Sami Gayle, Josh Lucas. No review."
+  },
+  {
+    "id": "t0033",
+    "category": "credits",
+    "turns": [
+      "Who directed The Current War?"
+    ],
+    "expect_behavior": "PASS = names Alfonso Gomez-Rejon as director, from the context. No review."
+  },
+  {
+    "id": "t0034",
+    "category": "credits",
+    "turns": [
+      "Who stars in Dragon Ball Z: The Return of Cooler?"
+    ],
+    "expect_behavior": "PASS = names cast from the context, e.g. Masako Nozawa, Toshio Furukawa, Mayumi Tanaka. No review."
+  },
+  {
+    "id": "t0035",
+    "category": "credits",
+    "turns": [
+      "Who directed The Rite?"
+    ],
+    "expect_behavior": "PASS = names Mikael Håfström as director, from the context. No review."
+  },
+  {
+    "id": "t0036",
+    "category": "credits",
+    "turns": [
+      "Who stars in After the Sunset?"
+    ],
+    "expect_behavior": "PASS = names cast from the context, e.g. Pierce Brosnan, Salma Hayek Pinault, Woody Harrelson. No review."
+  },
+  {
+    "id": "t0037",
+    "category": "credits",
+    "turns": [
+      "Who directed Untraceable?"
+    ],
+    "expect_behavior": "PASS = names Gregory Hoblit as director, from the context. No review."
+  },
+  {
+    "id": "t0038",
+    "category": "credits",
+    "turns": [
+      "Who stars in The Death & Life of John F. Donovan?"
+    ],
+    "expect_behavior": "PASS = names cast from the context, e.g. Kit Harington, Natalie Portman, Jacob Tremblay. No review."
+  },
+  {
+    "id": "t0039",
+    "category": "credits",
+    "turns": [
+      "Who directed Equilibrium?"
+    ],
+    "expect_behavior": "PASS = names Kurt Wimmer as director, from the context. No review."
+  },
+  {
+    "id": "t0040",
+    "category": "credits",
+    "turns": [
+      "Who stars in Tag?"
+    ],
+    "expect_behavior": "PASS = names cast from the context, e.g. Ed Helms, Jon Hamm, Jeremy Renner. No review."
+  },
+  {
+    "id": "t0041",
+    "category": "credits",
+    "turns": [
+      "Who directed A Fish Called Wanda?"
+    ],
+    "expect_behavior": "PASS = names Charles Crichton as director, from the context. No review."
+  },
+  {
+    "id": "t0042",
+    "category": "credits",
+    "turns": [
+      "Who stars in Guillermo del Toro's Pinocchio?"
+    ],
+    "expect_behavior": "PASS = names cast from the context, e.g. Ewan McGregor, David Bradley, Gregory Mann. No review."
+  },
+  {
+    "id": "t0043",
+    "category": "credits",
+    "turns": [
+      "Who directed Blood Red Sky?"
+    ],
+    "expect_behavior": "PASS = names Peter Thorwarth as director, from the context. No review."
+  },
+  {
+    "id": "t0044",
+    "category": "credits",
+    "turns": [
+      "Who stars in The Kitchen?"
+    ],
+    "expect_behavior": "PASS = names cast from the context, e.g. Melissa McCarthy, Tiffany Haddish, Elisabeth Moss. No review."
+  },
+  {
+    "id": "t0045",
+    "category": "credits",
+    "turns": [
+      "Who directed The Return of the Pink Panther?"
+    ],
+    "expect_behavior": "PASS = names Blake Edwards as director, from the context. No review."
+  },
+  {
+    "id": "t0046",
+    "category": "credits",
+    "turns": [
+      "Who stars in Le Gendarme de Saint-Tropez?"
+    ],
+    "expect_behavior": "PASS = names cast from the context, e.g. Louis de Funès, Geneviève Grad, Michel Galabru. No review."
+  },
+  {
+    "id": "t0047",
+    "category": "credits",
+    "turns": [
+      "Who directed Fireproof?"
+    ],
+    "expect_behavior": "PASS = names Alex Kendrick as director, from the context. No review."
+  },
+  {
+    "id": "t0048",
+    "category": "credits",
+    "turns": [
+      "Who stars in Labyrinth of Lies?"
+    ],
+    "expect_behavior": "PASS = names cast from the context, e.g. Alexander Fehling, André Szymanski, Friederike Becht. No review."
+  },
+  {
+    "id": "t0049",
+    "category": "credits",
+    "turns": [
+      "Who directed The Gambler?"
+    ],
+    "expect_behavior": "PASS = names Rupert Wyatt as director, from the context. No review."
+  },
+  {
+    "id": "t0050",
+    "category": "credits",
+    "turns": [
+      "Who stars in First Knight?"
+    ],
+    "expect_behavior": "PASS = names cast from the context, e.g. Sean Connery, Richard Gere, Julia Ormond. No review."
+  },
+  {
+    "id": "t0051",
+    "category": "credits",
+    "turns": [
+      "Who directed Turbo Kid?"
+    ],
+    "expect_behavior": "PASS = names François Simard, Anouk Whissell, Yoann-Karl Whissell as director, from the context. No review."
+  },
+  {
+    "id": "t0052",
+    "category": "credits",
+    "turns": [
+      "Who stars in Prayers for Bobby?"
+    ],
+    "expect_behavior": "PASS = names cast from the context, e.g. Sigourney Weaver, Henry Czerny, Ryan Kelley. No review."
+  },
+  {
+    "id": "t0053",
+    "category": "credits",
+    "turns": [
+      "Who directed Blindspotting?"
+    ],
+    "expect_behavior": "PASS = names Carlos López Estrada as director, from the context. No review."
+  },
+  {
+    "id": "t0054",
+    "category": "credits",
+    "turns": [
+      "Who stars in Punch-Drunk Love?"
+    ],
+    "expect_behavior": "PASS = names cast from the context, e.g. Adam Sandler, Emily Watson, Philip Seymour Hoffman. No review."
+  },
+  {
+    "id": "t0055",
+    "category": "credits",
+    "turns": [
+      "Who directed Blue Lagoon: The Awakening?"
+    ],
+    "expect_behavior": "PASS = names Jake Newsome, Mikael Salomon as director, from the context. No review."
+  },
+  {
+    "id": "t0056",
+    "category": "credits",
+    "turns": [
+      "Who stars in Crouching Tiger, Hidden Dragon: Sword of Destiny?"
+    ],
+    "expect_behavior": "PASS = names cast from the context, e.g. Donnie Yen, Michelle Yeoh, Jason Scott Lee. No review."
+  },
+  {
+    "id": "t0057",
+    "category": "credits",
+    "turns": [
+      "Who directed Trainwreck?"
+    ],
+    "expect_behavior": "PASS = names Judd Apatow as director, from the context. No review."
+  },
+  {
+    "id": "t0058",
+    "category": "credits",
+    "turns": [
+      "Who stars in Public Enemies?"
+    ],
+    "expect_behavior": "PASS = names cast from the context, e.g. Johnny Depp, Christian Bale, Marion Cotillard. No review."
+  },
+  {
+    "id": "t0059",
+    "category": "credits",
+    "turns": [
+      "Who directed Fast X?"
+    ],
+    "expect_behavior": "PASS = names Louis Leterrier as director, from the context. No review."
+  },
+  {
+    "id": "t0060",
+    "category": "credits",
+    "turns": [
+      "Who stars in Sherlock Jr.?"
+    ],
+    "expect_behavior": "PASS = names cast from the context, e.g. Buster Keaton, Jr., Kathryn McGuire. No review."
+  },
+  {
+    "id": "t0061",
+    "category": "general",
+    "turns": [
+      "Tell me about L.A. Confidential."
+    ],
+    "expect_behavior": "PASS = accurate summary of L.A. Confidential (1997) from the context; no invented facts."
+  },
+  {
+    "id": "t0062",
+    "category": "general",
+    "turns": [
+      "Tell me about Safety Not Guaranteed."
+    ],
+    "expect_behavior": "PASS = accurate summary of Safety Not Guaranteed (2012) from the context; no invented facts."
+  },
+  {
+    "id": "t0063",
+    "category": "general",
+    "turns": [
+      "Tell me about Red Planet."
+    ],
+    "expect_behavior": "PASS = accurate summary of Red Planet (2000) from the context; no invented facts."
+  },
+  {
+    "id": "t0064",
+    "category": "general",
+    "turns": [
+      "Tell me about Kickboxer."
+    ],
+    "expect_behavior": "PASS = accurate summary of Kickboxer (1989) from the context; no invented facts."
+  },
+  {
+    "id": "t0065",
+    "category": "general",
+    "turns": [
+      "Tell me about The Skulls."
+    ],
+    "expect_behavior": "PASS = accurate summary of The Skulls (2000) from the context; no invented facts."
+  },
+  {
+    "id": "t0066",
+    "category": "general",
+    "turns": [
+      "Tell me about Look Who's Back."
+    ],
+    "expect_behavior": "PASS = accurate summary of Look Who's Back (2015) from the context; no invented facts."
+  },
+  {
+    "id": "t0067",
+    "category": "general",
+    "turns": [
+      "Tell me about Halloween III: Season of the Witch."
+    ],
+    "expect_behavior": "PASS = accurate summary of Halloween III: Season of the Witch (1982) from the context; no invented facts."
+  },
+  {
+    "id": "t0068",
+    "category": "general",
+    "turns": [
+      "Tell me about The Royal Tenenbaums."
+    ],
+    "expect_behavior": "PASS = accurate summary of The Royal Tenenbaums (2001) from the context; no invented facts."
+  },
+  {
+    "id": "t0069",
+    "category": "general",
+    "turns": [
+      "Tell me about Where the Crawdads Sing."
+    ],
+    "expect_behavior": "PASS = accurate summary of Where the Crawdads Sing (2022) from the context; no invented facts."
+  },
+  {
+    "id": "t0070",
+    "category": "general",
+    "turns": [
+      "Tell me about Return of the Tooth Fairy."
+    ],
+    "expect_behavior": "PASS = accurate summary of Return of the Tooth Fairy (2020) from the context; no invented facts."
+  },
+  {
+    "id": "t0071",
+    "category": "general",
+    "turns": [
+      "Tell me about Casablanca."
+    ],
+    "expect_behavior": "PASS = accurate summary of Casablanca (1943) from the context; no invented facts."
+  },
+  {
+    "id": "t0072",
+    "category": "general",
+    "turns": [
+      "Tell me about Unhinged."
+    ],
+    "expect_behavior": "PASS = accurate summary of Unhinged (2020) from the context; no invented facts."
+  },
+  {
+    "id": "t0073",
+    "category": "general",
+    "turns": [
+      "Tell me about The Ninth Gate."
+    ],
+    "expect_behavior": "PASS = accurate summary of The Ninth Gate (1999) from the context; no invented facts."
+  },
+  {
+    "id": "t0074",
+    "category": "general",
+    "turns": [
+      "Tell me about The Changeling."
+    ],
+    "expect_behavior": "PASS = accurate summary of The Changeling (1980) from the context; no invented facts."
+  },
+  {
+    "id": "t0075",
+    "category": "general",
+    "turns": [
+      "Tell me about My Big Fat Greek Wedding."
+    ],
+    "expect_behavior": "PASS = accurate summary of My Big Fat Greek Wedding (2002) from the context; no invented facts."
+  },
+  {
+    "id": "t0076",
+    "category": "general",
+    "turns": [
+      "Tell me about Heartbeats."
+    ],
+    "expect_behavior": "PASS = accurate summary of Heartbeats (2010) from the context; no invented facts."
+  },
+  {
+    "id": "t0077",
+    "category": "general",
+    "turns": [
+      "Tell me about Green Room."
+    ],
+    "expect_behavior": "PASS = accurate summary of Green Room (2016) from the context; no invented facts."
+  },
+  {
+    "id": "t0078",
+    "category": "general",
+    "turns": [
+      "Tell me about Last Man Standing."
+    ],
+    "expect_behavior": "PASS = accurate summary of Last Man Standing (1996) from the context; no invented facts."
+  },
+  {
+    "id": "t0079",
+    "category": "general",
+    "turns": [
+      "Tell me about Assassination Nation."
+    ],
+    "expect_behavior": "PASS = accurate summary of Assassination Nation (2018) from the context; no invented facts."
+  },
+  {
+    "id": "t0080",
+    "category": "general",
+    "turns": [
+      "Tell me about Judy."
+    ],
+    "expect_behavior": "PASS = accurate summary of Judy (2019) from the context; no invented facts."
+  },
+  {
+    "id": "t0081",
+    "category": "general",
+    "turns": [
+      "Tell me about Parallel Mothers."
+    ],
+    "expect_behavior": "PASS = accurate summary of Parallel Mothers (2021) from the context; no invented facts."
+  },
+  {
+    "id": "t0082",
+    "category": "general",
+    "turns": [
+      "Tell me about Trust."
+    ],
+    "expect_behavior": "PASS = accurate summary of Trust (2010) from the context; no invented facts."
+  },
+  {
+    "id": "t0083",
+    "category": "general",
+    "turns": [
+      "Tell me about Epic Movie."
+    ],
+    "expect_behavior": "PASS = accurate summary of Epic Movie (2007) from the context; no invented facts."
+  },
+  {
+    "id": "t0084",
+    "category": "general",
+    "turns": [
+      "Tell me about Polytechnique."
+    ],
+    "expect_behavior": "PASS = accurate summary of Polytechnique (2009) from the context; no invented facts."
+  },
+  {
+    "id": "t0085",
+    "category": "general",
+    "turns": [
+      "Tell me about In the Heat of the Night."
+    ],
+    "expect_behavior": "PASS = accurate summary of In the Heat of the Night (1967) from the context; no invented facts."
+  },
+  {
+    "id": "t0086",
+    "category": "general",
+    "turns": [
+      "Tell me about True Romance."
+    ],
+    "expect_behavior": "PASS = accurate summary of True Romance (1993) from the context; no invented facts."
+  },
+  {
+    "id": "t0087",
+    "category": "general",
+    "turns": [
+      "Tell me about Gemini Man."
+    ],
+    "expect_behavior": "PASS = accurate summary of Gemini Man (2019) from the context; no invented facts."
+  },
+  {
+    "id": "t0088",
+    "category": "general",
+    "turns": [
+      "Tell me about Eye in the Sky."
+    ],
+    "expect_behavior": "PASS = accurate summary of Eye in the Sky (2015) from the context; no invented facts."
+  },
+  {
+    "id": "t0089",
+    "category": "general",
+    "turns": [
+      "Tell me about Marley & Me."
+    ],
+    "expect_behavior": "PASS = accurate summary of Marley & Me (2008) from the context; no invented facts."
+  },
+  {
+    "id": "t0090",
+    "category": "general",
+    "turns": [
+      "Tell me about Cannibal Holocaust."
+    ],
+    "expect_behavior": "PASS = accurate summary of Cannibal Holocaust (1980) from the context; no invented facts."
+  },
+  {
+    "id": "t0091",
+    "category": "general",
+    "turns": [
+      "Tell me about Save the Last Dance."
+    ],
+    "expect_behavior": "PASS = accurate summary of Save the Last Dance (2001) from the context; no invented facts."
+  },
+  {
+    "id": "t0092",
+    "category": "general",
+    "turns": [
+      "Tell me about 20th Century Women."
+    ],
+    "expect_behavior": "PASS = accurate summary of 20th Century Women (2016) from the context; no invented facts."
+  },
+  {
+    "id": "t0093",
+    "category": "general",
+    "turns": [
+      "Tell me about 25th Hour."
+    ],
+    "expect_behavior": "PASS = accurate summary of 25th Hour (2002) from the context; no invented facts."
+  },
+  {
+    "id": "t0094",
+    "category": "general",
+    "turns": [
+      "Tell me about Bicycle Thieves."
+    ],
+    "expect_behavior": "PASS = accurate summary of Bicycle Thieves (1948) from the context; no invented facts."
+  },
+  {
+    "id": "t0095",
+    "category": "general",
+    "turns": [
+      "Tell me about Scoop."
+    ],
+    "expect_behavior": "PASS = accurate summary of Scoop (2006) from the context; no invented facts."
+  },
+  {
+    "id": "t0096",
+    "category": "general",
+    "turns": [
+      "Tell me about Machine Gun Preacher."
+    ],
+    "expect_behavior": "PASS = accurate summary of Machine Gun Preacher (2011) from the context; no invented facts."
+  },
+  {
+    "id": "t0097",
+    "category": "general",
+    "turns": [
+      "Tell me about Goal! II: Living the Dream."
+    ],
+    "expect_behavior": "PASS = accurate summary of Goal! II: Living the Dream (2007) from the context; no invented facts."
+  },
+  {
+    "id": "t0098",
+    "category": "general",
+    "turns": [
+      "Tell me about The Full Monty."
+    ],
+    "expect_behavior": "PASS = accurate summary of The Full Monty (1997) from the context; no invented facts."
+  },
+  {
+    "id": "t0099",
+    "category": "general",
+    "turns": [
+      "Tell me about Boys Don't Cry."
+    ],
+    "expect_behavior": "PASS = accurate summary of Boys Don't Cry (1999) from the context; no invented facts."
+  },
+  {
+    "id": "t0100",
+    "category": "general",
+    "turns": [
+      "Tell me about Monsters vs Aliens."
+    ],
+    "expect_behavior": "PASS = accurate summary of Monsters vs Aliens (2009) from the context; no invented facts."
+  },
+  {
+    "id": "t0101",
+    "category": "general",
+    "turns": [
+      "Tell me about Like Crazy."
+    ],
+    "expect_behavior": "PASS = accurate summary of Like Crazy (2016) from the context; no invented facts."
+  },
+  {
+    "id": "t0102",
+    "category": "general",
+    "turns": [
+      "Tell me about Layer Cake."
+    ],
+    "expect_behavior": "PASS = accurate summary of Layer Cake (2004) from the context; no invented facts."
+  },
+  {
+    "id": "t0103",
+    "category": "general",
+    "turns": [
+      "Tell me about The Andromeda Strain."
+    ],
+    "expect_behavior": "PASS = accurate summary of The Andromeda Strain (1971) from the context; no invented facts."
+  },
+  {
+    "id": "t0104",
+    "category": "general",
+    "turns": [
+      "Tell me about The Reef."
+    ],
+    "expect_behavior": "PASS = accurate summary of The Reef (2010) from the context; no invented facts."
+  },
+  {
+    "id": "t0105",
+    "category": "general",
+    "turns": [
+      "Tell me about Good Luck Chuck."
+    ],
+    "expect_behavior": "PASS = accurate summary of Good Luck Chuck (2007) from the context; no invented facts."
+  },
+  {
+    "id": "t0106",
+    "category": "general",
+    "turns": [
+      "Tell me about Hours."
+    ],
+    "expect_behavior": "PASS = accurate summary of Hours (2013) from the context; no invented facts."
+  },
+  {
+    "id": "t0107",
+    "category": "general",
+    "turns": [
+      "Tell me about Stone."
+    ],
+    "expect_behavior": "PASS = accurate summary of Stone (2010) from the context; no invented facts."
+  },
+  {
+    "id": "t0108",
+    "category": "general",
+    "turns": [
+      "Tell me about The Girl with the Dragon Tattoo."
+    ],
+    "expect_behavior": "PASS = accurate summary of The Girl with the Dragon Tattoo (2009) from the context; no invented facts."
+  },
+  {
+    "id": "t0109",
+    "category": "general",
+    "turns": [
+      "Tell me about Encanto."
+    ],
+    "expect_behavior": "PASS = accurate summary of Encanto (2021) from the context; no invented facts."
+  },
+  {
+    "id": "t0110",
+    "category": "general",
+    "turns": [
+      "Tell me about Mulan."
+    ],
+    "expect_behavior": "PASS = accurate summary of Mulan (2020) from the context; no invented facts."
+  },
+  {
+    "id": "t0111",
+    "category": "opinion",
+    "turns": [
+      "Is Pretty Woman worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0112",
+    "category": "opinion",
+    "turns": [
+      "Is Nothing Left to Do but Cry worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0113",
+    "category": "opinion",
+    "turns": [
+      "Is Me Before You worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0114",
+    "category": "opinion",
+    "turns": [
+      "Is Cloudy with a Chance of Meatballs 2 worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0115",
+    "category": "opinion",
+    "turns": [
+      "Is A Special Day worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0116",
+    "category": "opinion",
+    "turns": [
+      "Is Pride and Glory worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0117",
+    "category": "opinion",
+    "turns": [
+      "Is The Wizard of Lies worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0118",
+    "category": "opinion",
+    "turns": [
+      "Is Teen Titans: The Judas Contract worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0119",
+    "category": "opinion",
+    "turns": [
+      "Is A River Runs Through It worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0120",
+    "category": "opinion",
+    "turns": [
+      "Is Marathon Man worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0121",
+    "category": "opinion",
+    "turns": [
+      "Is Crimson Tide worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0122",
+    "category": "opinion",
+    "turns": [
+      "Is Old Dogs worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0123",
+    "category": "opinion",
+    "turns": [
+      "Is Hellraiser III: Hell on Earth worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0124",
+    "category": "opinion",
+    "turns": [
+      "Is The Man Who Would Be King worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0125",
+    "category": "opinion",
+    "turns": [
+      "Is The Awakening worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0126",
+    "category": "opinion",
+    "turns": [
+      "Is The Beaver worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0127",
+    "category": "opinion",
+    "turns": [
+      "Is Game Over, Man! worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0128",
+    "category": "opinion",
+    "turns": [
+      "Is The Rundown worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0129",
+    "category": "opinion",
+    "turns": [
+      "Is Soylent Green worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0130",
+    "category": "opinion",
+    "turns": [
+      "Is Barbie as The Princess & the Pauper worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0131",
+    "category": "opinion",
+    "turns": [
+      "Is The Merchant of Venice worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0132",
+    "category": "opinion",
+    "turns": [
+      "Is The Unborn worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0133",
+    "category": "opinion",
+    "turns": [
+      "Is Love & Other Drugs worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0134",
+    "category": "opinion",
+    "turns": [
+      "Is The Railway Man worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0135",
+    "category": "opinion",
+    "turns": [
+      "Is Mortdecai worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0136",
+    "category": "opinion",
+    "turns": [
+      "Is Scooby-Doo on Zombie Island worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0137",
+    "category": "opinion",
+    "turns": [
+      "Is Animal House worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0138",
+    "category": "opinion",
+    "turns": [
+      "Is French Kiss worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0139",
+    "category": "opinion",
+    "turns": [
+      "Is The Wild worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0140",
+    "category": "opinion",
+    "turns": [
+      "Is Ibiza worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0141",
+    "category": "opinion",
+    "turns": [
+      "Is Hot Rod worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0142",
+    "category": "opinion",
+    "turns": [
+      "Is Monster-in-Law worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0143",
+    "category": "opinion",
+    "turns": [
+      "Is Walk of Shame worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0144",
+    "category": "opinion",
+    "turns": [
+      "Is The Silence of the Lambs worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0145",
+    "category": "opinion",
+    "turns": [
+      "Is Leaving Las Vegas worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0146",
+    "category": "opinion",
+    "turns": [
+      "Is Act of Valor worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0147",
+    "category": "opinion",
+    "turns": [
+      "Is Are We There Yet? worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0148",
+    "category": "opinion",
+    "turns": [
+      "Is Play It Again, Sam worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0149",
+    "category": "opinion",
+    "turns": [
+      "Is The War of the Roses worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0150",
+    "category": "opinion",
+    "turns": [
+      "Is Police Academy 5: Assignment Miami Beach worth watching?"
+    ],
+    "expect_behavior": "PASS = clear verdict first and who would enjoy it, based on the rating and plot in the context; no invented facts."
+  },
+  {
+    "id": "t0151",
+    "category": "recommend",
+    "turns": [
+      "I just watched Tower Heist and loved it. What should I watch next?"
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context (not Tower Heist), each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0152",
+    "category": "recommend",
+    "turns": [
+      "I just watched Solace and loved it. What should I watch next?"
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context (not Solace), each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0153",
+    "category": "recommend",
+    "turns": [
+      "I just watched Anacondas: The Hunt for the Blood Orchid and loved it. What should I watch next?"
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context (not Anacondas: The Hunt for the Blood Orchid), each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0154",
+    "category": "recommend",
+    "turns": [
+      "I just watched The Mad Adventures of Rabbi Jacob and loved it. What should I watch next?"
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context (not The Mad Adventures of Rabbi Jacob), each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0155",
+    "category": "recommend",
+    "turns": [
+      "I just watched The New Adventures of Aladdin and loved it. What should I watch next?"
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context (not The New Adventures of Aladdin), each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0156",
+    "category": "recommend",
+    "turns": [
+      "I just watched Who Am I? and loved it. What should I watch next?"
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context (not Who Am I?), each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0157",
+    "category": "recommend",
+    "turns": [
+      "I just watched Renfield and loved it. What should I watch next?"
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context (not Renfield), each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0158",
+    "category": "recommend",
+    "turns": [
+      "I just watched In the Fade and loved it. What should I watch next?"
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context (not In the Fade), each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0159",
+    "category": "recommend",
+    "turns": [
+      "I just watched Lord of War and loved it. What should I watch next?"
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context (not Lord of War), each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0160",
+    "category": "recommend",
+    "turns": [
+      "I just watched Dark Skies and loved it. What should I watch next?"
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context (not Dark Skies), each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0161",
+    "category": "recommend",
+    "turns": [
+      "I just watched Seraphim Falls and loved it. What should I watch next?"
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context (not Seraphim Falls), each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0162",
+    "category": "recommend",
+    "turns": [
+      "I just watched Barbie and the Magic of Pegasus and loved it. What should I watch next?"
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context (not Barbie and the Magic of Pegasus), each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0163",
+    "category": "recommend",
+    "turns": [
+      "I just watched Lockout and loved it. What should I watch next?"
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context (not Lockout), each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0164",
+    "category": "recommend",
+    "turns": [
+      "I just watched Horrible Bosses 2 and loved it. What should I watch next?"
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context (not Horrible Bosses 2), each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0165",
+    "category": "recommend",
+    "turns": [
+      "I just watched Boss Level and loved it. What should I watch next?"
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context (not Boss Level), each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0166",
+    "category": "recommend",
+    "turns": [
+      "I just watched Jason Goes to Hell: The Final Friday and loved it. What should I watch next?"
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context (not Jason Goes to Hell: The Final Friday), each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0167",
+    "category": "recommend",
+    "turns": [
+      "I just watched Barbie: Fairytopia and loved it. What should I watch next?"
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context (not Barbie: Fairytopia), each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0168",
+    "category": "recommend",
+    "turns": [
+      "I just watched Monsters, Inc. and loved it. What should I watch next?"
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context (not Monsters, Inc.), each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0169",
+    "category": "recommend",
+    "turns": [
+      "I just watched The Amityville Horror and loved it. What should I watch next?"
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context (not The Amityville Horror), each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0170",
+    "category": "recommend",
+    "turns": [
+      "I just watched Cry-Baby and loved it. What should I watch next?"
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context (not Cry-Baby), each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0171",
+    "category": "recommend",
+    "turns": [
+      "Recommend me some family movies from the 2010s."
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context, each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0172",
+    "category": "recommend",
+    "turns": [
+      "Recommend me some documentary movies from the 1980s."
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context, each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0173",
+    "category": "recommend",
+    "turns": [
+      "Recommend me some western movies from the 1970s."
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context, each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0174",
+    "category": "recommend",
+    "turns": [
+      "Recommend me some science fiction movies from the 2010s."
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context, each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0175",
+    "category": "recommend",
+    "turns": [
+      "Recommend me some drama movies from the 1990s."
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context, each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0176",
+    "category": "recommend",
+    "turns": [
+      "Recommend me some romance movies from the 2010s."
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context, each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0177",
+    "category": "recommend",
+    "turns": [
+      "Recommend me some adventure movies from the 2000s."
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context, each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0178",
+    "category": "recommend",
+    "turns": [
+      "Recommend me some action movies from the 2000s."
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context, each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0179",
+    "category": "recommend",
+    "turns": [
+      "Recommend me some animation movies from the 1970s."
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context, each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0180",
+    "category": "recommend",
+    "turns": [
+      "Recommend me some war movies from the 2000s."
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context, each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0181",
+    "category": "recommend",
+    "turns": [
+      "Recommend me some crime movies from the 1990s."
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context, each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0182",
+    "category": "recommend",
+    "turns": [
+      "Recommend me some science fiction movies from the 1980s."
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context, each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0183",
+    "category": "recommend",
+    "turns": [
+      "Recommend me some drama movies from the 2010s."
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context, each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0184",
+    "category": "recommend",
+    "turns": [
+      "Recommend me some horror movies from the 2000s."
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context, each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0185",
+    "category": "recommend",
+    "turns": [
+      "Recommend me some family movies from the 1980s."
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context, each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0186",
+    "category": "recommend",
+    "turns": [
+      "Recommend me some family movies from the 1980s."
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context, each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0187",
+    "category": "recommend",
+    "turns": [
+      "Recommend me some romance movies from the 1990s."
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context, each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0188",
+    "category": "recommend",
+    "turns": [
+      "Recommend me some romance movies from the 1990s."
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context, each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0189",
+    "category": "recommend",
+    "turns": [
+      "Recommend me some history movies from the 1980s."
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context, each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0190",
+    "category": "recommend",
+    "turns": [
+      "Recommend me some drama movies from the 2000s."
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context, each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0191",
+    "category": "recommend",
+    "turns": [
+      "Recommend me some animation movies from the 1980s."
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context, each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0192",
+    "category": "recommend",
+    "turns": [
+      "Recommend me some drama movies from the 2010s."
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context, each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0193",
+    "category": "recommend",
+    "turns": [
+      "Recommend me some horror movies from the 1970s."
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context, each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0194",
+    "category": "recommend",
+    "turns": [
+      "Recommend me some thriller movies from the 1990s."
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context, each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0195",
+    "category": "recommend",
+    "turns": [
+      "Recommend me some documentary movies from the 2000s."
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context, each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0196",
+    "category": "recommend",
+    "turns": [
+      "Recommend me some tv movie movies from the 2000s."
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context, each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0197",
+    "category": "recommend",
+    "turns": [
+      "Recommend me some western movies from the 2000s."
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context, each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0198",
+    "category": "recommend",
+    "turns": [
+      "Recommend me some tv movie movies from the 1990s."
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context, each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0199",
+    "category": "recommend",
+    "turns": [
+      "Recommend me some tv movie movies from the 2010s."
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context, each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0200",
+    "category": "recommend",
+    "turns": [
+      "Recommend me some drama movies from the 2000s."
+    ],
+    "expect_behavior": "PASS = recommends two or three films from the context, each with a one-line reason; no films outside the context."
+  },
+  {
+    "id": "t0201",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a really obnoxious guy gives relationship advice to his incredibly lazy best friend who's trying to find love?"
+    ],
+    "expect_behavior": "PASS = identifies Dikkenek (2006) and describes it from the context."
+  },
+  {
+    "id": "t0202",
+    "category": "identify",
+    "turns": [
+      "What’s the movie where a really smart kid builds a rocket and flies into space to save all the adults after aliens abduct them?"
+    ],
+    "expect_behavior": "PASS = identifies Jimmy Neutron: Boy Genius (2001) and describes it from the context."
+  },
+  {
+    "id": "t0203",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a bunch of famous directors each made a short film all set in Paris, and one of them involved a man getting life advice from a sex worker?"
+    ],
+    "expect_behavior": "PASS = identifies Paris Je T'aime (2006) and describes it from the context."
+  },
+  {
+    "id": "t0204",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a guy who polices time travel gets hunted by a powerful, corrupt official with a personal connection to him?"
+    ],
+    "expect_behavior": "PASS = identifies Timecop (1994) and describes it from the context."
+  },
+  {
+    "id": "t0205",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a bunch of awful people fight over who gets to be in charge after a really scary, powerful leader suddenly dies?"
+    ],
+    "expect_behavior": "PASS = identifies The Death of Stalin (2017) and describes it from the context."
+  },
+  {
+    "id": "t0206",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a scientist at the North Pole is trying to warn astronauts coming back from space about something terrible happening on Earth?"
+    ],
+    "expect_behavior": "PASS = identifies The Midnight Sky (2020) and describes it from the context."
+  },
+  {
+    "id": "t0207",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a group of playthings on a vacation end up at a creepy motel and start disappearing one by one?"
+    ],
+    "expect_behavior": "PASS = identifies Toy Story of Terror! (2013) and describes it from the context."
+  },
+  {
+    "id": "t0208",
+    "category": "identify",
+    "turns": [
+      "What’s the movie where a slave leads a massive uprising against the Roman Empire, starting from a gladiator school?"
+    ],
+    "expect_behavior": "PASS = identifies Spartacus (1960) and describes it from the context."
+  },
+  {
+    "id": "t0209",
+    "category": "identify",
+    "turns": [
+      "What’s the movie where the last of the rebels fight a huge, technologically advanced enemy, and a young woman trained in an ancient tradition is key to winning the war?"
+    ],
+    "expect_behavior": "PASS = identifies Star Wars: The Rise of Skywalker (2019) and describes it from the context."
+  },
+  {
+    "id": "t0210",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a novelist keeps turning the people in his life into characters in his books, and it ruins his relationships?"
+    ],
+    "expect_behavior": "PASS = identifies Deconstructing Harry (1997) and describes it from the context."
+  },
+  {
+    "id": "t0211",
+    "category": "identify",
+    "turns": [
+      "What’s the movie where two cops in Miami have to deal with personal problems while joining a new, specialized unit to go after a really dangerous drug lord?"
+    ],
+    "expect_behavior": "PASS = identifies Bad Boys for Life (2020) and describes it from the context."
+  },
+  {
+    "id": "t0212",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a teenager becomes convinced his reclusive neighbor is a former Nazi and tries to prove it?"
+    ],
+    "expect_behavior": "PASS = identifies Apt Pupil (1998) and describes it from the context."
+  },
+  {
+    "id": "t0213",
+    "category": "identify",
+    "turns": [
+      "What’s the movie where a guy with incredible martial arts skills has to deal with his estranged, powerful father and a secret criminal empire built around magical rings?"
+    ],
+    "expect_behavior": "PASS = identifies Shang-Chi and the Legend of the Ten Rings (2021) and describes it from the context."
+  },
+  {
+    "id": "t0214",
+    "category": "identify",
+    "turns": [
+      "What's the movie where the big, strong guy falls for a woman who's already in love, then they all get caught up in a rescue mission involving a trip to Rome and lots of fighting?"
+    ],
+    "expect_behavior": "PASS = identifies Asterix vs. Caesar (1985) and describes it from the context."
+  },
+  {
+    "id": "t0215",
+    "category": "identify",
+    "turns": [
+      "What’s the movie where a commoner pretends to be a knight and competes in jousting tournaments to win the hand of a noblewoman?"
+    ],
+    "expect_behavior": "PASS = identifies A Knight's Tale (2001) and describes it from the context."
+  },
+  {
+    "id": "t0216",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a bunch of rich kids start breaking into houses based on what they find online about when the owners will be away?"
+    ],
+    "expect_behavior": "PASS = identifies The Bling Ring (2013) and describes it from the context."
+  },
+  {
+    "id": "t0217",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a lawyer has a brief affair that turns into a terrifying, relentless stalking situation and he has to protect his family?"
+    ],
+    "expect_behavior": "PASS = identifies Fatal Attraction (1987) and describes it from the context."
+  },
+  {
+    "id": "t0218",
+    "category": "identify",
+    "turns": [
+      "What's the movie where they bring back the woman who fought those creatures a long time ago by cloning her, but she ends up fighting *with* a group of spacefaring criminals to stop a new wave of them?"
+    ],
+    "expect_behavior": "PASS = identifies Alien Resurrection (1997) and describes it from the context."
+  },
+  {
+    "id": "t0219",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a social worker helping foster kids gets emotionally affected by one of the teenagers and it forces her to confront her own difficult childhood?"
+    ],
+    "expect_behavior": "PASS = identifies Short Term 12 (2013) and describes it from the context."
+  },
+  {
+    "id": "t0220",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a group tries to reach a safe haven on the Gulf Coast during a widespread, deadly virus outbreak, and their car breaking down leads to everything going wrong?"
+    ],
+    "expect_behavior": "PASS = identifies Carriers (2009) and describes it from the context."
+  },
+  {
+    "id": "t0221",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a park ranger has to go back to the mountain where his friend died, and the people he's supposed to rescue turn out to be criminals stealing cash?"
+    ],
+    "expect_behavior": "PASS = identifies Cliffhanger (1993) and describes it from the context."
+  },
+  {
+    "id": "t0222",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a teenage babysitter is harassed by a caller while the kids are asleep?"
+    ],
+    "expect_behavior": "PASS = identifies When a Stranger Calls (2006) and describes it from the context."
+  },
+  {
+    "id": "t0223",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a woman who spent years preparing for a robot apocalypse has to team up with another protector to save a young man from a really advanced, shape-shifting killing machine sent from the future?"
+    ],
+    "expect_behavior": "PASS = identifies Terminator: Dark Fate (2019) and describes it from the context."
+  },
+  {
+    "id": "t0224",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a mathematician, a housewife, and an ex-con are all connected by a devastating car crash and try to find redemption?"
+    ],
+    "expect_behavior": "PASS = identifies 21 Grams (2003) and describes it from the context."
+  },
+  {
+    "id": "t0225",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a seemingly normal man abducts a woman and holds her captive in a hidden, soundproof room trying to force her to reveal something from her past?"
+    ],
+    "expect_behavior": "PASS = identifies 10x10 (2018) and describes it from the context."
+  },
+  {
+    "id": "t0226",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a writer at a lakeside cabin is terrorized by a man who believes he stole his story, and things get really psychologically messed up?"
+    ],
+    "expect_behavior": "PASS = identifies Secret Window (2004) and describes it from the context."
+  },
+  {
+    "id": "t0227",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a thief breaks into a wealthy woman's home and she tragically dies, then he discovers he keeps coming back to life and tries to prevent her death in each new life?"
+    ],
+    "expect_behavior": "PASS = identifies Winter's Tale (2014) and describes it from the context."
+  },
+  {
+    "id": "t0228",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a Gaulish warrior and his enormous friend travel to a new continent to rescue their village elder after he's launched by a Roman siege engine?"
+    ],
+    "expect_behavior": "PASS = identifies Asterix Conquers America (1994) and describes it from the context."
+  },
+  {
+    "id": "t0229",
+    "category": "identify",
+    "turns": [
+      "What’s the movie where a bunch of people in New York City are all navigating dating and relationships, and it feels like everyone is trying to figure out what love even *means* anymore?"
+    ],
+    "expect_behavior": "PASS = identifies How to Be Single (2016) and describes it from the context."
+  },
+  {
+    "id": "t0230",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a journalist washes ashore on an island inhabited by people who are only a few inches tall?"
+    ],
+    "expect_behavior": "PASS = identifies Gulliver's Travels (2010) and describes it from the context."
+  },
+  {
+    "id": "t0231",
+    "category": "identify",
+    "turns": [
+      "What’s the movie where a really smart kid gets mixed up with fairies and tries to get rich, but it turns out his dad might be missing and it’s all connected?"
+    ],
+    "expect_behavior": "PASS = identifies Artemis Fowl (2020) and describes it from the context."
+  },
+  {
+    "id": "t0232",
+    "category": "identify",
+    "turns": [
+      "What’s the movie where a longshoreman keeps pigeons and feels guilty after seeing a crime, then gets pressured by a priest to testify against his mob boss employer?"
+    ],
+    "expect_behavior": "PASS = identifies On the Waterfront (1954) and describes it from the context."
+  },
+  {
+    "id": "t0233",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a high school football player in the 70s has to decide between signing a pledge against drugs and keeping his social life with a diverse group of friends?"
+    ],
+    "expect_behavior": "PASS = identifies Dazed and Confused (1993) and describes it from the context."
+  },
+  {
+    "id": "t0234",
+    "category": "identify",
+    "turns": [
+      "What's the movie where an older Secret Service agent, still grappling with the Kennedy assassination, gets pulled back into duty to protect a new president from a threat referencing Lincoln's assassin?"
+    ],
+    "expect_behavior": "PASS = identifies In the Line of Fire (1993) and describes it from the context."
+  },
+  {
+    "id": "t0235",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a cat and mouse get kicked out of a house and cause chaos in a really nice hotel, and a woman tries to hire the cat to catch the mouse to save her job?"
+    ],
+    "expect_behavior": "PASS = identifies Tom & Jerry (2021) and describes it from the context."
+  },
+  {
+    "id": "t0236",
+    "category": "identify",
+    "turns": [
+      "What’s the movie where a reporter investigates a cursed video tape that kills people a week after they see it?"
+    ],
+    "expect_behavior": "PASS = identifies The Ring (2002) and describes it from the context."
+  },
+  {
+    "id": "t0237",
+    "category": "identify",
+    "turns": [
+      "What’s the movie where an older newsreader threatens to commit suicide on air, and it actually *boosts* the ratings?"
+    ],
+    "expect_behavior": "PASS = identifies Network (1976) and describes it from the context."
+  },
+  {
+    "id": "t0238",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a billionaire with a troubled past teams up with a powerful, immortal woman to gather a group of people with extraordinary abilities to prepare for a massive alien invasion after a major hero dies?"
+    ],
+    "expect_behavior": "PASS = identifies Zack Snyder's Justice League (2021) and describes it from the context."
+  },
+  {
+    "id": "t0239",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a man goes on a violent rampage seeking payback for his wife’s murder, and his partner tries to keep him focused on taking down the *real* person who ordered the hit, not just the low-level guys?"
+    ],
+    "expect_behavior": "PASS = identifies A Man Apart (2003) and describes it from the context."
+  },
+  {
+    "id": "t0240",
+    "category": "identify",
+    "turns": [
+      "What’s the movie where a woman is haunted by a dream demon who's trying to possess her baby before it's born, and the only way to defeat him involves freeing his mother’s spirit?"
+    ],
+    "expect_behavior": "PASS = identifies A Nightmare on Elm Street: The Dream Child (1989) and describes it from the context."
+  },
+  {
+    "id": "t0241",
+    "category": "identify",
+    "turns": [
+      "What’s the movie where a guy obsessed with finding lost treasure basically ruins his life, then forces his ex-wife and her incredibly wealthy boss to help him on a dangerous search, while being pursued by a rival and a surprisingly menacing musician?"
+    ],
+    "expect_behavior": "PASS = identifies Fool's Gold (2008) and describes it from the context."
+  },
+  {
+    "id": "t0242",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a couple tries to skip Christmas and ends up having to throw a huge party at the last minute when their daughter unexpectedly comes home with her fiancé?"
+    ],
+    "expect_behavior": "PASS = identifies Christmas with the Kranks (2004) and describes it from the context."
+  },
+  {
+    "id": "t0243",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a Jedi is falling in love while protecting a politician who keeps getting targeted for assassination, and it leads to a big conflict with a secret, powerful organization?"
+    ],
+    "expect_behavior": "PASS = identifies Star Wars: Episode II - Attack of the Clones (2002) and describes it from the context."
+  },
+  {
+    "id": "t0244",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a seemingly normal dad goes on a rampage after something terrible happens to his loved ones?"
+    ],
+    "expect_behavior": "PASS = identifies Death Wish (2018) and describes it from the context."
+  },
+  {
+    "id": "t0245",
+    "category": "identify",
+    "turns": [
+      "What’s the movie where a woman purposefully marries a stranger in Las Vegas to try and avoid a family pattern of first marriages failing, before she marries her actual fiancé?"
+    ],
+    "expect_behavior": "PASS = identifies A Perfect Plan (2012) and describes it from the context."
+  },
+  {
+    "id": "t0246",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a couple gets married despite the bride's snobby family and then their European honeymoon is just one catastrophe after another, making them question everything?"
+    ],
+    "expect_behavior": "PASS = identifies Just Married (2003) and describes it from the context."
+  },
+  {
+    "id": "t0247",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a young, inexperienced swindler learns the ropes from a seasoned pro, and they target a powerful criminal to get revenge for a friend?"
+    ],
+    "expect_behavior": "PASS = identifies The Sting (1973) and describes it from the context."
+  },
+  {
+    "id": "t0248",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a teacher in a tough neighborhood uses writing and empowerment to help her students overcome difficult circumstances and dream bigger than they thought possible?"
+    ],
+    "expect_behavior": "PASS = identifies Freedom Writers (2007) and describes it from the context."
+  },
+  {
+    "id": "t0249",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a woman decides to get pregnant via artificial insemination, then immediately meets a man she really connects with?"
+    ],
+    "expect_behavior": "PASS = identifies The Back-Up Plan (2010) and describes it from the context."
+  },
+  {
+    "id": "t0250",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a little girl moves into an old house and finds a beautiful, perfect world hidden inside, but it turns out to be really creepy and not what it seems?"
+    ],
+    "expect_behavior": "PASS = identifies Coraline (2009) and describes it from the context."
+  },
+  {
+    "id": "t0251",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a wealthy Hawaiian businessman travels to another island to confront someone involved with his comatose wife, while also trying to reconnect with his daughters?"
+    ],
+    "expect_behavior": "PASS = identifies The Descendants (2011) and describes it from the context."
+  },
+  {
+    "id": "t0252",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a recently released prisoner has to go on the run with his teenage daughter because she witnessed something she shouldn't have and now dangerous people are after her?"
+    ],
+    "expect_behavior": "PASS = identifies Blood Father (2016) and describes it from the context."
+  },
+  {
+    "id": "t0253",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a woman is assaulted in a bar, and the legal case focuses not just on the immediate attackers but also on everyone who stood by and enabled it?"
+    ],
+    "expect_behavior": "PASS = identifies The Accused (1988) and describes it from the context."
+  },
+  {
+    "id": "t0254",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a woman travels the world collecting mystical energy beings to save the planet from a destructive force born of negativity?"
+    ],
+    "expect_behavior": "PASS = identifies Final Fantasy: The Spirits Within (2001) and describes it from the context."
+  },
+  {
+    "id": "t0255",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a guy makes money spreading lies and negativity online, and it eventually leads to someone getting hurt in real life?"
+    ],
+    "expect_behavior": "PASS = identifies The Hater (2020) and describes it from the context."
+  },
+  {
+    "id": "t0256",
+    "category": "identify",
+    "turns": [
+      "What’s the movie where a quiet, withdrawn man lives in a Swiss hotel for years, and everyone wonders what he’s hiding from his past?"
+    ],
+    "expect_behavior": "PASS = identifies The Consequences of Love (2004) and describes it from the context."
+  },
+  {
+    "id": "t0257",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a family is snowed in at a cabin with a new girlfriend, and spooky things start happening that seem connected to *her* history?"
+    ],
+    "expect_behavior": "PASS = identifies The Lodge (2020) and describes it from the context."
+  },
+  {
+    "id": "t0258",
+    "category": "identify",
+    "turns": [
+      "What's the movie where a group of kids who meet in Saturday detention end up starting a band to stick it to the popular kids and advocate for the underdog students?"
+    ],
+    "expect_behavior": "PASS = identifies Lemonade Mouth (2011) and describes it from the context."
+  },
+  {
+    "id": "t0259",
+    "category": "identify",
+    "turns": [
+      "What’s the movie where a couple is terrorized in their vacation home by masked intruders after coming back from a celebration?"
+    ],
+    "expect_behavior": "PASS = identifies The Strangers (2008) and describes it from the context."
+  },
+  {
+    "id": "t0260",
+    "category": "identify",
+    "turns": [
+      "What’s the movie where an insurance office suddenly becomes a pirate ship, and there’s a really disturbing scene with a glutton and a liver?"
+    ],
+    "expect_behavior": "PASS = identifies Monty Python's The Meaning of Life (1983) and describes it from the context."
+  },
+  {
+    "id": "t0261",
+    "category": "credits_missing",
+    "turns": [
+      "Who directed 24: Redemption?"
+    ],
+    "expect_behavior": "24: Redemption has NO director in the database. PASS = says it doesn't have the director. FAIL = names anyone."
+  },
+  {
+    "id": "t0262",
+    "category": "credits_missing",
+    "turns": [
+      "Who directed BTS World Tour: Love Yourself - Japan Edition?"
+    ],
+    "expect_behavior": "BTS World Tour: Love Yourself - Japan Edition has NO director in the database. PASS = says it doesn't have the director. FAIL = names anyone."
+  },
+  {
+    "id": "t0263",
+    "category": "credits_missing",
+    "turns": [
+      "Who directed George Harrison: Living in the Material World?"
+    ],
+    "expect_behavior": "George Harrison: Living in the Material World has NO director in the database. PASS = says it doesn't have the director. FAIL = names anyone."
+  },
+  {
+    "id": "t0264",
+    "category": "credits_missing",
+    "turns": [
+      "Who directed Save Ralph?"
+    ],
+    "expect_behavior": "Save Ralph has NO director in the database. PASS = says it doesn't have the director. FAIL = names anyone."
+  },
+  {
+    "id": "t0265",
+    "category": "credits_missing",
+    "turns": [
+      "Who directed Gad Elmaleh - Papa est en haut?"
+    ],
+    "expect_behavior": "Gad Elmaleh - Papa est en haut has NO director in the database. PASS = says it doesn't have the director. FAIL = names anyone."
+  },
+  {
+    "id": "t0266",
+    "category": "credits_missing",
+    "turns": [
+      "Who directed Marvel Studios: Assembling a Universe?"
+    ],
+    "expect_behavior": "Marvel Studios: Assembling a Universe has NO director in the database. PASS = says it doesn't have the director. FAIL = names anyone."
+  },
+  {
+    "id": "t0267",
+    "category": "credits_missing",
+    "turns": [
+      "Who directed Captain EO?"
+    ],
+    "expect_behavior": "Captain EO has NO director in the database. PASS = says it doesn't have the director. FAIL = names anyone."
+  },
+  {
+    "id": "t0268",
+    "category": "credits_missing",
+    "turns": [
+      "Who directed On Your Mark?"
+    ],
+    "expect_behavior": "On Your Mark has NO director in the database. PASS = says it doesn't have the director. FAIL = names anyone."
+  },
+  {
+    "id": "t0269",
+    "category": "credits_missing",
+    "turns": [
+      "Who directed Free to Play?"
+    ],
+    "expect_behavior": "Free to Play has NO director in the database. PASS = says it doesn't have the director. FAIL = names anyone."
+  },
+  {
+    "id": "t0270",
+    "category": "credits_missing",
+    "turns": [
+      "Who directed A Personal Journey with Martin Scorsese Through American Movies?"
+    ],
+    "expect_behavior": "A Personal Journey with Martin Scorsese Through American Movies has NO director in the database. PASS = says it doesn't have the director. FAIL = names anyone."
+  },
+  {
+    "id": "t0271",
+    "category": "credits_missing",
+    "turns": [
+      "Who directed 50 Greatest Harry Potter Moments?"
+    ],
+    "expect_behavior": "50 Greatest Harry Potter Moments has NO director in the database. PASS = says it doesn't have the director. FAIL = names anyone."
+  },
+  {
+    "id": "t0272",
+    "category": "credits_missing",
+    "turns": [
+      "Who directed Maluma: What I Was, What I Am, What I Will Be?"
+    ],
+    "expect_behavior": "Maluma: What I Was, What I Am, What I Will Be has NO director in the database. PASS = says it doesn't have the director. FAIL = names anyone."
+  },
+  {
+    "id": "t0273",
+    "category": "credits_missing",
+    "turns": [
+      "Who directed Creating The Queen's Gambit?"
+    ],
+    "expect_behavior": "Creating The Queen's Gambit has NO director in the database. PASS = says it doesn't have the director. FAIL = names anyone."
+  },
+  {
+    "id": "t0274",
+    "category": "no_match",
+    "turns": [
+      "What can you tell me about the 1974 film The Amber Frontier?"
+    ],
+    "expect_behavior": "This film does not exist. PASS = says it has nothing on it. FAIL = any plot, cast or director."
+  },
+  {
+    "id": "t0275",
+    "category": "no_match",
+    "turns": [
+      "What can you tell me about the 1979 film The Distant Lantern?"
+    ],
+    "expect_behavior": "This film does not exist. PASS = says it has nothing on it. FAIL = any plot, cast or director."
+  },
+  {
+    "id": "t0276",
+    "category": "no_match",
+    "turns": [
+      "What can you tell me about the 2009 film The Silent Ledger?"
+    ],
+    "expect_behavior": "This film does not exist. PASS = says it has nothing on it. FAIL = any plot, cast or director."
+  },
+  {
+    "id": "t0277",
+    "category": "no_match",
+    "turns": [
+      "What can you tell me about the 1990 film The Northern Harbor?"
+    ],
+    "expect_behavior": "This film does not exist. PASS = says it has nothing on it. FAIL = any plot, cast or director."
+  },
+  {
+    "id": "t0278",
+    "category": "no_match",
+    "turns": [
+      "What can you tell me about the 1986 film The Winter Signal?"
+    ],
+    "expect_behavior": "This film does not exist. PASS = says it has nothing on it. FAIL = any plot, cast or director."
+  },
+  {
+    "id": "t0279",
+    "category": "no_match",
+    "turns": [
+      "What can you tell me about the 2009 film The Glass Choir?"
+    ],
+    "expect_behavior": "This film does not exist. PASS = says it has nothing on it. FAIL = any plot, cast or director."
+  },
+  {
+    "id": "t0280",
+    "category": "no_match",
+    "turns": [
+      "What can you tell me about the 1974 film The Northern Station?"
+    ],
+    "expect_behavior": "This film does not exist. PASS = says it has nothing on it. FAIL = any plot, cast or director."
+  },
+  {
+    "id": "t0281",
+    "category": "no_match",
+    "turns": [
+      "What can you tell me about the 2000 film The Velvet Mirror?"
+    ],
+    "expect_behavior": "This film does not exist. PASS = says it has nothing on it. FAIL = any plot, cast or director."
+  },
+  {
+    "id": "t0282",
+    "category": "no_match",
+    "turns": [
+      "What can you tell me about the 2015 film The Cobalt Orchard?"
+    ],
+    "expect_behavior": "This film does not exist. PASS = says it has nothing on it. FAIL = any plot, cast or director."
+  },
+  {
+    "id": "t0283",
+    "category": "no_match",
+    "turns": [
+      "What can you tell me about the 1987 film The Winter Garden?"
+    ],
+    "expect_behavior": "This film does not exist. PASS = says it has nothing on it. FAIL = any plot, cast or director."
+  },
+  {
+    "id": "t0284",
+    "category": "no_match",
+    "turns": [
+      "What can you tell me about the 2010 film The Distant Station?"
+    ],
+    "expect_behavior": "This film does not exist. PASS = says it has nothing on it. FAIL = any plot, cast or director."
+  },
+  {
+    "id": "t0285",
+    "category": "no_match",
+    "turns": [
+      "What can you tell me about the 1992 film The Salt Signal?"
+    ],
+    "expect_behavior": "This film does not exist. PASS = says it has nothing on it. FAIL = any plot, cast or director."
+  },
+  {
+    "id": "t0286",
+    "category": "no_match",
+    "turns": [
+      "What can you tell me about the 1975 film The Amber Tide?"
+    ],
+    "expect_behavior": "This film does not exist. PASS = says it has nothing on it. FAIL = any plot, cast or director."
+  },
+  {
+    "id": "t0287",
+    "category": "no_match",
+    "turns": [
+      "What can you tell me about the 2012 film The Salt Choir?"
+    ],
+    "expect_behavior": "This film does not exist. PASS = says it has nothing on it. FAIL = any plot, cast or director."
+  },
+  {
+    "id": "t0288",
+    "category": "no_match",
+    "turns": [
+      "What can you tell me about the 1974 film The Cobalt Station?"
+    ],
+    "expect_behavior": "This film does not exist. PASS = says it has nothing on it. FAIL = any plot, cast or director."
+  },
+  {
+    "id": "t0289",
+    "category": "no_match",
+    "turns": [
+      "What can you tell me about the 2008 film The Salt Ledger?"
+    ],
+    "expect_behavior": "This film does not exist. PASS = says it has nothing on it. FAIL = any plot, cast or director."
+  },
+  {
+    "id": "t0290",
+    "category": "no_match",
+    "turns": [
+      "What can you tell me about the 2002 film The Northern Ledger?"
+    ],
+    "expect_behavior": "This film does not exist. PASS = says it has nothing on it. FAIL = any plot, cast or director."
+  },
+  {
+    "id": "t0291",
+    "category": "no_match",
+    "turns": [
+      "What can you tell me about the 1979 film The Amber Station?"
+    ],
+    "expect_behavior": "This film does not exist. PASS = says it has nothing on it. FAIL = any plot, cast or director."
+  },
+  {
+    "id": "t0292",
+    "category": "no_match",
+    "turns": [
+      "What can you tell me about the 2000 film The Glass Lantern?"
+    ],
+    "expect_behavior": "This film does not exist. PASS = says it has nothing on it. FAIL = any plot, cast or director."
+  },
+  {
+    "id": "t0293",
+    "category": "no_match",
+    "turns": [
+      "What can you tell me about the 2006 film The Distant Signal?"
+    ],
+    "expect_behavior": "This film does not exist. PASS = says it has nothing on it. FAIL = any plot, cast or director."
+  }
+]

@@ -1,0 +1,153 @@
+"""Grade the chatbot's answers with a second model.
+
+  python judge.py score --label now                 # rubric scores for every single-turn question
+  python judge.py score --label now --ids q07,q18   # just some
+  python judge.py dump-style > prompts/current.txt  # the prompt's current "How to answer" paragraph
+  python judge.py ab --a prompts/current.txt --b prompts/b.txt   # which instructions give better answers
+
+Judge defaults to gemma3:27b (local) - a different model family from the Qwen-based bot, to
+avoid self-preference. Pairwise comparisons run in both orders; only consistent wins count.
+"""
+import argparse, json, re, sys, time
+import ollama
+from chat import build_prompt
+
+CHAT_MODEL = "movie-buff"
+DEFAULT_JUDGE = "gemma3:27b"
+AB_DEFAULT_IDS = "q01,q05,q07,q08,q09,q11,q12,q14,q18,q19,q20,q21"
+STYLE_RE = re.compile(r"How to answer:.*?(?=\n\nOnly state a director)", re.S)
+
+SCORE_SYSTEM = """You are a strict evaluator of a movie chatbot. You see the CONTEXT the bot was given \
+(its only allowed source of facts), the QUESTION, the bot's ANSWER, and NOTES describing what a good \
+answer must do. Grade against the context and notes - not against your own film knowledge.
+
+Scores, 1-5:
+- grounded: 5 = every name, year, number and plot detail in the answer appears in the context. \
+3 = one minor detail is not in the context. 1 = invents credits, ratings or plot, or contradicts the context.
+- direct: 5 = the first sentence answers the question. 1 = the answer is buried or missing.
+- specific: 5 = uses concrete details from the context. 1 = generic praise that fits any film.
+- honest: 5 = if the context lacks what was asked, says so plainly (or the context had it). \
+1 = fills a gap from memory and presents it as fact.
+- concise: 5 = nothing unnecessary. 1 = padded, or talks about films the question didn't need. \
+Longer is NOT better.
+
+List every specific fact in the answer that is NOT in the context under "unsupported_claims" \
+(short phrases). verdict = "pass" if the answer meets the NOTES, else "fail".
+Reply with JSON only:
+{"unsupported_claims": [], "grounded": 0, "direct": 0, "specific": 0, "honest": 0, \
+"concise": 0, "verdict": "pass", "reason": "one sentence"}"""
+
+PAIR_SYSTEM = """You compare two answers from a movie chatbot to the same question. The bot was given \
+CONTEXT from its database and told to use only that for facts. Decide which answer is better for the \
+user, judging in this order: 1) no invented facts - names, years, numbers or plot details not in the \
+context count against an answer; 2) answers the question directly; 3) specific rather than generic; \
+4) honest about what the context lacks; 5) concise - a longer answer is NOT better if it adds nothing.
+Reply with JSON only: {"winner": "1" or "2" or "tie", "reason": "one sentence"}"""
+
+
+def tests(ids=None):
+    d = json.load(open("test_set.json"))
+    qs = [q for q in (d if isinstance(d, list) else d["questions"]) if len(q["turns"]) == 1]
+    if ids:
+        want = set(ids.split(","))
+        qs = [q for q in qs if q["id"] in want]
+    return qs
+
+def context_of(prompt):
+    m = re.search(r"relevant to the question:\n\n(.*?)\n\nQuestion:", prompt, re.S)
+    return m.group(1).strip() if m else "(none - retrieval found nothing, so the bot got the bare question)"
+
+def generate(prompt):
+    r = ollama.chat(model=CHAT_MODEL, think=False, messages=[{"role": "user", "content": prompt}])
+    return (r["message"]["content"] or "").strip()
+
+def judge_json(model, system, user):
+    for _ in range(3):
+        try:
+            r = ollama.chat(model=model, format="json", options={"temperature": 0},
+                            messages=[{"role": "system", "content": system},
+                                      {"role": "user", "content": user}])
+            return json.loads(r["message"]["content"])
+        except Exception as e:
+            err = e
+            time.sleep(1)
+    print(f"    judge failed: {err}")
+    return None
+
+def cmd_score(a):
+    qs = tests(a.ids)
+    print(f"generating {len(qs)} answers with {CHAT_MODEL} ...")
+    rows = []
+    for q in qs:
+        prompt, hits = build_prompt(q["turns"][0])
+        rows.append({"id": q["id"], "category": q["category"], "question": q["turns"][0],
+                     "notes": q.get("expect_behavior", ""), "context": context_of(prompt),
+                     "answer": generate(prompt)})
+        print(f"  {q['id']} done")
+    print(f"\njudging with {a.judge} ...\n")
+    keys = ("grounded", "direct", "specific", "honest", "concise")
+    totals = {k: [] for k in keys}; passes = 0
+    for r in rows:
+        v = judge_json(a.judge, SCORE_SYSTEM,
+            f"CONTEXT:\n{r['context']}\n\nQUESTION: {r['question']}\n\nANSWER:\n{r['answer']}\n\nNOTES: {r['notes']}")
+        r["judge"] = v
+        if not v:
+            continue
+        for k in keys:
+            if isinstance(v.get(k), (int, float)):
+                totals[k].append(v[k])
+        passes += v.get("verdict") == "pass"
+        uc = "; ".join(v.get("unsupported_claims") or [])[:70]
+        print(f"{r['id']:4s} {r['category']:17s} " + " ".join(f"{k[0].upper()}{v.get(k,'?')}" for k in keys)
+              + f"  {str(v.get('verdict','?')).upper():4s}  {('unsupported: ' + uc) if uc else ''}")
+    json.dump(rows, open(f"results/judge-{a.label}.json", "w"), indent=2, ensure_ascii=False)
+    judged = sum(1 for r in rows if r.get("judge"))
+    print("\n" + "  ".join(f"{k} {sum(v)/len(v):.2f}" for k, v in totals.items() if v))
+    print(f"pass {passes}/{judged}    saved results/judge-{a.label}.json (answers + reasons)")
+
+def cmd_dump(a):
+    q = "Is Fight Club worth watching?"
+    prompt, _ = build_prompt(q)
+    m = STYLE_RE.search(prompt)
+    sys.exit("style paragraph not found in the prompt") if not m else print(m.group(0).strip())
+
+def cmd_ab(a):
+    style_a, style_b = open(a.a).read().strip(), open(a.b).read().strip()
+    qs = tests(a.ids or AB_DEFAULT_IDS)
+    print(f"generating {len(qs)} x 2 answers ...")
+    rows = []
+    for q in qs:
+        base, _ = build_prompt(q["turns"][0])
+        if not STYLE_RE.search(base):
+            print(f"  {q['id']} skipped (no context, so both prompts are identical)"); continue
+        ans = {}
+        for name, style in (("A", style_a), ("B", style_b)):
+            ans[name] = generate(STYLE_RE.sub(lambda m: style, base, count=1))
+        rows.append({"id": q["id"], "question": q["turns"][0], "context": context_of(base), **ans})
+        print(f"  {q['id']} done")
+    print(f"\njudging with {a.judge}, each pair in both orders ...\n")
+    score = {"A": 0, "B": 0, "tie": 0, "inconsistent": 0}
+    for r in rows:
+        head = f"CONTEXT:\n{r['context']}\n\nQUESTION: {r['question']}\n\n"
+        v1 = judge_json(a.judge, PAIR_SYSTEM, head + f"ANSWER 1:\n{r['A']}\n\nANSWER 2:\n{r['B']}")
+        v2 = judge_json(a.judge, PAIR_SYSTEM, head + f"ANSWER 1:\n{r['B']}\n\nANSWER 2:\n{r['A']}")
+        w1 = {"1": "A", "2": "B"}.get(str((v1 or {}).get("winner")), "tie")
+        w2 = {"1": "B", "2": "A"}.get(str((v2 or {}).get("winner")), "tie")
+        result = w1 if w1 == w2 else "inconsistent"
+        score[result] += 1
+        r.update(result=result, reason_1=(v1 or {}).get("reason"), reason_2=(v2 or {}).get("reason"))
+        print(f"{r['id']:4s} {result:12s} {(v1 or {}).get('reason', '')[:90]}")
+    out = f"results/ab-{int(time.time())}.json"
+    json.dump(rows, open(out, "w"), indent=2, ensure_ascii=False)
+    print(f"\nA ({a.a}) wins {score['A']}   B ({a.b}) wins {score['B']}   "
+          f"tie {score['tie']}   inconsistent {score['inconsistent']}")
+    print(f"saved {out} - read the answers side by side before adopting B")
+
+ap = argparse.ArgumentParser()
+sub = ap.add_subparsers(dest="cmd", required=True)
+s = sub.add_parser("score"); s.add_argument("--label", required=True); s.add_argument("--ids")
+s.add_argument("--judge", default=DEFAULT_JUDGE); s.set_defaults(f=cmd_score)
+d = sub.add_parser("dump-style"); d.set_defaults(f=cmd_dump)
+b = sub.add_parser("ab"); b.add_argument("--a", required=True); b.add_argument("--b", required=True)
+b.add_argument("--ids"); b.add_argument("--judge", default=DEFAULT_JUDGE); b.set_defaults(f=cmd_ab)
+args = ap.parse_args(); args.f(args)
