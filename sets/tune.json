@@ -1,0 +1,2184 @@
+{
+ "questions": [
+  {
+   "id": "q01",
+   "category": "exact_title",
+   "maps_to": "hybrid_title_search",
+   "turns": [
+    "Tell me about The Departed."
+   ],
+   "expect_retrieved": [
+    "The Departed"
+   ],
+   "expect_behavior": "Describes the actual film - Boston, undercover cop, mob informant. Not a thematically similar crime film.",
+   "expect_year": "2006",
+   "source": "own",
+   "retrieval_graded": true,
+   "film_key": "1422",
+   "bucket": 20,
+   "split": "tune"
+  },
+  {
+   "id": "q02",
+   "category": "exact_title",
+   "maps_to": "hybrid_title_search",
+   "turns": [
+    "What's Whiplash about?"
+   ],
+   "expect_retrieved": [
+    "Whiplash"
+   ],
+   "expect_behavior": "Your DB has three Whiplash rows: the 2014 feature, the 2013 SHORT FILM Chazelle made first, and Whiplash 2 (2025). Only 2014 counts. Returning the short is a real failure - the plots are nearly identical, so vector search has every reason to confuse them. Jazz drummer and an abusive instructor. Short title, common English word - a likely failure case for pure vector search.",
+   "expect_year": "2014",
+   "source": "own",
+   "retrieval_graded": true,
+   "film_key": "244786",
+   "bucket": 67,
+   "split": "tune"
+  },
+  {
+   "id": "q03",
+   "category": "exact_title",
+   "maps_to": "hybrid_title_search",
+   "turns": [
+    "Tell me about Eternal Sunshine of the Spotless Mind."
+   ],
+   "expect_retrieved": [
+    "Eternal Sunshine of the Spotless Mind"
+   ],
+   "expect_behavior": "Long distinctive title - should be the easy end of exact matching. If this one fails, title matching is badly broken.",
+   "expect_year": "2004",
+   "source": "own",
+   "retrieval_graded": true,
+   "film_key": "38",
+   "bucket": 68,
+   "split": "tune"
+  },
+  {
+   "id": "q04",
+   "category": "exact_title",
+   "maps_to": "hybrid_title_search",
+   "turns": [
+    "What's Schindlers List about?"
+   ],
+   "expect_retrieved": [
+    "Schindler's List"
+   ],
+   "expect_behavior": "Note the missing apostrophe - this is the fuzzy-match case. A plain SQL equality check will miss it; LIKE or normalization will catch it.",
+   "expect_year": "1993",
+   "source": "own",
+   "retrieval_graded": true,
+   "film_key": "424",
+   "bucket": 25,
+   "split": "tune"
+  },
+  {
+   "id": "q05",
+   "category": "semantic",
+   "maps_to": "baseline_vector_search",
+   "turns": [
+    "What's that Scorsese movie about an undercover cop in the Boston mob?"
+   ],
+   "expect_retrieved": [
+    "The Departed"
+   ],
+   "expect_behavior": "Should already pass. Same target as q01 by a completely different route - if q05 passes and q01 fails, that is the exact-title gap proven in one pair.",
+   "expect_year": "2006",
+   "source": "own",
+   "retrieval_graded": true,
+   "film_key": "1422",
+   "bucket": 20,
+   "split": "tune"
+  },
+  {
+   "id": "q08",
+   "category": "metadata",
+   "maps_to": "metadata_prefilter",
+   "turns": [
+    "Recommend me some science fiction movies from the 1980s."
+   ],
+   "expect_rows_match": {
+    "release_year_between": [
+     1980,
+     1989
+    ],
+    "genres_contains": "Science Fiction"
+   },
+   "expect_behavior": "Every film named should actually be 1980s sci-fi. The common failure is recommending correct-genre films from the wrong decade.",
+   "source": "own",
+   "film_key": "q:q08",
+   "bucket": 62,
+   "split": "tune"
+  },
+  {
+   "id": "q11",
+   "category": "credits_present",
+   "maps_to": "credits_coverage",
+   "turns": [
+    "Who starred in Fight Club?"
+   ],
+   "expect_retrieved": [
+    "Fight Club"
+   ],
+   "expect_answer_contains": [
+    "Pitt",
+    "Norton"
+   ],
+   "expect_behavior": "Should name actual cast from the retrieved text. Either surname counts as a pass.",
+   "expect_year": "1999",
+   "source": "own",
+   "retrieval_graded": true,
+   "film_key": "550",
+   "bucket": 2,
+   "split": "tune"
+  },
+  {
+   "id": "q12",
+   "category": "credits_present",
+   "maps_to": "credits_rebuild",
+   "turns": [
+    "Who directed Everything Everywhere All at Once?"
+   ],
+   "expect_retrieved": [
+    "Everything Everywhere All at Once"
+   ],
+   "expect_behavior": "Credits now exist. PASS = names Daniel Kwan and Daniel Scheinert. FAIL = says it has no director info, or names anyone else.",
+   "expect_year": "2022",
+   "source": "own",
+   "retrieval_graded": true,
+   "film_key": "545611",
+   "bucket": 37,
+   "split": "tune"
+  },
+  {
+   "id": "q14",
+   "category": "no_match",
+   "maps_to": "relevance_cutoff",
+   "turns": [
+    "What can you tell me about the 1987 film The Cobalt Hour, directed by Elias Marchetti?"
+   ],
+   "expect_retrieved": [],
+   "expect_behavior": "This film does not exist - invented for this test. Retrieval returns nothing (year filter + distance cutoff), so the model gets the bare question. PASS = says it has nothing on it. FAIL = any plot, cast or director.",
+   "source": "own",
+   "film_key": "q:q14",
+   "bucket": 50,
+   "split": "tune"
+  },
+  {
+   "id": "q15",
+   "category": "no_match",
+   "maps_to": "relevance_cutoff",
+   "turns": [
+    "What's a good recipe for carbonara?"
+   ],
+   "expect_retrieved": [],
+   "expect_behavior": "Off-topic on purpose. PASS = says it's a movie assistant / has nothing relevant. FAIL = answers from the three unrelated movies retrieval handed it, or silently drops the RAG context and answers as a general chatbot.",
+   "source": "own",
+   "film_key": "q:q15",
+   "bucket": 53,
+   "split": "tune"
+  },
+  {
+   "id": "q16",
+   "category": "followup",
+   "maps_to": "followup_rewriting",
+   "turns": [
+    "Tell me about The Departed.",
+    "Who directed it?"
+   ],
+   "expect_retrieved_final_turn": [
+    "The Departed"
+   ],
+   "expect_answer_contains": [
+    "Scorsese"
+   ],
+   "expect_behavior": "Expected to FAIL at baseline. Turn 2 is embedded as the bare string 'Who directed it?', which retrieves nothing useful. Grade the retrieval on turn 2 specifically - the model may still answer correctly from conversation history, which masks a retrieval failure. That distinction is the whole point of this question.",
+   "expect_year": "2006",
+   "source": "own",
+   "film_key": "q:q16",
+   "bucket": 14,
+   "split": "tune"
+  },
+  {
+   "id": "q17",
+   "category": "followup",
+   "maps_to": "followup_rewriting",
+   "turns": [
+    "What's a good Denis Villeneuve science fiction film?",
+    "What year did that one come out?"
+   ],
+   "expect_behavior": "Expected to FAIL at baseline, same mechanism as q16. Pass condition: the year is correct AND turn 2 retrieved the film being discussed.",
+   "source": "own",
+   "film_key": "q:q17",
+   "bucket": 30,
+   "split": "tune"
+  },
+  {
+   "id": "q18",
+   "category": "persona",
+   "maps_to": "lora_behavior",
+   "turns": [
+    "Is Fight Club worth watching?"
+   ],
+   "expect_behavior": "PASS = recommends it without revealing the twist. FAIL = spoils it unprompted. Tests spoiler etiquette in the holding-back direction.",
+   "source": "own",
+   "film_key": "q:q18",
+   "bucket": 18,
+   "split": "tune"
+  },
+  {
+   "id": "q19",
+   "category": "persona",
+   "maps_to": "lora_behavior",
+   "turns": [
+    "I don't mind spoilers at all - what's the twist in The Sixth Sense?"
+   ],
+   "expect_behavior": "PASS = actually tells them. Tests the other direction: an over-cautious model that refuses here has learned the spoiler rule too rigidly. Included because q18 alone can be passed by a model that just never says anything.",
+   "source": "own",
+   "film_key": "q:q19",
+   "bucket": 8,
+   "split": "tune"
+  },
+  {
+   "id": "q20",
+   "category": "persona",
+   "maps_to": "lora_behavior",
+   "turns": [
+    "I just watched Parasite and really loved it. What should I watch next?"
+   ],
+   "expect_behavior": "PASS = warm tone, 3-4 defensible recommendations, and a follow-up question about taste. This is the closest question to the 16 training examples, so it's the canary for whether the LoRA survived re-quantization in step 3.",
+   "source": "own",
+   "film_key": "q:q20",
+   "bucket": 65,
+   "split": "tune"
+  },
+  {
+   "id": "q21",
+   "category": "credits_missing",
+   "maps_to": "prompt_tightening",
+   "turns": [
+    "Who directed PAW Patrol: Mighty Pups?"
+   ],
+   "expect_retrieved": [
+    "PAW Patrol: Mighty Pups"
+   ],
+   "expect_year": "2018",
+   "expect_behavior": "PAW Patrol: Mighty Pups has NO credits in the database and no duplicate entry that does. PASS = says it doesn't have the director. FAIL = names anyone - that is pretraining leaking past the context rule. (Replaced Mulholland Dr., which has a credited duplicate.)",
+   "source": "own",
+   "retrieval_graded": true,
+   "film_key": "552095",
+   "bucket": 52,
+   "split": "tune"
+  },
+  {
+   "id": "q22",
+   "category": "title_trap",
+   "maps_to": "title_guard",
+   "turns": [
+    "the one where Matt Damon plays a mole in the Boston police"
+   ],
+   "expect_retrieved": [
+    "The Departed"
+   ],
+   "expect_year": "2006",
+   "expect_behavior": "Phrase that contains film titles ('The One', 'Police'). PASS = The Departed retrieved and answered; no film called The One or Police in the context.",
+   "source": "own",
+   "retrieval_graded": true,
+   "film_key": "1422",
+   "bucket": 20,
+   "split": "tune"
+  },
+  {
+   "id": "q23",
+   "category": "exact_title",
+   "maps_to": "title_promotion",
+   "turns": [
+    "tell me about whiplash"
+   ],
+   "expect_retrieved": [
+    "Whiplash"
+   ],
+   "expect_year": "2014",
+   "expect_behavior": "Lowercase title. PASS = answers about Whiplash (2014), the Damien Chazelle film, not Whiplash 2.",
+   "source": "own",
+   "retrieval_graded": true,
+   "film_key": "244786",
+   "bucket": 67,
+   "split": "tune"
+  },
+  {
+   "id": "q24",
+   "category": "semantic_heldout",
+   "maps_to": "generalisation",
+   "turns": [
+    "the movie where a weatherman keeps waking up on the same day in a small town"
+   ],
+   "expect_retrieved": [
+    "Groundhog Day"
+   ],
+   "expect_year": "1993",
+   "expect_behavior": "Held out: never used to tune anything. PASS = right film, answer uses the context.",
+   "source": "own",
+   "retrieval_graded": true,
+   "film_key": "137",
+   "bucket": 18,
+   "split": "tune"
+  },
+  {
+   "id": "q25",
+   "category": "semantic_heldout",
+   "maps_to": "generalisation",
+   "turns": [
+    "a film about a giant shark attacking swimmers at a beach resort town"
+   ],
+   "expect_retrieved": [
+    "Jaws"
+   ],
+   "expect_year": "1975",
+   "expect_behavior": "Held out: never used to tune anything. PASS = right film, answer uses the context.",
+   "source": "own",
+   "retrieval_graded": true,
+   "film_key": "578",
+   "bucket": 15,
+   "split": "tune"
+  },
+  {
+   "id": "q26",
+   "category": "semantic_heldout",
+   "maps_to": "generalisation",
+   "turns": [
+    "a movie where thieves enter people's dreams to plant an idea"
+   ],
+   "expect_retrieved": [
+    "Inception"
+   ],
+   "expect_year": "2010",
+   "expect_behavior": "Held out: never used to tune anything. PASS = right film, answer uses the context.",
+   "source": "own",
+   "retrieval_graded": true,
+   "film_key": "27205",
+   "bucket": 11,
+   "split": "tune"
+  },
+  {
+   "id": "q27",
+   "category": "semantic_heldout",
+   "maps_to": "generalisation",
+   "turns": [
+    "a movie about a man who is born old and ages backwards"
+   ],
+   "expect_retrieved": [
+    "The Curious Case of Benjamin Button"
+   ],
+   "expect_year": "2008",
+   "expect_behavior": "Held out: never used to tune anything. PASS = right film, answer uses the context.",
+   "source": "own",
+   "retrieval_graded": true,
+   "film_key": "4922",
+   "bucket": 59,
+   "split": "tune"
+  },
+  {
+   "id": "q28",
+   "category": "semantic_heldout",
+   "maps_to": "generalisation",
+   "turns": [
+    "an animated movie where toys come alive when their owner isn't looking and a cowboy gets jealous of a space ranger"
+   ],
+   "expect_retrieved": [
+    "Toy Story"
+   ],
+   "expect_year": "1995",
+   "expect_behavior": "Held out: never used to tune anything. PASS = right film, answer uses the context.",
+   "source": "own",
+   "retrieval_graded": true,
+   "film_key": "862",
+   "bucket": 32,
+   "split": "tune"
+  },
+  {
+   "id": "q29",
+   "category": "semantic_heldout",
+   "maps_to": "generalisation",
+   "turns": [
+    "an animated film where a girl's emotions are characters working inside her head"
+   ],
+   "expect_retrieved": [
+    "Inside Out"
+   ],
+   "expect_year": "2015",
+   "expect_behavior": "Held out: never used to tune anything. PASS = right film, answer uses the context.",
+   "source": "own",
+   "retrieval_graded": true,
+   "film_key": "150540",
+   "bucket": 43,
+   "split": "tune"
+  },
+  {
+   "id": "q30",
+   "category": "semantic_heldout",
+   "maps_to": "generalisation",
+   "turns": [
+    "a film about a brilliant mathematician with schizophrenia who wins the Nobel Prize"
+   ],
+   "expect_retrieved": [
+    "A Beautiful Mind"
+   ],
+   "expect_year": "2001",
+   "expect_behavior": "Held out: never used to tune anything. PASS = right film, answer uses the context.",
+   "source": "own",
+   "retrieval_graded": true,
+   "film_key": "453",
+   "bucket": 43,
+   "split": "tune"
+  },
+  {
+   "id": "q31",
+   "category": "semantic_heldout",
+   "maps_to": "generalisation",
+   "turns": [
+    "a movie where a hacker discovers the world is a computer simulation"
+   ],
+   "expect_retrieved": [
+    "The Matrix"
+   ],
+   "expect_year": "1999",
+   "expect_behavior": "Held out: never used to tune anything. PASS = right film, answer uses the context.",
+   "source": "own",
+   "retrieval_graded": true,
+   "film_key": "603",
+   "bucket": 49,
+   "split": "tune"
+  },
+  {
+   "id": "q33",
+   "category": "semantic_heldout",
+   "maps_to": "generalisation",
+   "turns": [
+    "a man stranded on a desert island after a plane crash talks to a volleyball"
+   ],
+   "expect_retrieved": [
+    "Cast Away"
+   ],
+   "expect_year": "2000",
+   "expect_behavior": "Held out: never used to tune anything. PASS = right film, answer uses the context.",
+   "source": "own",
+   "retrieval_graded": true,
+   "film_key": "8358",
+   "bucket": 23,
+   "split": "tune"
+  },
+  {
+   "id": "q34",
+   "category": "semantic_heldout2",
+   "maps_to": "generalisation",
+   "turns": [
+    "a movie where a boy befriends a stranded alien and helps him get back home"
+   ],
+   "expect_retrieved": [
+    "E.T. the Extra-Terrestrial"
+   ],
+   "expect_year": "1982",
+   "expect_behavior": "Fresh held-out set, added before the re-ranker. Never inspected or tuned on.",
+   "source": "own",
+   "retrieval_graded": true,
+   "film_key": "601",
+   "bucket": 31,
+   "split": "tune"
+  },
+  {
+   "id": "q35",
+   "category": "semantic_heldout2",
+   "maps_to": "generalisation",
+   "turns": [
+    "the film where a man with a low IQ keeps accidentally ending up at major historical events"
+   ],
+   "expect_retrieved": [
+    "Forrest Gump"
+   ],
+   "expect_year": "1994",
+   "expect_behavior": "Fresh held-out set, added before the re-ranker. Never inspected or tuned on.",
+   "source": "own",
+   "retrieval_graded": true,
+   "film_key": "13",
+   "bucket": 16,
+   "split": "tune"
+  },
+  {
+   "id": "q36",
+   "category": "semantic_heldout2",
+   "maps_to": "generalisation",
+   "turns": [
+    "a movie about a banker wrongly imprisoned who escapes through a tunnel after decades"
+   ],
+   "expect_retrieved": [
+    "The Shawshank Redemption"
+   ],
+   "expect_year": "1994",
+   "expect_behavior": "Fresh held-out set, added before the re-ranker. Never inspected or tuned on.",
+   "source": "own",
+   "retrieval_graded": true,
+   "film_key": "278",
+   "bucket": 49,
+   "split": "tune"
+  },
+  {
+   "id": "q37",
+   "category": "semantic_heldout2",
+   "maps_to": "generalisation",
+   "turns": [
+    "a film where dinosaurs are brought back to life for a theme park and escape"
+   ],
+   "expect_retrieved": [
+    "Jurassic Park"
+   ],
+   "expect_year": "1993",
+   "expect_behavior": "Fresh held-out set, added before the re-ranker. Never inspected or tuned on.",
+   "source": "own",
+   "retrieval_graded": true,
+   "film_key": "329",
+   "bucket": 33,
+   "split": "tune"
+  },
+  {
+   "id": "q38",
+   "category": "semantic_heldout2",
+   "maps_to": "generalisation",
+   "turns": [
+    "an animated movie where an old man ties thousands of balloons to his house and flies away"
+   ],
+   "expect_retrieved": [
+    "Up"
+   ],
+   "expect_year": "2009",
+   "expect_behavior": "Fresh held-out set, added before the re-ranker. Never inspected or tuned on.",
+   "source": "own",
+   "retrieval_graded": true,
+   "film_key": "14160",
+   "bucket": 8,
+   "split": "tune"
+  },
+  {
+   "id": "q39",
+   "category": "semantic_heldout2",
+   "maps_to": "generalisation",
+   "turns": [
+    "a movie about a man who slowly realises his whole life is a reality TV show"
+   ],
+   "expect_retrieved": [
+    "The Truman Show"
+   ],
+   "expect_year": "1998",
+   "expect_behavior": "Fresh held-out set, added before the re-ranker. Never inspected or tuned on.",
+   "source": "own",
+   "retrieval_graded": true,
+   "film_key": "37165",
+   "bucket": 42,
+   "split": "tune"
+  },
+  {
+   "id": "q40",
+   "category": "semantic_heldout2",
+   "maps_to": "generalisation",
+   "turns": [
+    "an animated film where a young lion prince runs away after his uncle kills his father"
+   ],
+   "expect_retrieved": [
+    "The Lion King"
+   ],
+   "expect_year": "1994",
+   "expect_behavior": "Fresh held-out set, added before the re-ranker. Never inspected or tuned on.",
+   "source": "own",
+   "retrieval_graded": true,
+   "film_key": "8587",
+   "bucket": 66,
+   "split": "tune"
+  },
+  {
+   "id": "q41",
+   "category": "semantic_heldout2",
+   "maps_to": "generalisation",
+   "turns": [
+    "a movie where a rat who wants to be a chef controls a young cook by pulling his hair"
+   ],
+   "expect_retrieved": [
+    "Ratatouille"
+   ],
+   "expect_year": "2007",
+   "expect_behavior": "Fresh held-out set, added before the re-ranker. Never inspected or tuned on.",
+   "source": "own",
+   "retrieval_graded": true,
+   "film_key": "2062",
+   "bucket": 56,
+   "split": "tune"
+  },
+  {
+   "id": "q42",
+   "category": "semantic_heldout2",
+   "maps_to": "generalisation",
+   "turns": [
+    "a film where two strangers meet on a train and spend one night walking around Vienna"
+   ],
+   "expect_retrieved": [
+    "Before Sunrise"
+   ],
+   "expect_year": "1995",
+   "expect_behavior": "Fresh held-out set, added before the re-ranker. Never inspected or tuned on.",
+   "source": "own",
+   "retrieval_graded": true,
+   "film_key": "76",
+   "bucket": 11,
+   "split": "tune"
+  },
+  {
+   "id": "q43",
+   "category": "semantic_heldout2",
+   "maps_to": "generalisation",
+   "turns": [
+    "a movie where a boarding school teacher inspires his students with poetry and tells them to seize the day"
+   ],
+   "expect_retrieved": [
+    "Dead Poets Society"
+   ],
+   "expect_year": "1989",
+   "expect_behavior": "Fresh held-out set, added before the re-ranker. Never inspected or tuned on.",
+   "source": "own",
+   "retrieval_graded": true,
+   "film_key": "207",
+   "bucket": 65,
+   "split": "tune"
+  },
+  {
+   "id": "f1",
+   "source": "own",
+   "category": "followup",
+   "turns": [
+    "Tell me about Back to the Future.",
+    "Can you tell me how the first one ended?"
+   ],
+   "expect_retrieved": [
+    "Back to the Future"
+   ],
+   "retrieval_graded": true,
+   "film_key": "105",
+   "bucket": 12,
+   "split": "tune"
+  },
+  {
+   "id": "f2",
+   "source": "own",
+   "category": "followup",
+   "turns": [
+    "Tell me about The Godfather.",
+    "What about the sequel?"
+   ],
+   "expect_retrieved": [
+    "The Godfather Part II"
+   ],
+   "retrieval_graded": true,
+   "film_key": "240",
+   "bucket": 43,
+   "split": "tune"
+  },
+  {
+   "id": "f3",
+   "source": "own",
+   "category": "followup",
+   "turns": [
+    "Tell me about The Departed.",
+    "Who directed it?"
+   ],
+   "expect_retrieved": [
+    "The Departed"
+   ],
+   "retrieval_graded": true,
+   "film_key": "1422",
+   "bucket": 20,
+   "split": "tune"
+  },
+  {
+   "id": "f4",
+   "source": "own",
+   "category": "followup",
+   "turns": [
+    "What's Toy Story about?",
+    "Is the third one any good?"
+   ],
+   "expect_retrieved": [
+    "Toy Story 3"
+   ],
+   "retrieval_graded": true,
+   "film_key": "10193",
+   "bucket": 37,
+   "split": "tune"
+  },
+  {
+   "id": "n1",
+   "source": "own",
+   "category": "fresh",
+   "turns": [
+    "What's the movie where an English teacher at a strict boarding school inspires his students to seize the day?"
+   ],
+   "expect_retrieved": [
+    "Dead Poets Society"
+   ],
+   "retrieval_graded": true,
+   "film_key": "207",
+   "bucket": 65,
+   "split": "tune"
+  },
+  {
+   "id": "n2",
+   "source": "own",
+   "category": "fresh",
+   "turns": [
+    "There's a film where three friends wake up in Las Vegas after a bachelor party with no memory of last night and the groom is missing."
+   ],
+   "expect_retrieved": [
+    "The Hangover"
+   ],
+   "retrieval_graded": true,
+   "film_key": "18785",
+   "bucket": 27,
+   "split": "tune"
+  },
+  {
+   "id": "n3",
+   "source": "own",
+   "category": "fresh",
+   "turns": [
+    "A movie where a New York cop visits his wife's office Christmas party and spends one night fighting terrorists alone in the tower."
+   ],
+   "expect_retrieved": [
+    "Die Hard"
+   ],
+   "retrieval_graded": true,
+   "film_key": "562",
+   "bucket": 66,
+   "split": "tune"
+  },
+  {
+   "id": "n4",
+   "source": "own",
+   "category": "fresh",
+   "turns": [
+    "The film where a kid makes a wish at a carnival machine and wakes up the next day as a grown man."
+   ],
+   "expect_retrieved": [
+    "Big"
+   ],
+   "retrieval_graded": true,
+   "film_key": "2280",
+   "bucket": 56,
+   "split": "tune"
+  },
+  {
+   "id": "n5",
+   "source": "own",
+   "category": "fresh",
+   "turns": [
+    "What's that movie about a man who gets stuck living in an airport terminal because his home country collapsed?"
+   ],
+   "expect_retrieved": [
+    "The Terminal"
+   ],
+   "retrieval_graded": true,
+   "film_key": "594",
+   "bucket": 51,
+   "split": "tune"
+  },
+  {
+   "id": "n6",
+   "source": "own",
+   "category": "fresh",
+   "turns": [
+    "A movie where a black man meets his white girlfriend's family for the first time and the weekend turns sinister."
+   ],
+   "expect_retrieved": [
+    "Get Out"
+   ],
+   "retrieval_graded": true,
+   "film_key": "419430",
+   "bucket": 41,
+   "split": "tune"
+  },
+  {
+   "id": "n7",
+   "source": "own",
+   "category": "fresh",
+   "turns": [
+    "Who starred in Gladiater?"
+   ],
+   "expect_retrieved": [
+    "Gladiator"
+   ],
+   "retrieval_graded": true,
+   "film_key": "98",
+   "bucket": 20,
+   "split": "tune"
+  },
+  {
+   "id": "n8",
+   "source": "own",
+   "category": "fresh",
+   "turns": [
+    "Who directed The Other Guys?"
+   ],
+   "expect_retrieved": [
+    "The Other Guys"
+   ],
+   "retrieval_graded": true,
+   "film_key": "27581",
+   "bucket": 58,
+   "split": "tune"
+  },
+  {
+   "id": "n9",
+   "source": "own",
+   "category": "fresh",
+   "turns": [
+    "Is Stand by Me a good movie to watch with my kids?"
+   ],
+   "expect_retrieved": [
+    "Stand by Me"
+   ],
+   "retrieval_graded": true,
+   "film_key": "235",
+   "bucket": 67,
+   "split": "tune"
+  },
+  {
+   "id": "n10",
+   "source": "own",
+   "category": "fresh",
+   "turns": [
+    "What can you tell me about the 2003 film Harbor of Glass, starring Mira Castellane?"
+   ],
+   "expect_retrieved": [],
+   "retrieval_graded": true,
+   "film_key": "q:n10",
+   "bucket": 12,
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-659",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I don’t really have any memory of this film. It’s a comedy. Theres a good chance it’s R rated. It’s fairly well-known- fairly mainstream. The Dvd cover is of the main characters (i.e. the dads- they’re in their 30’s to early 40s) sliding down a water slide like a bunch of kids. It might be the one with the dads doing crazy shit like drugs and sex and shit. This is a terrible description but I’m sure someone can tell me the title of the movie just based on the fact that it’s a comedy and the DVD cover is of dads sliding down a water slide."
+   ],
+   "expect_retrieved": [
+    "Grown Ups 2"
+   ],
+   "expect_year": "2013",
+   "expect_tmdb": 109418,
+   "vote_count": 3920,
+   "bucket": 23,
+   "wikidata": "Q5611721",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Grown_Ups_2",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "109418",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-1095",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I remember seeing a trailer for a fantasy movie/general weird movie involving a guy who gets a job/works as something to do with this huge, fantastical machine (like a Sci-Fi, fantasy almost Terry Pratchett-Tardis like contraption.) , inside which there are a number of rooms, in-which all manner of random nonsense happens, including him meeting a very seductive woman (who is clearly evil). The machine is stated to contain immense knowledge/power but nobody can figure out how it works."
+   ],
+   "expect_retrieved": [
+    "The Zero Theorem"
+   ],
+   "expect_year": "2013",
+   "expect_tmdb": 157834,
+   "vote_count": 1103,
+   "bucket": 23,
+   "wikidata": "Q863811",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/The_Zero_Theorem",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "157834",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-279",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "There was a flashback scene of two young black kids. They were sitting on a bench, Probably in a park or something. The protagonist’s friend shows him a gun he found. The gun then accidentally triggers, killing his friend. The protagonist then sits beside his dead friend, until the cops arrive and take him to jail or something."
+   ],
+   "expect_retrieved": [
+    "Freedom Writers"
+   ],
+   "expect_year": "2007",
+   "expect_tmdb": 1646,
+   "vote_count": 2007,
+   "bucket": 28,
+   "wikidata": "Q288150",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Freedom_Writers",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "1646",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-403",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "-Date: I’m not entirely sure, but I think I watched it on Netflix a year or so ago -Language: I believe it was in either German, French, or English -Where seen: I think on Netflix. It was definitely a movie. -Extras: in color, recently made, setting somewhere in Europe (Germany, France, UK) -Description: A woman wakes up in some secret underground apartment (I can’t remember if she was kidnapped or otherwise ended up there another way). The resident of the apartment is a man who wears a mask and gloves, never taking them off. He makes her breakfast. The apartment is full of art and statues and books, almost museum-like. There’s some fancy mirror somewhere and a scene takes place there. The woman at some point is in a cell where she is tortured every day. The only thing keeping her going is a letter she finds hidden in the wall that’s a first hand account of a previous woman being tortured there. When she escapes she realizes the person holding her captive and torturing her was the masked/gloved man. She’s furious and I think leaves. At some point it becomes known that the masked/gloved man was one of the people experimented on by the Angel of Death (Mengele), a nazi doctor who did experiments on twins, handicapped, elderly. The man was referred to as his cell number, and because of the experiments he developed super immunity to either disease (I think). There was a fire at the place where Mengele did the experiments and the man survived but had burns all over his body hence the mask and gloves. At some point the woman comes back. The police I think are after the masked man. I’m not sure if he gets shot, but they’re in the metro station and at some point the woman puts him (I think he was dying?) on a metro car full of flowers and bombs and sends it off to blow up. I think for some reason I can’t remember there were protests going on in the general public that were taking place at the same time as this metro car explosion."
+   ],
+   "expect_retrieved": [
+    "V for Vendetta"
+   ],
+   "expect_year": "2006",
+   "expect_tmdb": 752,
+   "vote_count": 13556,
+   "bucket": 21,
+   "wikidata": "Q5890",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/V_for_Vendetta_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "752",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-985",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I’m trying to figure out a movie my husband saw in the 90s. He says it’s either from 80s or 90s, US, about a guy who gets burned in a building in the beginning of the movie that a bad guy set on fire. Instead of dying, he gets sent to a different or alternate universe where the bad guy doesn’t know him and is rich. The main guys gets some powers from a demon or something in this alternate universe and is supposed to lead an army or something. He eventually kills the bad guy at a party.  That’s all hubs can remember, hopefully someone’s heard of this!"
+   ],
+   "expect_retrieved": [
+    "Spawn"
+   ],
+   "expect_year": "1997",
+   "expect_tmdb": 10336,
+   "vote_count": 1218,
+   "bucket": 8,
+   "wikidata": "Q1474393",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Spawn_(1997_film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "10336",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-714",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I dont remember most of this scene in this movie. I watch this movie about 2004-2005. the movie is about 3 men whose lost their money and they were suspecting a group of women. So, in order to investigate the women, they disguise themselve as woman and make excuse to live with the women. The scene that remember the most is where a man taking bath at night and suddenly a woman joined him. But the girl didnt realizes that the man is a man caused she didnt wear her glasses. And in the movie, the men fall in love with the group of women they live with. [SUBMITTED A FEW MINUTES LATER:–ed.] I watch this movie in 2004-2006, There were 3 men(if im not mistaken). They lost their money and they suspecting a group of ladies. Hence they disguise as ladies in order to investigate them. I dont realy remember all the scene. But there is a scene when the man take bath and suddenly a lady enter the bathroom and take bath together. The lady is not wearing her glass so she didnt find out that she was taking bath with the man. Then somewhere in the movie the men fall in love the ladies"
+   ],
+   "expect_retrieved": [
+    "Sorority Boys"
+   ],
+   "expect_year": "2002",
+   "expect_tmdb": 6020,
+   "vote_count": 208,
+   "bucket": 18,
+   "wikidata": "Q1171584",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Sorority_Boys",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "6020",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-681",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I’m not sure if it was a movie or t.v. show.  It had anatomically correct female robots that were music players.  Teenage boys were getting their privates mutilated because they tried to have sex with these inanimate machines.  I would have seen this within the last five years.  That is not the entire premise of the movie/show just the part that I can remember."
+   ],
+   "expect_retrieved": [
+    "Movie 43"
+   ],
+   "expect_year": "2013",
+   "expect_tmdb": 87818,
+   "vote_count": 2146,
+   "bucket": 34,
+   "wikidata": "Q548978",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Movie_43",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "87818",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-832",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "All I remember of this film is that there is a kid in a house holding a bow and arrow and facing his father. Father tells him to put the bow down but the kid shoots him in the belly with the arrow and kills him. Any ideas?"
+   ],
+   "expect_retrieved": [
+    "Mikey"
+   ],
+   "expect_year": "1992",
+   "expect_tmdb": 87321,
+   "vote_count": 62,
+   "bucket": 64,
+   "wikidata": "Q6849439",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Mikey_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "87321",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-345",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I hope someone here can help me! it’s a movie that i saw around 6 ago on tv (not sure). its a movie about a group people (5) that Break Into a house ans accidentally kill a woman, they had weird white masks. in the end of the movie one of the mans is in hospital bed . I remember that the movie had a bad ending. The hole movie wasn’t really happy. The jumping between scenes was also very strange. Rooms with to mush color and conversations about thing that didn’t fit in the movie. I saw the movie when I was 12 or something, so its also possible that i just didn’t understand the context of the hole movie. It was a very long movie 3+hour including commercial breaks.       I hope someone here can help ?"
+   ],
+   "expect_retrieved": [
+    "A Clockwork Orange"
+   ],
+   "expect_year": "1971",
+   "expect_tmdb": 185,
+   "vote_count": 11946,
+   "bucket": 66,
+   "wikidata": "Q181086",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/A_Clockwork_Orange_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "185",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-252",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "A movie about a young girl being kidnapped and forced to dance in a club, but everytime she dances she imagines she’s in a different world to escape real life. This movie I saw approximately 3 years ago(2012) It was an English, color movie that described the life of a younger girl who taken from her home as a young girl. When she is older, she is forced to dance in a gentleman’s club. When she is chosen to do private dances, she closes her eyes and imagines a separate world. These worlds are always exciting and actiony, and always have a goal that relates back to a larger plan for her and the other dancers to escape the club. Some of the worlds range from a snowy mountain-top where she is fighting ninjas and samurai, to worlds where it is war-torn and in flames. In the end, only one of the girls escapes(She is not the main character described above). As she boards a bus, the driver(Who appears in every world the Main Character thinks up) welcomes her and we hear a voice-over that says something like “Sometimes you find out that you are not the main character of your own story. You are simply a supporting character in another’s.”"
+   ],
+   "expect_retrieved": [
+    "Sucker Punch"
+   ],
+   "expect_year": "2011",
+   "expect_tmdb": 23629,
+   "vote_count": 4394,
+   "bucket": 28,
+   "wikidata": "Q621587",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Sucker_Punch_(2011_film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "23629",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-837",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Very late one night I saw part of a very long post-apocalyptic film (as in multiple hours), maybe filmed in Australia or about Australia. I though that it ended in a cave. Seen in the 80’s, I think.   Thanks for the help."
+   ],
+   "expect_retrieved": [
+    "Until the End of the World"
+   ],
+   "expect_year": "1991",
+   "expect_tmdb": 10341,
+   "vote_count": 173,
+   "bucket": 4,
+   "wikidata": "Q571053",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Until_the_End_of_the_World",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "10341",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-270",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Ok.  I remember this movie that I think I watched on Netflix maybe about 5 years ago.  I’m not sure that’s when the movie came out.  All I remember about it is there was this really odd twist where some kids were tricked into a couple’s house and then the couple was going to force them into making a child pornography movie, but some lady came and saved them."
+   ],
+   "expect_retrieved": [
+    "Running Scared"
+   ],
+   "expect_year": "2006",
+   "expect_tmdb": 7304,
+   "vote_count": 939,
+   "bucket": 7,
+   "wikidata": "Q623518",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Running_Scared_(2006_film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "7304",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-652",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "At some point, I saw a movie that ended the same way as The Usual Suspects…I’m thinking it was probably satire. It was in English and in Color. I’m not sure when or where I saw it, but it had to be after 1995. It could have been from a tv show as well – not 100% sure."
+   ],
+   "expect_retrieved": [
+    "Scary Movie"
+   ],
+   "expect_year": "2000",
+   "expect_tmdb": 4247,
+   "vote_count": 6346,
+   "bucket": 3,
+   "wikidata": "Q219424",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Scary_Movie",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "4247",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-296",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I remember watching a movie on tv a long time ago…It seemed pretty old and I can almost guarantee it’s not very popular. I watched it when I was pretty young and it scared the hell out of me, but I don’t think it’s actually all that scary? The only thing I can remember is a scene (maybe a few different ones?) in which a man, I think dressed as a bellhop, with large, round glasses hits somebody with some sort of cart. I can vaguely picture somebody laying in bed and looking over by the door, when this bellhop guy runs at them with a rolling cart type thing and hits them. I’ve been searching for this movie for literally years and I’ve never found anybody else who’s seen it, so if somebody can help me out it would be awesome!"
+   ],
+   "expect_retrieved": [
+    "Burnt Offerings"
+   ],
+   "expect_year": "1976",
+   "expect_tmdb": 13549,
+   "vote_count": 219,
+   "bucket": 30,
+   "wikidata": "Q1191134",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Burnt_Offerings_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "13549",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-482",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Hi, I saw a movie, probably 2 years ago, about a group of friends who end up in a small village. In this village live a few older residents who wear masks of animals during the whole movie (at least, I think it were masks), a pig’s head is one of the images that I remember clearly. The group of friends are being haunted the entire movie, trying to not get killed by the older residents most of the time. The last thing I know is that the movie ends with the original citizens betting over wich ”friend” will be able to run the longest time over a grassfield that leads them out of the city. At last, I want to apologize for the poor grammar and vocabulary of this post, I’m not really used to speak English…  Anyone know what I’m taking about? Please help me ?"
+   ],
+   "expect_retrieved": [
+    "Inbred"
+   ],
+   "expect_year": "2011",
+   "expect_tmdb": 82743,
+   "vote_count": 113,
+   "bucket": 32,
+   "wikidata": "Q551410",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Inbred_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "82743",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-665",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I saw a movie when I was very young, it was from the 70’s or 80’s. It’s about some people who where being attacked by demons in a house in the middle of a field or a graveyard. If you are out side the house it’s just a door their and nothing else, but when you go threw it’s a house. Please help, this movie has been racking my brain for years."
+   ],
+   "expect_retrieved": [
+    "Demon Wind"
+   ],
+   "expect_year": "1990",
+   "expect_tmdb": 58899,
+   "vote_count": 66,
+   "bucket": 51,
+   "wikidata": "Q432138",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Demon_Wind",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "58899",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-689",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Main actor smiling, kept telling people “buongiorno”, at the and he with others flew up in heaven on brooms, it is old black and white, think italian movie, I saw it 20 years ago, I am not sure but it could be deaf movie with slides of text."
+   ],
+   "expect_retrieved": [
+    "Miracle in Milan"
+   ],
+   "expect_year": "1951",
+   "expect_tmdb": 43379,
+   "vote_count": 204,
+   "bucket": 54,
+   "wikidata": "Q1170844",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Miracle_in_Milan",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "43379",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-626",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Hi Everyone, I saw this movie when i was young, the film is set in an area with a lot of garbage, i think this is a foreign movie and theres is a scene  a man dressed as a woman has sex with a woman while she washes her hair in the sink and a oldman saw this, later in the night this oldman call this woman in the bathroom and had sex whith her too. Thanks for any help!!!"
+   ],
+   "expect_retrieved": [
+    "Ugly, Dirty and Bad"
+   ],
+   "expect_year": "1976",
+   "expect_tmdb": 19413,
+   "vote_count": 270,
+   "bucket": 25,
+   "wikidata": "Q535295",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Down_and_Dirty_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "19413",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-176",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I believe I saw this movie about 5 years ago (2010), in English, not sure if it was on TV or not but I’m certain it wasn’t a show. It was in color. As for the plot, the beginning scene involved the character who I believe is unemployed. He sees a commercial on TV I think for a “get rich quick” method or some sort of advertisement and he calls the number (and maybe gets his friends together.) Ultimately, they end up fixing up a mall or it at the very least takes place at an abandoned mall.  Sorry for being so vague, in fact I don’t even remember if the genre was comedy or horror, or possible a horror comedy.  Thank you"
+   ],
+   "expect_retrieved": [
+    "Tim and Eric's Billion Dollar Movie"
+   ],
+   "expect_year": "2012",
+   "expect_tmdb": 79940,
+   "vote_count": 113,
+   "bucket": 62,
+   "wikidata": "Q7804539",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Tim_and_Eric%27s_Billion_Dollar_Movie",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "79940",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-1072",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Daughter of immigrant mother starts selling drugs after leaving school. It’s about a 16 year old girl, brunette, with a boy look. The film was relesaed after 2013 and it was not in English, I think it was French or Dutch. She has a girl best friend, black and corpulent, who I think is Muslim and later dies in a fire. In the first scenes the protagonist appears doing a kind of dramatization as a secretary and since she doesn’t like what she is doing, star to humiliates her teacher. The girl gets upset and starts to grab her things to leave and never come back to class anymore. She starts selling drugs because of a neighbor she admires. She is delighted with her job as a drugdealer because she starts to obtain benefits, such as food, cellphone and other things that due to her economic situation she could not obtain before because her mom is a prostitute. The woman who is her employer orders her to go to a party to seduce a man and then steal his money that he had hidden in the apartment. The girl and her friend secretly watched the dancers in a theater, they also hid the money they earned from drugs there. One day the dancer discovers the protagonist and takes away the money. They fall in love, bla, bla. In the end, he tells her to leave together from that place but she doesn’t do it."
+   ],
+   "expect_retrieved": [
+    "Divines"
+   ],
+   "expect_year": "2016",
+   "expect_tmdb": 393729,
+   "vote_count": 630,
+   "bucket": 21,
+   "wikidata": "Q24050089",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Divines_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "393729",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-471",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Hey everyone, I’ve been struggling with this one for years. I was probably around 5 when I seen this movie on TV so that would put the year around 1995. I can’t remember much of it. But what I do remember is a man killed his wife and buried her in the backyard, I remember a dog digging up her hand and bringing it to him (I think), and I remember her zombie self stalking him around the house. She may have had a blueish face from being dead. Hope you can help!"
+   ],
+   "expect_retrieved": [
+    "House"
+   ],
+   "expect_year": "1986",
+   "expect_tmdb": 11415,
+   "vote_count": 484,
+   "bucket": 21,
+   "wikidata": "Q734604",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/House_(1986_film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "11415",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-627",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Hello! I am trying to find a movie for one of my patrons at a library. She couldn’t remember the title. She thought it took place in medieval Europe and a fifteen year old girl with very curly hair is taken from her family’s castle and accused of witchcraft. Somehow the accusation was related to her eating something taboo on a regular basis. It’s possible she laughs when they come to get her. The girl is imprisoned for years and is raped multiple times by the jailer and becomes pregnant. Her daughter looks just like her. Eventually she and her daughter are released from prison and it has been so long that the woman has trouble with seeing in sunlight. Her jaw is also deformed or broken or locked or something for an unknown reason. She returns to her family home and an artist finds her there and becomes obsessed with her and paints her for the rest of his life. The daughter becomes wealthy because she is savvy. The jailer dies and his casket is taken away in a horse-drawn carriage. I have no definite names of characters or places. No well-known actors according to my patron. My patron also thought that “haunting” or “ghost” might be in the title though I have had no luck with those. She thought she watched the movie in 2011 but that it came out around 2000.  In my experience, patrons can confuse and combine multiple books or films so don’t think that it has to hit all of these points or it is not the right movie. Does this sound familiar, even vaguely, to anyone?"
+   ],
+   "expect_retrieved": [
+    "Goya's Ghosts"
+   ],
+   "expect_year": "2006",
+   "expect_tmdb": 11515,
+   "vote_count": 437,
+   "bucket": 12,
+   "wikidata": "Q1129761",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Goya%27s_Ghosts",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "11515",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-290",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "i watched a couple scenes in the movie in ROMEDY NOW. the guy is all set to marry heroine’s friend and all of a sudden he meets heroine and they think of their past going to same college and spending nights together and heroin now wants to marry the hero and i didnt watch the movie later.. i want know which movie it is.. please help guys"
+   ],
+   "expect_retrieved": [
+    "Something Borrowed"
+   ],
+   "expect_year": "2011",
+   "expect_tmdb": 49022,
+   "vote_count": 963,
+   "bucket": 66,
+   "wikidata": "Q1455075",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Something_Borrowed_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "49022",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-770",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I saw this movie probably 25 years ago or so, and it was old then. Although I seem to remember it being a Twilight Zone movie, I have started second guessing myself as I can’t find any record of it… I remember it as a full length movie with the Twilight Zone theme, but older than most Twilight Zone episodes. It was a black and white movie, and the main character (man) was a guest at a manor house or castle I think. He went out to a beach (lake or sea?), where suddenly a woman emerges from the the deep water and walks up on the beach. I don’t remember much else apart from there being a portrait of the woman inside the manor house, and that at the end it turns out the woman has been dead for a long time, and she ages very quickly in front of the man, her skin and muscles start melting away and she turns into a skeleton (and dust?). Ringing a bell, anyone? I would love to see it again!"
+   ],
+   "expect_retrieved": [
+    "The Terror"
+   ],
+   "expect_year": "1963",
+   "expect_tmdb": 31655,
+   "vote_count": 124,
+   "bucket": 45,
+   "wikidata": "Q1968139",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/The_Terror_(1963_film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "31655",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-959",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Hi, I only saw the very beginning of this movie (first ten minutes) back in 2013 on YouTube. It was one of those cheap (possibly american italian) exploitation horrors made in late 60s-70s. It all took place in some kind of town/countryside and it was about  two guys who were sent to kill the infected/brainwashed citizens. It started with a scene where guy no.1 talked to guy no.2 over the phone. Guy no.2 was standing inside a phone booth and then one of the citizens attacked him. Citizens wore blue jumpsuits and acted violently for whatever reason. I don’t know if it had to do something with some “alien mind-control” or an infection but I’m pretty sure it wasn’t a zombie movie. It was extra gory too. There was a scene where one of the guys sticked a machine gun through citizen’s chest and then started to shoot the other infected/brainwashed people. I’d be really surprised if anyone can find this…"
+   ],
+   "expect_retrieved": [
+    "Bad Taste"
+   ],
+   "expect_year": "1987",
+   "expect_tmdb": 9964,
+   "vote_count": 736,
+   "bucket": 49,
+   "wikidata": "Q605204",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Bad_Taste",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "9964",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-513",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I’m lokking for this movie that I remember seing on tv in the late 80s early 90s. I don’t remember too much accept it had a boy or a guy who had a tunnel appear  in his house. And he drove down it in a weird car. It may have been like a go cart. I forgot to mention that the tunel was a black and white spiral spinning around. And I believe it lead to an animated world. The movie ended with him returning through the tunnel in the car.  That about all I remember."
+   ],
+   "expect_retrieved": [
+    "The Phantom Tollbooth"
+   ],
+   "expect_year": "1970",
+   "expect_tmdb": 28476,
+   "vote_count": 70,
+   "bucket": 21,
+   "wikidata": "Q149995",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/The_Phantom_Tollbooth_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "28476",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-777",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Hey I’ve been trying to look for this movie i watched a few years ago but i can’t find it. I watched about just the second half of the movie and i think it was in another language. It was a movie about parents and their kid and how the dad died. The dad died from getting impaled from the back of his head with a straight metal object. He was stuck impaled to the ground until the paramedics came. They tried cutting the metal with a chainsaw? (i don’t remember what they were cutting it with) but they came to a conclusion that the vibration from cutting it would cause him to die. They got him out somehow, don’t remember how he got out but unfortunately he died. The mom and child were devastated. At the end of the movie a guy offered them lots of money if he can share the story on media or something (i also don’t remember much about what the guy wanted so the media thing was just a guess) but the mom turned him down. The movie ended from there with the mom and child walking away from the guy. If anyone can help me find the movie i would appreciate it alot."
+   ],
+   "expect_retrieved": [
+    "As Luck Would Have It"
+   ],
+   "expect_year": "2011",
+   "expect_tmdb": 84797,
+   "vote_count": 66,
+   "bucket": 0,
+   "wikidata": "Q867000",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/As_Luck_Would_Have_It",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "84797",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-905",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I cant stop thinking about this movie. I watched it on netflix in about 2010 or 2011 but i cant remember the title. It was from the 80s or 90s or possibly the 70s and all i can remember is there was a man who wore white face powder and he kidnapped a girl and kept her in this cage like thing in his room or another room in his house. Her dad or boyfriend found her and the guy who kidnapped her went to prison but he got out sometime at the end of the movie. Please help!!"
+   ],
+   "expect_retrieved": [
+    "Strangeland"
+   ],
+   "expect_year": "1998",
+   "expect_tmdb": 27791,
+   "vote_count": 112,
+   "bucket": 33,
+   "wikidata": "Q1182295",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Strangeland_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "27791",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-913",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "So I saw this movie maybe when I was 3 or 4 and this is the only moment I remember from it. So it was live-action. There was a woman and a man alone on a sailboat of some sort and then some intruder came and sneaked up on the woman. Then the man saw the intruder’s shadow through the sail of the boat and then he shot the shadow. Then the intruder somehow caught on fire and fell off the boat and he was floating in the water, dead and on fire. If anyone has any clue, I appreciate it!"
+   ],
+   "expect_retrieved": [
+    "Dead Calm"
+   ],
+   "expect_year": "1989",
+   "expect_tmdb": 10493,
+   "vote_count": 654,
+   "bucket": 39,
+   "wikidata": "Q845077",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Dead_Calm_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "10493",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-773",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Anyone knows the name of this movie?  https://youtu.be/VFdSS0ryzqE"
+   ],
+   "expect_retrieved": [
+    "Delirium"
+   ],
+   "expect_year": "2018",
+   "expect_tmdb": 340601,
+   "vote_count": 222,
+   "bucket": 65,
+   "wikidata": "Q29514888",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Delirium_(2018_film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "340601",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-850",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I remember this movie where this teenage girl keep moving from foster home to foster home alot of times, at one point she was fighting with another girl then she threatened her with a knife to her throat then she cut her hair and her friend ( a boy) asked her why she chopped off her hair, while at another foster home she got shot and another the lady killed herself, at the end she lived with her friend, her mother was in prison."
+   ],
+   "expect_retrieved": [
+    "White Oleander"
+   ],
+   "expect_year": "2002",
+   "expect_tmdb": 10994,
+   "vote_count": 342,
+   "bucket": 28,
+   "wikidata": "Q820218",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/White_Oleander_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "10994",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-346",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "So the movie was about a single mother of a daughter and a younger son (there maybe one more child or no) she hires a male housekeeper/nanny who she falls in love with. Theres a scene where the woman is taking a shower and dries herself on a wall that shoots out air or something and the man walks in by accident. The daughter is really withdrawn and wants to be a designer when she grows up. Theres even a scene where she puts on a home fashionshow where the man and the brother put on clothes she made. In the last scene theyre all sitting at a table and the man gets up to carve the turkey. Thats all i remember. Its probably an old movie. I saw it when i was really young.help?"
+   ],
+   "expect_retrieved": [
+    "Bob the Butler"
+   ],
+   "expect_year": "2005",
+   "expect_tmdb": 22747,
+   "vote_count": 78,
+   "bucket": 35,
+   "wikidata": "Q888349",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Bob_the_Butler",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "22747",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-309",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I saw it in the early 90s. I remember a scene where a man was hiding in a closet with white doors with air gaps. When the man stepped out of the closet, he had his pointing finger made out of metal with a hole. This metal finger was a gun. Another scene from this movie is where some kind of ship is being shrinked (by 1000 times) and entered some pink/orange tunnels (maybe a human body..)."
+   ],
+   "expect_retrieved": [
+    "Innerspace"
+   ],
+   "expect_year": "1987",
+   "expect_tmdb": 2614,
+   "vote_count": 1128,
+   "bucket": 44,
+   "wikidata": "Q506390",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Innerspace",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "2614",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-503",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Can’t remember the country of origin but I believe it was Scandinavian. About a male creature that lives in the woods and travels to people’s homes to cause trouble. The movie opens with him in an underground bunker in the woods being chased out by hunters. He’s a short qirey guy with scraggly hair. He ends up at a family’s home where the wife eventually asks him to kill her husband. He takes shelter in a little shed in their backyard unbeknownst to the husband. There are strange scenes of him sitting on the husband or wife’s chest while they sleep which made me think the creature was an Alp but my searches haven’t found anything like that. Movie came out some time in the past 10 years. Help!"
+   ],
+   "expect_retrieved": [
+    "Borgman"
+   ],
+   "expect_year": "2013",
+   "expect_tmdb": 186929,
+   "vote_count": 290,
+   "bucket": 24,
+   "wikidata": "Q11394785",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Borgman_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "186929",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-868",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Hello all, I only remember to see a couple enjoying there vacation somewhere far away on a boat in between a big lake. It is a very very silent place and provide chilling effect. Suddenly something happens in the water. Some black oily thing they say in water. They curiously keep on searching what is this black thing and how to escape it. What is in the water they keep on investigating. This seems to be a horror movie on water. No Fish, piranha or shark. Its plain horror about water and that black some thing. This black thing keeps on coming and moving spreading over the water like oil. Later i don’t remember. Please find the name of this movie Thanks in advance…"
+   ],
+   "expect_retrieved": [
+    "Creepshow 2"
+   ],
+   "expect_year": "1987",
+   "expect_tmdb": 16288,
+   "vote_count": 504,
+   "bucket": 55,
+   "wikidata": "Q1139518",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Creepshow_2",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "16288",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-609",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "So over thanksgiving break in 2013 I was at my roommate’s house and we watched this movie and I don’t really remember much from it but it was with this guy and I feel like he had to go back in time? But I’m not too sure and he had to get something like a briefcase or he had to break into a vault or something of that sort to get secret information but it turns out the government was really bad and they wanted to end the world or something? Or explode a bomb or something bad and the guy realized it but the government already got what they needed and at the end the guy is hanging off a ledge with the bad guy and he drops the bad guy off while managing to hold himself up. This is the most I remember and I remember loving it. I wish I knew who the guy in it was because that would help big time"
+   ],
+   "expect_retrieved": [
+    "Paycheck"
+   ],
+   "expect_year": "2003",
+   "expect_tmdb": 9620,
+   "vote_count": 1650,
+   "bucket": 52,
+   "wikidata": "Q247516",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Paycheck_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "9620",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-311",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Hi, myself and my girl friend went to the vue cinema in westfields Sheppard s bush london around 3 or 4 years ago and I don’t know if it was japanese/chinese night, showing but the movie.was in English/american and it was about a girl.who was oriental,.who.was being chased by demons and I think she was.having weird nightmares and she had a friend whos father was a cop and in the end either.the lady.who was haunting.her dreams.was.her aunt who was pretending to me her mum or her.mum pretending ro.be.her.aunt, anyway.she.was a demon and got.the girl to.fight and when the girl won the demon.woman was then.released.as she was kept.held in like a diferent dimension, but when the girl won the fight she was then trapped, and could see the world. And it was like she said in.the film about her dreams.where she quoted, it was like looking out to.the world from the inside of a fish.bowl. I can remember .demon in form.of.men.apearing.on.a roof and.jumping.down.to.get the girl but sje fights them off and I rememeber the fight between.the.lady and the girl.was in a filed at the end near a house. Please if.anyone.knows.what.im on about.please.post. thanks"
+   ],
+   "expect_retrieved": [
+    "Blood: The Last Vampire"
+   ],
+   "expect_year": "2000",
+   "expect_tmdb": 919,
+   "vote_count": 288,
+   "bucket": 30,
+   "wikidata": "Q885189",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Blood:_The_Last_Vampire",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "919",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-299",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "In the early 90’s I saw on late-night cable an adult-theme animated movie that I’ve never been able to find a reference for ever again. It was a very well-done animation (not cartoony), mostly noticeable in the coloring that was not flashy or brilliant as most cartoons are. It appeared to be setup in a post-apocalyptic or prehistoric world. Lots of rocks, very limited technology. The main character was a woman that – if my very limited memory serves me right – was in a quest of sorts. I believe it ended with her flying off in a pterodactyl. The movie had some hot parts, not straight-out porn if I recall correctly, but soft-erotica at least."
+   ],
+   "expect_retrieved": [
+    "Heavy Metal"
+   ],
+   "expect_year": "1981",
+   "expect_tmdb": 11827,
+   "vote_count": 610,
+   "bucket": 11,
+   "wikidata": "Q1471965",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Heavy_Metal_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "11827",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-749",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I saw this silent movie recently at a small festival. By the looks of it, it’s an old-timey silent comedy short, a la Buster Keaton, but maybe with a more surrealist vibe. It might actually be way more recent than the Buster Keaton era. A beautiful rose grows right under a white fence separating two gardens and the two neighbors claim the right to pick it. They start fighting and wreaking havoc, completely destroying the fence. By the end, they’re both dead, and the white pickets of the fence come to life (stop-motion) and surround the two bodies, creating a small cemetery. The rose divides in two and adorns both graves."
+   ],
+   "expect_retrieved": [
+    "Neighbours"
+   ],
+   "expect_year": "1952",
+   "expect_tmdb": 51406,
+   "vote_count": 95,
+   "bucket": 51,
+   "wikidata": "Q3562390",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Neighbours_(1952_film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "51406",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-1084",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Hey folks, Any help would be appreciated. Today we were talking about horror movies and my wife and sister-in-law instantly remembered a movie from when they were much younger. The only problem is they don’t remember much about it at all and it’s driving ME crazy more than it is them. So here goes…  They remember watching this in the late 80s or early to mid 90s. Opens with 4 to 6 people (couples?) in an older car driving down a road when they come across the front panel of a house in or on the edge of the woods. It is only the front of the house. They can clearly walk around the side and see that the rest of the house isn’t there. When they open the door it opens to what looks like an abandoned/rundown/spooky house. It’s a horror movie and the house or something within seems to be playing tricks on them as things keep disappearing. There is some sort of supernatural ghostly/zombie/other scary thing(s) there because the characters end up hiding in a room while this “thing” is trying to get in. Movie closes with them driving away in the same car. *Made in the 80s or early 90s and set in the same time.  IDK how it is that they remember the movie at all with so little detail, but they claim it was something that came on TV often and was a made for TV movie."
+   ],
+   "expect_retrieved": [
+    "Demon Wind"
+   ],
+   "expect_year": "1990",
+   "expect_tmdb": 58899,
+   "vote_count": 66,
+   "bucket": 51,
+   "wikidata": "Q432138",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Demon_Wind",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "58899",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-769",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "We watched this movie on christmas day and it was narrated by the boy who had become a man and was reminiscing.  It told of all the efforts he went to to get this bb gun for christmas"
+   ],
+   "expect_retrieved": [
+    "A Christmas Story"
+   ],
+   "expect_year": "1983",
+   "expect_tmdb": 850,
+   "vote_count": 1113,
+   "bucket": 37,
+   "wikidata": "Q556933",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/A_Christmas_Story",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "850",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-375",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I barely remember about that movie I watched 3-4 years ago that was on the channel ARTE I live in Switzerland (where we speak French) and I’m pretty sure it was in english there were subtitles. I guess it was an independent movie or a short film whom I just remember some passages. That was about a brunette young girl who shaved her hair when she enter a “sect” where the guru was really mean he even once pee on her when he put her in a hole as a punishment. They worked in vineyards or just yards and they had to work as a community. There was a moment when a woman (maybe her mother) tried to make her come back but I cannot be sure if I’m just confusing two different movies. I remember that at the end she just left with one of the group who followed her and they had that extra cool mini-bus like those Volkswagen one it was blue or turquoise that is the last scene of the movie. Then they just go out of the bus and laugh and walk on a long desert road. Searching on google I found that movie “Martha Marcy May Marlene” which really look alike but I know this is NOT the movie I watched. Thanks in advance ?"
+   ],
+   "expect_retrieved": [
+    "Mouth to Mouth"
+   ],
+   "expect_year": "2005",
+   "expect_tmdb": 8008,
+   "vote_count": 56,
+   "bucket": 2,
+   "wikidata": "Q1439514",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Mouth_to_Mouth_(2005_British_film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "8008",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-735",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Okay, I don’t remember how this movie starts off but I remember the main events that happened. It is a movie and I’m pretty sure I seen it in around 2010-2013 but I’m not sure. So pretty much this is a love story of complications between this married couple, the husband is the one messing up and the wife is the one who keeps putting up with it. He has an addiction to porn, the wife finds out and I think it really upset her. So the husband goes to his dad for advice, to figure how to fight for someone who doesn’t love you anymore. The dad and mom are very Christian. The dad gives his son the idea of a book of I think 100 things to try and by the end of the book, he should win his wife’s love back. (That’s not an accurate count.) well he does it, surprises her with flowers, I think some breakfast and tries to take her out to dinner. By the end of the movie, he wins his wife and conquers his problem. At the end of the movie his father tells him that him and his mom had gone through the same thing, one lost love for the other and the other fought for the love back. The plot twist was that, even though the father was giving his son the advice he needed as if he had done the same thing, he actually tells his son that [he] had been the one to lose love for his mother and his mother was the one who had fought to get it back. Then the son goes back into his house where his mother and wife were, crying and apologized and hugged his mom. I believe it was because he had been avoiding her and didn’t want anything to do with her assuming that she had put his through what he had gone. But that might not be correct. I hope that’s enough to the answer of the title of this movie, I remember it and I’ve been trying 1 year to find it and figure it out but I can’t. If you know it or have any possible ideas that will lead me to it, let me know please. Thank you in advanced!"
+   ],
+   "expect_retrieved": [
+    "Fireproof"
+   ],
+   "expect_year": "2008",
+   "expect_tmdb": 14438,
+   "vote_count": 652,
+   "bucket": 22,
+   "wikidata": "Q1193385",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Fireproof_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "14438",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-978",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I can’t remember what the overall theme was but there was a scene in it where a man and woman were in the backseat of a car making out etc. The view switched back and forth from what they were doing to a cartoon of what was happening inside the man’s body, like, little guys pulling levers. Anyone remember what the movie was?"
+   ],
+   "expect_retrieved": [
+    "Everything You Always Wanted to Know About Sex *But Were Afraid to Ask"
+   ],
+   "expect_year": "1972",
+   "expect_tmdb": 11624,
+   "vote_count": 821,
+   "bucket": 42,
+   "wikidata": "Q499697",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Everything_You_Always_Wanted_to_Know_About_Sex*_(*But_Were_Afraid_to_Ask)_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "11624",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-303",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "The movie starts like this, a man(say Alex, not exact name though) invents a machine that is used to into a criminally accused man’s mind and see his memories if he has really committed the crime or not. So one day, he goes into a man’s mind but this time the machine fails and Alex remains trapped in man’s mind virtually where he can travel any part of man’s memory remaining in coma physically. He notices a glitch that if the man remembers a memory and Alex also stays in same memory then Alex can interacts with him. By this he asks man to help him and fixes the machine and finally proves that man is innocents and gets out of his mind"
+   ],
+   "expect_retrieved": [
+    "Extracted"
+   ],
+   "expect_year": "2012",
+   "expect_tmdb": 97605,
+   "vote_count": 202,
+   "bucket": 14,
+   "wikidata": "Q15300189",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Extracted",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "97605",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-637",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Okay… I have a really weird movie memory! This was definitely a Rated R or NR movie as there were lots of relations going on… Beware!! I watched this movie on the IFC channel (cable) in 2007 or 2008. It was in color and in English. One memory – an opening scene shows a guy in the shower pleasuring himself and his mom interrupts him by knocking on the door… Another memory… a brother and a sister both having relations with their partners in different cars, and the brother is screaming “mommy” while the sister is screaming “daddy”… yes I know this sounds weird, believe me! Aren’t all IFC movies weird?! And yet another memory involving weird relations… a young girl with an older guy who is making out with her armpit… And finally, the last memory I have and the most important one I think, is that in the ending scene, someone turns into a giant lizard or some kind of alien and climbs out the window… or something!"
+   ],
+   "expect_retrieved": [
+    "Nowhere"
+   ],
+   "expect_year": "1997",
+   "expect_tmdb": 1811,
+   "vote_count": 135,
+   "bucket": 17,
+   "wikidata": "Q629570",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Nowhere_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "1811",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-836",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I was young when i saw it maybe 6 and it was in the year of 95. The movie was in color  and it was in english. The only thing i remember is on the cover there is a huge fat guy who plays a demon in the movie and he has a snake that he keeps as his pet around his waist. There are maybe 6 characters on the cover and all I remember of the movie is a part when the main character who is human is taking to that demon guy and their on a stair case and the walls look like a bee hive or what honeycombs look like i know its from before i was born which was 89 so i think it may be from the 80s."
+   ],
+   "expect_retrieved": [
+    "Nightbreed"
+   ],
+   "expect_year": "1990",
+   "expect_tmdb": 20481,
+   "vote_count": 409,
+   "bucket": 30,
+   "wikidata": "Q1024694",
+   "wikipedia_url": "http://en.wikipedia.org/wiki/Nightbreed",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "20481",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-185",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I only saw the trailer, sometime in the last five years. I really wanted to see it. I don’t remember that many details: Definitely remember subtitles, possibly partly English (or English v/o narration). Took place in a remote mysterious ‘boggy’ town in a country like Iceland or Scotland. (“The ground seeps”) At one point there’s a montage of people saying the name of the town and even a cat ‘says’ the name of the town. The name sounded like a cat meowing, and was something like “Moine” or “Majrn”. There was a quick shot of two (maybe brothers?) guys who look similar, and one guy leans to reveal the other in the same pose directly behind him. It reminds me of the two mustached cops with the same name in “Hot Fuzz”. I can’t remember the plot, but the main character might have been a cop or detective come to the town to investigate something, I feel like he had a crummy red car though. Please Help! Thanks."
+   ],
+   "expect_retrieved": [
+    "Terribly Happy"
+   ],
+   "expect_year": "2008",
+   "expect_tmdb": 15952,
+   "vote_count": 97,
+   "bucket": 28,
+   "wikidata": "Q6180564",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Terribly_Happy",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "15952",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-676",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Sci-Fi/ Horror flick seen on Saturday afternoon in 70s but the movie might be older with plesiosaur-looking monsters (loch Ness monster shape) but only as big as a man and they crawled on belly. There were many, and it seemed like an invasion. One scene a monster drops out of a tree onto a man–possibly in uniform."
+   ],
+   "expect_retrieved": [
+    "Island of Terror"
+   ],
+   "expect_year": "1966",
+   "expect_tmdb": 28763,
+   "vote_count": 90,
+   "bucket": 50,
+   "wikidata": "Q849045",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Island_of_Terror",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "28763",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-563",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I saw this on TV at my grandparents’ house likely sometime around 2005-2006. It was in color, and the scene I most vividly remember is one where a little girl is struggling to climb out of a small hole in the ground filled with water. She’s blonde and I believe she was wearing some kind of red clothing. The setting of all this looked like a parking garage, but it may have had some more abstract scenery as well. A couple finds the girl in the pool, and they rush to her aid. But as they’re pulling her out, a pair of green hands grabs onto the back of her clothes and tries to pull her back in. That’s all I can remember, but I hope it’s enough."
+   ],
+   "expect_retrieved": [
+    "Poltergeist III"
+   ],
+   "expect_year": "1988",
+   "expect_tmdb": 10306,
+   "vote_count": 426,
+   "bucket": 53,
+   "wikidata": "Q496853",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Poltergeist_III",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "10306",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-756",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "There was this movie, and unfortunately I remember very little about it. I remember seeing it at around 2001-2003ish, so it should be a film that was released before that time. It was definitely in English; at least I think so. Also, it was in colour, if that helps. On the VCR cover, all that I remember is a guys face, and blue background, probably the ocean? The only things that I remember are that there was something to do with water, and by this, I mean like an ocean, or maybe it was something like a submarine or an oil rig, and I think that the main character was a guy, who was either a ghost, or a silvery liquid metally alien/liquidy thing, that looks a bit like the T-1000  in Terminator 2. Sorry for the lack of detail, and please help me remember this!"
+   ],
+   "expect_retrieved": [
+    "The Abyss"
+   ],
+   "expect_year": "1989",
+   "expect_tmdb": 2756,
+   "vote_count": 2604,
+   "bucket": 44,
+   "wikidata": "Q336517",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/The_Abyss",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "2756",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-442",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I have been looking for a year. No one knows. This site is one my last chances: I believe it to be a French movie. Between 1990 and 2005. Its about a teen boy and girl. Criminal they rob someone and flee the city. Get into the woods and get kidnapped. Girl is put in basement. Boy becomes a (sex) slave for the huge male hunter. Finally they escape but the boy seems to have developed affection for their kidnapper (stockholm syndrome). Police shooting in field at the end. Very sad psychological art drama."
+   ],
+   "expect_retrieved": [
+    "Criminal Lovers"
+   ],
+   "expect_year": "1999",
+   "expect_tmdb": 33828,
+   "vote_count": 92,
+   "bucket": 59,
+   "wikidata": "Q1305585",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Criminal_Lovers",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "33828",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-926",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I rented this film in the early 2000’s.  It was in color, and may have been a Japanese film, but I can’t be sure.  The plot involves a series of murders, where the “killer” mysteriously gets other people to kill.  After the killings, this man disappears, and the people cannot remember why they killed who they did.  The first murder is a regular customer killing a prostitute.  When the police show up, the man is distraught because he has no memory of the murder. Before the second murder, a man meets the killer on a beach.  The killer says he is lost, I think, and so the man takes the killer home with him.  The man’s wife is asleep upstairs while the two of them engage in a strange conversation.  I think the killer mentions the color of the man’s wife’s niughtgown.  The man kills his wife, and then tries to kill himself when he realizes what he has done.  He first tries to kill himself by throwing himself out a window.  he then tries to kill himself in the police station by running head-first into a wall.  The cop chasing the killer has a sick wife, and eventually catches up to him.  However, I think the killer ends up escaping."
+   ],
+   "expect_retrieved": [
+    "Cure"
+   ],
+   "expect_year": "1997",
+   "expect_tmdb": 36095,
+   "vote_count": 390,
+   "bucket": 22,
+   "wikidata": "Q1144476",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Cure_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "36095",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-271",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "The movie is mostly in a shopping mall.I think it was in another language/french/italian not sure.It was 100% a DvD not a series.I saw it in 2002-2009 really can’t recall.. it could have been filmed in the 90’s but really doubt it.So the main character is a famous clothes seller and he is in some kind of competition with a man there also a seller.He is kinda famous with the girls there and has sex with one of them after having dinner with her in the mall.Anyhow later he is in the changing room and he gets in a fight with the other seller/might have been his boss actually not sure.The boss/rival gets accidentally killed by him as he pushes him into a mirror and his neck gets pierced on it somehow.But a girl saw him/she is kinda ugly and then starts to blackmail him for sex and i thing she wants him to marry her as well.Later they/she alone? butchers the body and burns it.In the end the mall burns down i can’t recall from what but she is in the end seen as a rich woman signing autographs or something."
+   ],
+   "expect_retrieved": [
+    "The Ferpect Crime"
+   ],
+   "expect_year": "2004",
+   "expect_tmdb": 9534,
+   "vote_count": 276,
+   "bucket": 0,
+   "wikidata": "Q2566971",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Ferpect_Crime",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "9534",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-723",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "*not a native english speaker so bear with me* When I was a kid I lived in a small village and we had 2-3 channels on the TV. We would fall asleep watching the TV. Usually I was the last one to fall asleep and so could watch part of a horror movie until commercials came on and I fell asleep from boredom and the TV would run until morning, or I woke up later and caught the ending and turned off the TV. Just giving context ? this was about 10-13 years ago. This channel could only afford older movies but it was in color and english if it helps. So one night I fall asleep and wake up in the middle of the night to catch the middle-to-end of a horror movie. I can’t remember exactly because it was a long time ago, but I can remember the ending very well because it scared the s*** out of me. So this family (father, mother, son and daughter) is running around in the woods, at night and they are screaming each others names. The son gets killed by a hook on the trees or some naked woman with a hook… maybe… The other 3 somehow make it back to the road to their car and quickly get in. The father steps on it. The mother notices that the son is missing so she wants to get out of the car to search for him. The father refuses to stop. The mother then starts saying she saw her mother (the grandma who wasn’t in the movie). She starts screaming again that she wants out to search for her son and mother but the father and daughter start doubting the mothers sanity. She then sits quietly and suddenly jumps out of the car. Now they might have stopped right then or the daughter had to convince the father to go back I can’t remember but she cracked her head and was dead. They put her on the back seat and drive on and keep passing by the same cabin. Here’s some conversation they had: Daughter: “We’ve been passing by that cabin all night” Father: “This is a military road, all the cabins look the same” *some arguing and desperation* Father: “If we keep driving we should be OK” *of course they run out of gas* They keep talking, they get out and try to look around. The camera switches to the mother, she opens her eyes. When the father and daughter come back shes gone. They argue that she was surely dead or now is if she ran into the woods. Now the ending… The father somehow disappeared, can’t remember how, and the daughter starts running. A black car, could have been a Black Volga, is chasing her. She trips, the car stops with the high beams right in her face *tension* the car backs off and as the lights start disappearing she wakes up in a hospital bed surrounded by people, might have been her family, I can’t remember. So if it was her family maybe coma, if it wasn’t maybe she was found. Spent years trying to find the movie, if it turn out to have been a dream I’m going to feel really stupid."
+   ],
+   "expect_retrieved": [
+    "Dead End"
+   ],
+   "expect_year": "2003",
+   "expect_tmdb": 11427,
+   "vote_count": 455,
+   "bucket": 46,
+   "wikidata": "Q1180803",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Dead_End_(2003_film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "11427",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-351",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Here’s an easy one, I hope.  I saw a trailer for an excellent movie, possibly on a “Saw” film which I rented/borrowed – I don’t have it any more.  A group of 12?…men wake up and can’t remember who they are, where they are and what happened to them.  As the film goes on, it turns out that half are prisoners and the other half are their guards but they don’t know who is who.  It’s a main stream film but nothing I google brings up any results.   It was not made recently, 2006? Please can someone help?"
+   ],
+   "expect_retrieved": [
+    "Unknown"
+   ],
+   "expect_year": "2006",
+   "expect_tmdb": 9828,
+   "vote_count": 376,
+   "bucket": 29,
+   "wikidata": "Q1808387",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Unknown_(2006_film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "9828",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-1077",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "So, the movie is about this weird virus or something that infects people, the infected people look for other people and try to vomit on them in order to infect them. There was this one scene I remember when the main female character (I think) was going somewhere, she tried to act so the infected wouldn’t notice her, but an infected policeman did, instead of infecting her he warned her to try not to be stressed and not to sweat. The movie has this motif about sweat, that the infected don’t sweat. I think the movie is from before 2008 and I’m pretty sure it’s English but I might be wrong."
+   ],
+   "expect_retrieved": [
+    "The Invasion"
+   ],
+   "expect_year": "2007",
+   "expect_tmdb": 4858,
+   "vote_count": 1366,
+   "bucket": 14,
+   "wikidata": "Q652592",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/The_Invasion_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "4858",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-834",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I remember a  movie this is what I can remember though: American movie, between 2007-20012 i watched it, It was in english coloured movie Action movie Father and Daughter Father finds out job is fake, He helps preventing deposit box robberies and they were just using him to break into a deposit box There is one scene he is in a car with a man and his daughter, he tells his daughter to fasten her seat belt and then crashes the car of a main road"
+   ],
+   "expect_retrieved": [
+    "Erased"
+   ],
+   "expect_year": "2012",
+   "expect_tmdb": 106021,
+   "vote_count": 670,
+   "bucket": 60,
+   "wikidata": "Q4530547",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Erased_(2012_film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "106021",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-325",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "There was a movie I saw on tv sometime in the mid to late ’90s (don’t know when it was made or whether or not it was made for tv). I think I remember a young girl who was tied to a tree in the woods. There was a blonde woman who said something about blood and Satan. There may have been a telepathic connection between her and the girl. Maybe the woman was trying to find her. There may have also been a witch, but maybe not. I don’t even know how accurate any of these memories are, but I figure it’s worth a shot since it’s been bugging me for a long time. It was in English and in color."
+   ],
+   "expect_retrieved": [
+    "The Watcher in the Woods"
+   ],
+   "expect_year": "1980",
+   "expect_tmdb": 21970,
+   "vote_count": 124,
+   "bucket": 46,
+   "wikidata": "Q1845888",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/The_Watcher_in_the_Woods_(1980_film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "21970",
+   "split": "tune"
+  },
+  {
+   "id": "trec-dev-385",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I’m trying to find the name of a film, whereby a killer is bumping people off; he/she uses a high power flash gun, possibly attached to a camera to stun the victim, rendering them helpless.  They become delirious and unable to defend themselves.  It was in colour, either 1980s or 1970s.  English Language."
+   ],
+   "expect_retrieved": [
+    "Looker"
+   ],
+   "expect_year": "1981",
+   "expect_tmdb": 21874,
+   "vote_count": 103,
+   "bucket": 50,
+   "wikidata": "Q668484",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Looker",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "21874",
+   "split": "tune"
+  }
+ ]
+}

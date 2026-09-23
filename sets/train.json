@@ -1,0 +1,1016 @@
+{
+ "questions": [
+  {
+   "id": "trec-train-220",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I remember I was yiunger when I saw it, but I don’t remember just how young I was. I remember a woman in labor, arms tied to a bed, legs tied together, and a young woman in a mother room is dreaming of being the child or creature the other woman is birthing. Also remember something about the young woman dreaming about a small creature entering her belly through her belly button? And another scene of the same young woman being laid in or tied to an altar shaped like a cross. Sorry for sketchy details, but it’s driving me a bit nuts…"
+   ],
+   "expect_retrieved": [
+    "To the Devil a Daughter"
+   ],
+   "expect_year": "1976",
+   "expect_tmdb": 40064,
+   "vote_count": 94,
+   "bucket": 47,
+   "wikidata": "Q2253853",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/To_the_Devil_a_Daughter",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "40064",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-320",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "So my brother was flipping through channels and stopped on this movie with a nude woman, and a man walking toward the woman slowly. When he gets to a certain point, something slices him in half, and the front half I think slides down the glass or whatever it is slowly. I can’t remember if there were voices or not. It was in color, and this scene was dark. Then my bro switched the channel again and this was about 6-7 years ago maybe. I’ve been trying to remember what it is but no luck. Anything is appreciated, like actors or something. Thanks!"
+   ],
+   "expect_retrieved": [
+    "Thir13en Ghosts"
+   ],
+   "expect_year": "2001",
+   "expect_tmdb": 9378,
+   "vote_count": 1887,
+   "bucket": 8,
+   "wikidata": "Q186864",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Thirteen_Ghosts",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "9378",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-882",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "It was a light comedy from the 80s or 90s. I just remember the start of the movie. It was a scene with two adventures in a scene like indiana jones, trapped, captured by enemy forces. The main villain was approaching them and one commented to the other: “And now he comes and says something very cliche like ‘gentlemen, we meet again’, wanna see?”  So the villain really says that, and they find it funny."
+   ],
+   "expect_retrieved": [
+    "Firewalker"
+   ],
+   "expect_year": "1986",
+   "expect_tmdb": 12715,
+   "vote_count": 150,
+   "bucket": 36,
+   "wikidata": "Q1409792",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Firewalker_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "12715",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-293",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "This was a movie from at least 10 years ago.  The lead actor and actress are on a first date and eating at a burger stand or shop of some sort and the guy mentions how hard dates are because the guy worries the whole time about whether he will get a kiss or not.  So the female says lets just kiss now and get it out of the way. I dont recall how long ago it was, any of the actors or what else happened in the movie.  i think it was a romantic comedy of sorts."
+   ],
+   "expect_retrieved": [
+    "Good Will Hunting"
+   ],
+   "expect_year": "1997",
+   "expect_tmdb": 489,
+   "vote_count": 11111,
+   "bucket": 20,
+   "wikidata": "Q193835",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Good_Will_Hunting",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "489",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-525",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Saw the trailer at a local theater some time ago: the main characters are a couple (with a cat i think?) and they are experiencing relationship  problems and kind of a dullness in their live. The woman looked like Annie Clark .                                  The couple kept repeating that they were already 5 years together and at one point the woman told an older woman about it in a dialogue with a meaning like this (roughly): Woman: I don’t understand, we’re already 5 years together, I mean we’re not at the beginning anymore. Older woman: 5 years is just the beginning."
+   ],
+   "expect_retrieved": [
+    "The Future"
+   ],
+   "expect_year": "2011",
+   "expect_tmdb": 54662,
+   "vote_count": 92,
+   "bucket": 31,
+   "wikidata": "Q442353",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/The_Future_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "54662",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-204",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I think I saw it around 2006 on one of the movie channels on sky, (i think it was 306). Okay so the boy and girl are teens and all that I can remember is that the boy in the film has feelings for the girl and think they’ve been friends for a long time and she’s kinda moving on and stuff and somehow she finds out he likes her as more than a friend. There’s three scenes I can remember briefly, okay so the first one, the boy imagines this other boy riding into or he imagines himself diverting the boy into a large dumpster or a skip, okay the first one either happens like that or the boy imagined himself beating up the boy into the dumpster. Okay the second scene the boy and girl are karate practice and again the boy imagines a different result, I think he might have imagined himself showing off or something. Okay this one I know for sure, the boy and girl went through like a fight and he turns up at the girls family event and they don’t say anything they just slowly dance and thats the end, the girl had blonde hair and was wearing purple I think.  I remember the title being odd like it had number in or the letter q in  I know this pretty broad and could describe a lot of films. I’ve just been trying to find this film for soo long and would appreciate any help."
+   ],
+   "expect_retrieved": [
+    "Little Manhattan"
+   ],
+   "expect_year": "2005",
+   "expect_tmdb": 16553,
+   "vote_count": 660,
+   "bucket": 19,
+   "wikidata": "Q2341849",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Little_Manhattan",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "16553",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-1015",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Ok so all i can remember from this movie is… Its like a group or a family who end up at this strange haunted raggedy looking house an I remember it had alot of cars parked in the front and the family that lives there are a bunch of weirdos. There is one baled old man who walks with a cane and i believe they run an inn or have rooms that the group of people rent. The family looks like a bunch of hillbillies and they taunt the people that rent a room. I believe it is a twisted comedy I know this isnt much help but i just cant remember anything specifically. ALSO it has a well know actor in it."
+   ],
+   "expect_retrieved": [
+    "Nothing but Trouble"
+   ],
+   "expect_year": "1991",
+   "expect_tmdb": 11933,
+   "vote_count": 312,
+   "bucket": 12,
+   "wikidata": "Q646269",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Nothing_but_Trouble_(1991_film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "11933",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-588",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Hi I remember a movie it had to be an ifc film i seen about 4 years ago It was a little girl and her father in a big house in the desert or Texas the little girl was in a dirty white dress most of the movie and I think she played in a train car box and her father kept saying he was going scuba diving when he would “shoot heroin” do drugs and I think they had the dead body of her mother or grandmother in the house…..strange film that me and the other person remember watching but can’t figure out what it was.please help!!!"
+   ],
+   "expect_retrieved": [
+    "Tideland"
+   ],
+   "expect_year": "2005",
+   "expect_tmdb": 11559,
+   "vote_count": 501,
+   "bucket": 24,
+   "wikidata": "Q151884",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Tideland_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "11559",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-520",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "like i only remember bits and pieces, but what i know is there was this lil virgin girl who is home alone for some reason, she starts being a man who lives next door, he’s in the army reserves  and thats all i can piece together"
+   ],
+   "expect_retrieved": [
+    "Towelhead"
+   ],
+   "expect_year": "2008",
+   "expect_tmdb": 10190,
+   "vote_count": 133,
+   "bucket": 49,
+   "wikidata": "Q1628899",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Towelhead_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "10190",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-484",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "An American comedy movie. Main character is a famous person like a celebrity. For some reason in the movie, he needs a place to stay for one night. He comes across a married couple (he never met before) and asks them if he can take shelter at their home. The husband recognises him and is actually a big fan his, so he lets him stay. Some time later, the husband leaves the house to grab something. And when he comes back, he catches his wife seducing the celebrity. Eventually they have sex. Surprisingly, the husband is excited and overwhelmed that his idol is having sex with his wife. So he happily watches his wife cheat with the celebrity. Overall it’s a very funny and comedic scene."
+   ],
+   "expect_retrieved": [
+    "Semi-Pro"
+   ],
+   "expect_year": "2008",
+   "expect_tmdb": 13260,
+   "vote_count": 707,
+   "bucket": 0,
+   "wikidata": "Q747803",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Semi-Pro",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "13260",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-119",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "From what I remember it involved 3-4 astronauts.  One stays in orbit (a black man), while the others go to the surface of this planet. The ones on the surface are there to retrieve data (from probes perhaps?). The astronauts on the surface only have a limited time to collect this data and get back to the ship in orbit.  I think something happens to shorten their time there (a storm maybe?).  During this scene they were surrounded by water if I remember correctly. The female (possibly the crew leader?) keeps saying she can finish the data collection in time because it’ll be ages before they can get another chance.  She says this despite the warnings from her comrades to just leave.  Well, they miss their chance to get back to the ship in orbit. Now the kicker is that the time on the planet’s surface is vastly different to the time in orbit.  For instance, on the surface perhaps only a few hours pass, but in orbit several years pass.  I think it ends up being something like 20+ years to the man in orbit before the surface crew gets back. Anyone know what this movie is?  I watched it in the last 3 years, but I streamed it so the movie itself could be older.  Although I don’t think it would be more then say ten years old.  It’s in colour, an American film in English."
+   ],
+   "expect_retrieved": [
+    "Interstellar"
+   ],
+   "expect_year": "2014",
+   "expect_tmdb": 157336,
+   "vote_count": 32571,
+   "bucket": 23,
+   "wikidata": "Q13417189",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Interstellar_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "157336",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-699",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Set in England/Ireland.  Older musician returns from South Africa for funeral childhood friend.  Collection of memories (small band, affair with older woman, home on the shore, child killed by bomb, costumed dance with girlfriend, girlfriend as adult crying on her farm)"
+   ],
+   "expect_retrieved": [
+    "Flashbacks of a Fool"
+   ],
+   "expect_year": "2008",
+   "expect_tmdb": 13793,
+   "vote_count": 118,
+   "bucket": 48,
+   "wikidata": "Q746590",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Flashbacks_of_a_Fool",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "13793",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-567",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Hi, new to this site, but a memory of a movie I saw in ~1986-1988 when I was 3 or four years is still bugging me.  My only recollection of this movie that it was a high fantasy, sword & sorcery type movie that was on network television (I didn’t have cable) during daylight hours.  All I remember is a man in a dark red cavern with a sword talking to what looked like a very large dragon or monster which made either a deep booming sound or actually talked to him.  The monster appeared to be several stories tall, and the scene took place toward the very end of the movie, because i remember it ended soon after.  I believe it was the climax of the movie.  I know it is not the movie “Legend”, but it may be similar to that. Thanks for your help, this has been bothering me for 25+ years."
+   ],
+   "expect_retrieved": [
+    "Dragonslayer"
+   ],
+   "expect_year": "1981",
+   "expect_tmdb": 848,
+   "vote_count": 235,
+   "bucket": 21,
+   "wikidata": "Q1193005",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Dragonslayer_(1981_film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "848",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-705",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I don’t think this film was ever in the box office, but it could have been an indie film. It was aired on FLIX in March of 1997. Here goes. This gay guy is in a prison cell with this big guy with a Spanish accent. The gay guy is reiminsing about meeting some guy he had a crush on. The gay guy remembers meeting the guy in a restaurant. He was the gay guys’ waiter. I remember the gay guy saying, “That sad smile; that white shirt.” He and the waiter became friends. The waiter was married with children. At a later point, the Spanish guy got a bad of diareah and the gay guy helped him. Does anyone remember this?"
+   ],
+   "expect_retrieved": [
+    "Kiss of the Spider Woman"
+   ],
+   "expect_year": "1985",
+   "expect_tmdb": 11703,
+   "vote_count": 254,
+   "bucket": 4,
+   "wikidata": "Q1215865",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Kiss_of_the_Spider_Woman_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "11703",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-949",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "So it’s a foreign movie like cj7. There’s also this alien or creature a kid finds and it kinda grants wishes or something. One time the kid had swimming practice and the creature hopped on his back and made him really fast.   There’s another part I remember but idk if this is from cj7 or the movie I’m talking about. The kid asks for answers to the test so the creature gets the answers from another student but the name was also transferred so the teacher didnt accept it.   My description is so short. I watched with waaay back so I don’t remember much."
+   ],
+   "expect_retrieved": [
+    "The Secret of the Magic Gourd"
+   ],
+   "expect_year": "2007",
+   "expect_tmdb": 38057,
+   "vote_count": 106,
+   "bucket": 8,
+   "wikidata": "Q4918962",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/The_Secret_of_the_Magic_Gourd_(2007_film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "38057",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-326",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Hi everyone, I would really appreciate it if you could help me find this movie. I saw it on TV a couple of years ago, can’t be more then ten years ago. It was in color and it ended with written text about what happened to the people after the movie ended like they often do in movies about actual events. Here’s what I remember: There’s a young guy who constantly wears an odd knit hat. He meets a girl. She asked him why he always wears that hat and he says it is because a lot of your body heat is lost through the top of your head. She asked if he needs to wear especially this hat, he says no and they exchange his hat at the lost and found. During the movie, the girl keeps contemplating selling her eggs because she needs the money, at the end of the movie she doesn’t have to sell her eggs after all for some reason. I hope someone out there knows just what movie I’m talking about. Thanks for thinking along."
+   ],
+   "expect_retrieved": [
+    "Loser"
+   ],
+   "expect_year": "2000",
+   "expect_tmdb": 10642,
+   "vote_count": 396,
+   "bucket": 11,
+   "wikidata": "Q954874",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Loser_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "10642",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-337",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I would like to find out the name of a film I saw years ago. It was one of those late 1950’s or early 1960’s British crime films. It was in black and white. One of the early scenes is the ringleader sends out half a banknote to a handful of criminals with a letter telling them that they can get the other half of the banknote if they meet up at a rendezvous. The plan is to then either to retrieve some previously hidden cash stash or do another robbery….I can’t quite remember the plot. Possibly Jack Warner? Any help appreciated Thanks Dave"
+   ],
+   "expect_retrieved": [
+    "The League of Gentlemen"
+   ],
+   "expect_year": "1960",
+   "expect_tmdb": 46724,
+   "vote_count": 73,
+   "bucket": 31,
+   "wikidata": "Q735381",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/The_League_of_Gentlemen_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "46724",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-322",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "All I can remember from this movie (could of been a TV movie) is that there is a guy was tryin to fix a spot on the Mona Lisa Painting with blue paint and ends up covering the whole picture with it and is freaking out. He covers the painting in a cart with some cloth as hes moving down a hallway very nervous. If anyone has any suggestions I would be very much obliged. This has been driving me nuts for about 5-7 yrs now."
+   ],
+   "expect_retrieved": [
+    "Bean"
+   ],
+   "expect_year": "1997",
+   "expect_tmdb": 1281,
+   "vote_count": 2216,
+   "bucket": 2,
+   "wikidata": "Q752103",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Bean_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "1281",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-937",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Here is one I saw long ago >> 20 years on TV, probably a “Creature Double Feature”.  Hippy dirtbag guy finds this alien weapon.  He puts his arm into it and has a good time blasting stuff with the laser pulse.  It may have impregnated his palm with some sort of thing (maybe a gem or a scab).  Eventually he loses his humanity to the weapon and he becomes an alien (after he finds that he can no longer remove his arm).  I remember him blasting stuff like telephone poles maybe.  Gun looked like a tube that you stuck your forearm into…poor bastard."
+   ],
+   "expect_retrieved": [
+    "Laserblast"
+   ],
+   "expect_year": "1978",
+   "expect_tmdb": 17874,
+   "vote_count": 87,
+   "bucket": 45,
+   "wikidata": "Q1759309",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Laserblast",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "17874",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-335",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "An old movie seen during 1990s on TV. I think it was in english and in color . The airplane of a family fall in a strange area. there is a scene of introducing disgusting food; eyes in soup. And a scene of putting a man in metal cage then in fire."
+   ],
+   "expect_retrieved": [
+    "Indiana Jones and the Temple of Doom"
+   ],
+   "expect_year": "1984",
+   "expect_tmdb": 87,
+   "vote_count": 8505,
+   "bucket": 40,
+   "wikidata": "Q179215",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Indiana_Jones_and_the_Temple_of_Doom",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "87",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-408",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "This has been bugging the heck out me. It’s a horror movie I believe. It starts out in black and white (more of a grayish tone) at a small restaurant. A girl walks in with a red hoodie on (the hoodie may be the only thing in color, maybe not). Everyone in the restaurant seems to recognize her when she walks in. Her face is badly disfigured. People seem to be uncomfortable with her being in the room while they’re trying to eat their meals. The people in the restaurant also seem to stare at her and whisper about her till a she gets to a point she can’t stand anymore. She stands up and yells something out like “Is this what you want” and takes off her hoodie to show her disfigured face, then the opening credits start to roll. This is how I think the opening starts. I’ve looked through my movie selections for months to try and find it, with no luck. I had a head injury a few years ago so sometimes I don’t put information back together correctly. I hope I can an answer here. Thanks in advance for any help."
+   ],
+   "expect_retrieved": [
+    "The Final"
+   ],
+   "expect_year": "2010",
+   "expect_tmdb": 34583,
+   "vote_count": 247,
+   "bucket": 16,
+   "wikidata": "Q2073341",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/The_Final_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "34583",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-925",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I thought I already submitted this but I don’t see it so, forgive me if it’s a duplicate. I saw a movie in July or August 2014, I believe on FOX TV network in the U.S. It was a recent movie, I’d say from the last few years but could be as old as 2000. It was in color and in English and I’m assuming it is American made. For some reason, I swear Kirsten Dunst was in this movie and keep thinking it has something to do with The Virgin Suicides but it is not that movie and I can not find it when searching Kirsten Dunst. The majority of the movie takes place in a hotel or dormitory type building where the doors are numbered. There appears to be a constant party going on in the hallway. In one room, there is some sort of support group where young people gather and I’ve young man reads from a journal if some sort. This scene reoccurs multiple times with fewer and fewer people attending I assume because they were either murdered it committed suicide. In another room, there is a young couple. The male  us in a band. The female is a blonde actress that I thought was Kirsten Dunst but was a female actress I recognized, possibly a Disney actress? They are plotting murder in that room and the girl seems to be trying to leave her family. In another room, there is a girl sitting, hugging her knees. The room is all white. Mental institution? A woman comes in and appears to try to entice her into committing suicide. The theme of the entire movie seems to be that these people are all connected in that they try to convince others to either commit murder or suicide. Another young male is in his room at home, apparently watching deaths online but he can not leave his house. A murder us committed on the streets, by one if the young males. At the end, the male who read from the journal is in the support group room and the male who was in a band comes in and murders him. I believe that us how it ended. It was a very confusing movie as I didn’t see the beginning. I keep wondering if it was a dream but my dreams do not usually follow such patterns. Any help offered will be greatly appreciated. Thank you!"
+   ],
+   "expect_retrieved": [
+    "Chatroom"
+   ],
+   "expect_year": "2010",
+   "expect_tmdb": 48946,
+   "vote_count": 267,
+   "bucket": 34,
+   "wikidata": "Q1068272",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Chatroom_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "48946",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-489",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I saw this movie in about 2000 year. It was comedy movie. A woman who wore red coat and shoes moved in an apartment for rent. A old man won lottery who lives in it. But his neighbours intend to get his money and wait to die him. So the old man can’t go out even his room. The new neighbour woman knows in the first  that the old man died. Then  she can get his money and run away from others but they know her and race her. The woman plots with one of them and can run away together from them. After they have lottery money, They meet in a cafeteria and decide to married. I want to watch it again but i don’t remember the name of the movie."
+   ],
+   "expect_retrieved": [
+    "Common Wealth"
+   ],
+   "expect_year": "2000",
+   "expect_tmdb": 11477,
+   "vote_count": 284,
+   "bucket": 24,
+   "wikidata": "Q2301945",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/La_comunidad_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "11477",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-607",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "A man is kept hostage for some reason I believe it was for criminal purposes, he loves a woman and is cooperating  to keep her safe. Infact the woman and the man keeping the main character hostage are lovers and maybe brother and sister. I remember the hostage see’s them in a hot tub maybe kissing. This film may be anytime from the 90’s. I believe it to be American and I watched it over ten years ago! It was a crime themed film, sorry I cant be more help."
+   ],
+   "expect_retrieved": [
+    "Reindeer Games"
+   ],
+   "expect_year": "2000",
+   "expect_tmdb": 2155,
+   "vote_count": 582,
+   "bucket": 38,
+   "wikidata": "Q676939",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Reindeer_Games",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "2155",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-1079",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I think this was a 60’s or 70’s foreign language film (possibly French or Italian) and in colour. There was a man and a woman who were either spies but more likely criminals or detectives – very glamorous. At various times in the film they would draw tattoos or pictures on each other (or it may have been just him drawing on her) The scene I remember the most is she receives a phone call while in bed. The call is from the man who is watching from down below, outside her window. Naked she moves to the window. He says something about her getting dressed. From the back you see her take the tattoo pencil and draw the straps of a dress onto her shoulders. Been bugging me for a while now so good luck…"
+   ],
+   "expect_retrieved": [
+    "Modesty Blaise"
+   ],
+   "expect_year": "1966",
+   "expect_tmdb": 36645,
+   "vote_count": 59,
+   "bucket": 9,
+   "wikidata": "Q1751900",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Modesty_Blaise_(1966_film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "36645",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-406",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Late 80’s or early 90’s, possibly French movie about a female who teleports to Earth from a more enlightened planet finds it strange. On the other planet they live free from want or need, only needing to run jump & play. You see them on a grassy hillside joyful and talking but for some reason they decide to send someone to Earth. Not all of them can teleport so easily, but one or two out of three of them make it there. They find it very odd. I don’t remember what the plot was. I remember her being psychic. I remember her making three guys dance-walk franticly bouncing from side to side as they hear music."
+   ],
+   "expect_retrieved": [
+    "La Belle Verte"
+   ],
+   "expect_year": "1996",
+   "expect_tmdb": 25518,
+   "vote_count": 192,
+   "bucket": 31,
+   "wikidata": "Q2586610",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/La_Belle_Verte",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "25518",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-707",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Google has failed me… Year – late 80s My grandparents were watching some movie or tv show after they thought I was asleep for the night. I must have stood in the hallway for a long time watching without them realizing. My grandparents were fairly “proper” people, so I expected this to be an episode of Masterpiece Mystery or Poirot, but I can’t find it. Anyway… In English, possibly black and white, maybe only black and white to signify flashback? An adult male – maybe priest? – drowns a young boy in a bathtub. The bathroom is not modern. Rough wood plank floors and a tub with feet. The scene involves watch sloshing over the edge of the tub. During the drowning, a necklace or rosary gets washed down the drain. I don’t know if this was a flashback or what but the next piece I remember is years later, somehow people find the necklace/rosary in the septic tank. Maybe the building burned down? Not sure. Thanks!!"
+   ],
+   "expect_retrieved": [
+    "The Changeling"
+   ],
+   "expect_year": "1980",
+   "expect_tmdb": 13550,
+   "vote_count": 531,
+   "bucket": 14,
+   "wikidata": "Q1168623",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/The_Changeling_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "13550",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-1050",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Well I remember watching this movie about 8 years ago in my dads house, it starts off with this guy who moves to this country (if I’m not mistaken, I think it was Somewhere in the U.K. Possibly Ireland) and he ends up joining this group of men in which all they do is fist fight with other groups.. A few details that I can recall was that almost every time they were about to fight another group, they would be singing this song. At the end of the movie, I remembered that the guy dies due to several punches to the face.. Pleeeease Help! Lol"
+   ],
+   "expect_retrieved": [
+    "Green Street Hooligans"
+   ],
+   "expect_year": "2005",
+   "expect_tmdb": 8923,
+   "vote_count": 2148,
+   "bucket": 19,
+   "wikidata": "Q1133132",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Green_Street_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "8923",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-613",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "It was about a guy who’s very intelligent and kills people. He eventually gets caught and goes to jail, but he manages to still kill people from there. At the end he gets killed with his own bomb thanks to one of the detectives. Any ideas?"
+   ],
+   "expect_retrieved": [
+    "Law Abiding Citizen"
+   ],
+   "expect_year": "2009",
+   "expect_tmdb": 22803,
+   "vote_count": 4637,
+   "bucket": 6,
+   "wikidata": "Q951071",
+   "wikipedia_url": "http://en.wikipedia.org/wiki/Law_Abiding_Citizen",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "22803",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-441",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Another movie I saw on TV as a child during the 90s, in color and I’m assuming in English (the scene I watched didn’t have any actual speaking in it). I only caught it during the final scene. A guy is walking up a hill wearing nothing but swim trunks, from a beach if I remember correctly.  He seems distraught, and it begins to rain. At one point he passes by a tennis court and stares at it for a moment, sinister laughter echoing out as he looks. I think the laughter continues on in a couple other places he passes before he arrives at the steps of a house. While he tries to get the door open, the camera pans over to a broken window and goes inside – the room is dark and ransacked. Going back to the man who seemingly gives up and kneels down on the steps in defeat, the camera pans out and the credits begin to roll. The only other detail I remember is that it was playing dramatic/intense music during the scene."
+   ],
+   "expect_retrieved": [
+    "The Swimmer"
+   ],
+   "expect_year": "1968",
+   "expect_tmdb": 33564,
+   "vote_count": 196,
+   "bucket": 13,
+   "wikidata": "Q1196815",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/The_Swimmer_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "33564",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-1042",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Hello, the movie I am looking for is, as far as I remember, a French movie / nouvelle vague / black & white. Probably 60s. The scene I remember is a boy running down a street at night with a cane in his hand, rattling it against a steel fence while running. I think you only see his feet and it was somehow a dream sequence. Finally he stops at a closed movie theater, he reaches with the cane through the closed steel gate and steals a movie poster. It might be Truffaut ? Anybody recognize this?"
+   ],
+   "expect_retrieved": [
+    "Day for Night"
+   ],
+   "expect_year": "1973",
+   "expect_tmdb": 1675,
+   "vote_count": 552,
+   "bucket": 49,
+   "wikidata": "Q909816",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Day_for_Night_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "1675",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-759",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "70’s sci-fi colour movie – member of group cuts off arm of another member to save his life because of blade tip is moving up his arm. Hi guys, I hope you can help me with this movie as it’s been stuck in my head for the last 30+ years. This is what I can remember; This is a sci-fi, I can’t remember where it is set or even if it’s on Earth, but there’s a group of people, maybe 6 or so. One of them is tough and has some sort of blades/knives as weapons. He can throw these and they come back to him – similar to a boomerang. One of the other members is a bit of a wimp (from memory). The wimpy guy takes/borrows one of these knives and I think he must throw it or something, anyway something happens and the tip of the knife sticks into his forearm. When the tough guy tries to pull the knife out, the tip breaks off and starts to travel up the wimpy guys arm. He decides to cut his arm off to save his life. That’s all I can remember. Except I think in another scene the knives are used to try and open a doorway to a cave or something. Any help would be appreciated Cheers, DrCarl."
+   ],
+   "expect_retrieved": [
+    "Galaxy of Terror"
+   ],
+   "expect_year": "1981",
+   "expect_tmdb": 28893,
+   "vote_count": 178,
+   "bucket": 6,
+   "wikidata": "Q2636180",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Galaxy_of_Terror",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "28893",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-292",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "This was a definite made-for-tv, low-budget movie I saw on the Sci-Fi Channel a few years ago.   A demolition crew is in the process of tearing up an old military base when they come across a hidden room. In the middle of the room there is a tomb-like vault. When they remove the top of the vault they find it full of water and a drowned test monkey (or maybe a person) with a strange plant growth coming out of it’s chest. They take photos and the light from the camera flash starts the plant growing at a fast pace, killing everyone it touches. The survivors reason that if the plant is growing this fast at night, then it will be unstoppable once the sun rises. One person realizes that the plant is actively avoiding him and it turns out that this guy’s blood acts like Roundup to the plant so he has to find his way back to the vault and kill it at the source."
+   ],
+   "expect_retrieved": [
+    "Living Hell"
+   ],
+   "expect_year": "2008",
+   "expect_tmdb": 14192,
+   "vote_count": 66,
+   "bucket": 29,
+   "wikidata": "Q612906",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Living_Hell_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "14192",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-733",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I watched this movie on the IFC channel sometime around 2004. The film was in english, but i think the actors had Scottish accents. The film is about a shy, awkward young woman who marries a man who works on a boat. I’m not sure if he was a fisherman. He is the only person that she opens up to. She is very shy and doesn’t really speak to anyone else. The man had blonde hair, and the woman had black hair. I remember a scene where everyone is drinking and dancing at their wedding and the woman brings her new husband to the bathroom and asks him to take her virginity there. He does and then after the wedding they have a part 2 of their wedding night. I can’t really remember, but i think either her husband eventually gets into an accident at sea while working and becomes disabled or dies."
+   ],
+   "expect_retrieved": [
+    "Breaking the Waves"
+   ],
+   "expect_year": "1996",
+   "expect_tmdb": 145,
+   "vote_count": 864,
+   "bucket": 27,
+   "wikidata": "Q538412",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Breaking_the_Waves",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "145",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-396",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "So, I caught part of a horror movie on television years ago and have been trying to find out what it was ever since, but unfortunately I don’t have much to go on. The only scene I remember is of a woman with dark hair sitting in front of a mirror, and she saw her hair move by itself in a really noticeable way–I think there was a ghost? I’m also pretty certain (but not 100%) the room she was in was rather red, I’m not sure if it was the lighting or the actual room. I don’t know when the movie was made but I saw it more than 5 years ago. Is this scene familiar to anyone?"
+   ],
+   "expect_retrieved": [
+    "The Haunting"
+   ],
+   "expect_year": "1999",
+   "expect_tmdb": 11618,
+   "vote_count": 1247,
+   "bucket": 35,
+   "wikidata": "Q786019",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/The_Haunting_(1999_film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "11618",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-291",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Please help me figure this out! It’s been driving me crazy for months. It’s a movie I watched within the past 10-15 years. The only part I remember is the main character (a man who was possibly a writer) was trying to hide his thoughts or memories from a bad guy in a fictional library (?) inside his mind? I remember him running around a circular room pushing files that were his thoughts or memories and trying to lock doors before the bad guy could in to his subconscious. It seems like there was a woman there helping him. That’s all I can remember! I know it’s very vague and I could be a little off on some of the story line, but I’m hoping someone remembers! Thanks!"
+   ],
+   "expect_retrieved": [
+    "Dreamcatcher"
+   ],
+   "expect_year": "2003",
+   "expect_tmdb": 6171,
+   "vote_count": 1607,
+   "bucket": 41,
+   "wikidata": "Q1256231",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Dreamcatcher_(2003_film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "6171",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-225",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "There’s this movie that played on  AMC a while back and the movie was about a woman who kept seeing a strange man follow her on a subway/train and I think she’s the only one who saw him. His house had yellow , dirty walls, dirty house and there was a jar on bloody tongues on a small desk with a pair of pliers next to it. The man had white hair I think. The woman went to go tell a man or something what’s been happening and his room was blue with lights. That’s all I remember, please help me find this movie name!!! It’s bugging me"
+   ],
+   "expect_retrieved": [
+    "End of Days"
+   ],
+   "expect_year": "1999",
+   "expect_tmdb": 9946,
+   "vote_count": 1681,
+   "bucket": 9,
+   "wikidata": "Q849656",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/End_of_Days_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "9946",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-496",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I vaguely remember a scene from a movie or weekly show like The Night Gallery or Twilight Zone that had a guy, I remember him as tall and gaunt, dressed in old, formal clothes like an undertaker and he was teleporting around on an invisible grid. The landscape seemed bleak, perhaps a desert. That’s about all that I can remember-does this sound familiar to anyone? Thanks for the help."
+   ],
+   "expect_retrieved": [
+    "Phantasm IV: Oblivion"
+   ],
+   "expect_year": "1998",
+   "expect_tmdb": 16146,
+   "vote_count": 173,
+   "bucket": 11,
+   "wikidata": "Q1595630",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Phantasm_IV:_Oblivion",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "16146",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-601",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Okay, I know; dime a dozen. And theres not a ton of differentiation. I watched it probably in 2001-2004 maybe? In color and in English, and it was definitely on VHS. The opening credits were scanning a bunch of makeup pallets and lipsticks and stuff. Now, I’m sort of trying to fill in the blanks here so forgive me, but I believe the main character is an “Average Joe” of sorts and is in love with the popular girl. They somehow end up spending time together. Theres a scene that I vaguely remember where I believe she jokingly invites him to shower with her and she goes ahead and he quietly sneaks into the bathroom and opens op the curtain but when she notices she screams at him to get out and she wasn’t serious. She forgives him and they sort of carry on with the evening. Then she becomes oddly obsessed with him (or obsessed with him rejecting her in the end). I’m not sure what happens here but she ends up (I think drunkenly) sitting in a lawn chair in his front yard screaming at him to go to prom with her."
+   ],
+   "expect_retrieved": [
+    "Whatever It Takes"
+   ],
+   "expect_year": "2000",
+   "expect_tmdb": 16222,
+   "vote_count": 256,
+   "bucket": 10,
+   "wikidata": "Q2459296",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Whatever_It_Takes_%282000_film%29",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "16222",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-600",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I remember a scene from an “independence day”-like film. Only one scene really stands out and its where a human and an alien are in the process of shaking hands (a truce of sorts)… but the alien is deceiving the human… then the aliens hand turns into a worm type thing and kills the human."
+   ],
+   "expect_retrieved": [
+    "Mars Attacks!"
+   ],
+   "expect_year": "1996",
+   "expect_tmdb": 75,
+   "vote_count": 5008,
+   "bucket": 31,
+   "wikidata": "Q271690",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Mars_Attacks!",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "75",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-956",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I think this movie came out in the 90s. It is in English and color. It had something to do with a childhood friend of this guy gets invited to his party. The guy is really awkward and doesn’t fit in with the in-crowd. He is always ordering rum and cokes. His friend that invites him is successful and engaged I think. Towards the end of the movie the two guys end up having sex I think."
+   ],
+   "expect_retrieved": [
+    "Chuck & Buck"
+   ],
+   "expect_year": "2000",
+   "expect_tmdb": 44490,
+   "vote_count": 52,
+   "bucket": 0,
+   "wikidata": "Q5115320",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Chuck_&_Buck",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "44490",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-109",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "This is an old movie. As far as I remember, the plot was the following: Some guys stole/found a truck from a military convoy that turns out it had an alien inside. The alien was done by a guy in a bright green suit, kind of silly looking. They decided to kill the alien, by cutting him in parts and burning them in the crematorium. I think, when they cut his hand and other limbs they noticed they remained moving, so it couldn’t be killed. They burnt the body. After which, the smoke from the fire went in the atmosphere, turned into a cloud and rained down over the cemetery. Which of course lead to infecting the dead bodies and they becoming zombies. I think the movie ended as the government nuked the town. Saw this movie a few years back, it looked like 50s – 60s movie. It was in color. I watched it on the MGM channel, so I suspect it is MGM movie. The movie was in English language."
+   ],
+   "expect_retrieved": [
+    "The Return of the Living Dead"
+   ],
+   "expect_year": "1985",
+   "expect_tmdb": 10925,
+   "vote_count": 1857,
+   "bucket": 21,
+   "wikidata": "Q1475119",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/The_Return_of_the_Living_Dead",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "10925",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-1025",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "So the first thing I remember is they were having a get together/ party outdoors and someone mistakenly puts wet cat food on the table and someone eats it with a cracker. Next thing I remember is a shooting scene, most people at the home are killed and I remember a younger person hiding and seeing all the blood shed but is unharmed. Then they are forced to travel through a desert? I believe it was a young girl and a boy traveling, at one point they dig in the sand and are able to find water and then at some point the come upon a cave. The end of the movie is them finally being rescued or finally crossing the desert. Please help I think about this movie all the time it’s been driving me crazy for years!"
+   ],
+   "expect_retrieved": [
+    "A Far Off Place"
+   ],
+   "expect_year": "1993",
+   "expect_tmdb": 24736,
+   "vote_count": 52,
+   "bucket": 17,
+   "wikidata": "Q178423",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/A_Far_Off_Place",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "24736",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-259",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "i remember this film quite well, just not the title. its about a group of high school students who are constantly bullied. at one point the bullies corner 2 guys in the bathroom and break one of their cameras. so they all retaliate by throwing a party, in disguise, and knocking them all out with chemicals in the punch. they all wake up chained up. the main characters are in disguise. the main one has a trench coat and gas mask, a girl has a butterfly mask. and a black kid has a clown suit. at one point the black kid wants to opt out so gas mask guy stabs him and he dies. the way they torture their victims include: making a fat guy chop off a girl’s fingers, using a nail shooter thing (like in no country for old men) on a guy’s leg and face, and putting a slowly working acid on a girl’s face. eventually one of them escapes (a black jock i think) and tries to get help. the cop he finds gets killed and there is a quad chase. when they are found by the cops they kill themselves. the girl they put acid on is seen in a coffee shop, scarred, in the intro and conclusion of the film. her scenes are in black and white. thanks in advance"
+   ],
+   "expect_retrieved": [
+    "The Final"
+   ],
+   "expect_year": "2010",
+   "expect_tmdb": 34583,
+   "vote_count": 247,
+   "bucket": 16,
+   "wikidata": "Q2073341",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/The_Final_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "34583",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-330",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Film Production Date: Unknown Film is in: Color Setting: Probably pre-Internet Actors: VERY MAYBE Sarah Michelle Gellar and Matthew Broderick, both quite young (teens) I have seen only one scene of this movie (or TV series episode?) that circulated the net as animated GIF with (yellow/white? subtitles), maybe on imgur.com or a similar site. The scene goes like this:  A young girl and a young boy (both 12-16, I’d guess), both half-dressed, seemingly a bit shy and totally clueless about sex, try to have either sex or perform a handjob on the boy. They stand in a simply furnished room with (IIRC) not much more than a bed, a chair and maybe a table.   They alternately make suggestions (more like guesses) how to go about it. When the boy makes a suggestion, he repeatedly refers to horses (“like I’ve seen horses do”, something along those lines).   One of the suggestions is that the girl should stand on a chair.   At one point, the girl tells the boy to stop making references to horses.   At one point, the girl removes her bra (no nudity is shown, thanks to the camera perspective / clipping).   At the end of the scene, the girl is seen having her hands near/in the boy’s genital area and remarking something like “oh, only so little (liquid)?”.  The girl had a “smiling dimple” that reminded me of Sarah Michelle Gellar, but I’m absolutely unsure. Even more so with Matthew Broderick. Any help appreciated!"
+   ],
+   "expect_retrieved": [
+    "Skipped Parts"
+   ],
+   "expect_year": "2000",
+   "expect_tmdb": 41282,
+   "vote_count": 53,
+   "bucket": 20,
+   "wikidata": "Q1431639",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Skipped_Parts",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "41282",
+   "split": "train"
+  },
+  {
+   "id": "trec-train-213",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "This movie was about a goldsmith who is starving his female muse so she might be the embodiment of Christ for the skinny crucifixes he’s obsessed with making. I first saw it on Netflix in around 2011."
+   ],
+   "expect_retrieved": [
+    "First Love"
+   ],
+   "expect_year": "2004",
+   "expect_tmdb": 62495,
+   "vote_count": 116,
+   "bucket": 35,
+   "wikidata": "Q3921874",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/First_Love_(2004_drama_film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "62495",
+   "split": "train"
+  }
+ ]
+}

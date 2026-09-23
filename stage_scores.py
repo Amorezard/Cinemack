@@ -13,6 +13,7 @@ retrieve() and, when it goes missing, which stage lost it.
     python stage_scores.py --questions trec_tot_2023.json --split dev   # TREC
     python stage_scores.py --questions trec_tot_2023.json --split dev --limit 5
     python stage_scores.py --report results/<file>.json   # re-read a saved run
+    python stage_scores.py --questions sets/tune.json --tag <name>   # after split_sets.py
 
 Stages, in pipeline order:
   pool          vector search (full record + plot-only), closest first.
@@ -259,12 +260,17 @@ def main():
     R.USE_QUERY_LLM = not old
 
     if qfile:
-        # Another question file in the test_set.json format, e.g. trec_tot_2023.json.
+        # Another question file in the test_set.json format: trec_tot_2023.json,
+        # or a set from split_sets.py (sets/tune.json, sets/check.json).
+        if os.path.basename(qfile) == "final.json" and "--final" not in args:
+            sys.exit("sets/final.json is the sealed final set. Run it once, at the very end, "
+                     "with --final.")
         d = json.load(open(qfile))
         todo = [((q.get("source", "file") + "-" + q.get("split", "")).upper().strip("-"),
                  q["id"], q["turns"], q.get("expect_retrieved") or [], q.get("expect_year"))
                 for q in (d if isinstance(d, list) else d["questions"])
-                if not split or q.get("split") == split]
+                if (not split or q.get("split") == split)
+                and q.get("retrieval_graded", "expect_retrieved" in q)]
     else:
         todo = T.cases(fresh_only)
     if only:

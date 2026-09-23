@@ -1,0 +1,645 @@
+{
+ "questions": [
+  {
+   "id": "q06",
+   "category": "semantic",
+   "maps_to": "baseline_vector_search",
+   "turns": [
+    "There's a film where the main character can't form new memories and covers himself in tattoos to keep track of things. What is it?"
+   ],
+   "expect_retrieved": [
+    "Memento"
+   ],
+   "expect_behavior": "Should already pass.",
+   "expect_year": "2000",
+   "source": "own",
+   "retrieval_graded": true,
+   "film_key": "77",
+   "bucket": 86,
+   "split": "check"
+  },
+  {
+   "id": "q07",
+   "category": "semantic_hard",
+   "maps_to": "known_limit",
+   "turns": [
+    "A movie about a poor family who each get hired by a wealthy household while hiding that they're related?"
+   ],
+   "expect_retrieved": [
+    "Parasite"
+   ],
+   "expect_behavior": "Found since the LLM re-ranker (22 Sep). PASS = identifies Parasite (2019) and describes it from the context. Restating the question's own description is fine.",
+   "expect_year": "2019",
+   "source": "own",
+   "retrieval_graded": true,
+   "film_key": "496243",
+   "bucket": 79,
+   "split": "check"
+  },
+  {
+   "id": "q09",
+   "category": "metadata",
+   "maps_to": "metadata_prefilter",
+   "turns": [
+    "What's a good horror movie that came out after 2015?"
+   ],
+   "expect_rows_match": {
+    "release_year_between": [
+     2016,
+     2026
+    ],
+    "genres_contains": "Horror"
+   },
+   "expect_behavior": "Year filter is the thing under test. Recommending The Shining here is a clean failure.",
+   "source": "own",
+   "film_key": "q:q09",
+   "bucket": 86,
+   "split": "check"
+  },
+  {
+   "id": "q10",
+   "category": "credits_present",
+   "maps_to": "credits_coverage",
+   "turns": [
+    "Who directed Pulp Fiction?"
+   ],
+   "expect_retrieved": [
+    "Pulp Fiction"
+   ],
+   "expect_answer_contains": [
+    "Tarantino"
+   ],
+   "expect_behavior": "Pre-2017 and popular, so it should be inside the TMDB 5000 overlap and have real director data. Run check_coverage.py to confirm before trusting this one.",
+   "expect_year": "1994",
+   "source": "own",
+   "retrieval_graded": true,
+   "film_key": "680",
+   "bucket": 94,
+   "split": "check"
+  },
+  {
+   "id": "q13",
+   "category": "credits_present",
+   "maps_to": "credits_rebuild",
+   "turns": [
+    "Who starred in the 2021 version of Dune?"
+   ],
+   "expect_retrieved": [
+    "Dune"
+   ],
+   "expect_behavior": "Credits now exist. PASS = names cast from the context, including Timothee Chalamet. FAIL = says it has no cast info, or names someone not in the context.",
+   "expect_year": "2021",
+   "source": "own",
+   "retrieval_graded": true,
+   "film_key": "438631",
+   "bucket": 90,
+   "split": "check"
+  },
+  {
+   "id": "q32",
+   "category": "semantic_heldout",
+   "maps_to": "generalisation",
+   "turns": [
+    "an astronaut stranded on Mars grows potatoes to survive"
+   ],
+   "expect_retrieved": [
+    "The Martian"
+   ],
+   "expect_year": "2015",
+   "expect_behavior": "Held out: never used to tune anything. PASS = right film, answer uses the context.",
+   "source": "own",
+   "retrieval_graded": true,
+   "film_key": "286217",
+   "bucket": 79,
+   "split": "check"
+  },
+  {
+   "id": "trec-dev-152",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Movie from  the early 2000s I believe about three people living in an apartment but never running into each other. One woman and two men are in the apartment. The woman is the realtor or owner of the apartment and at least one of the guys is a squator/homeless. It is a Korean or Chinese film I think. Art house flick… I think it won a few awards from film festivals like Cannes. Help if you can! ?"
+   ],
+   "expect_retrieved": [
+    "Vive L'Amour"
+   ],
+   "expect_year": "1995",
+   "expect_tmdb": 11985,
+   "vote_count": 109,
+   "bucket": 71,
+   "wikidata": "Q711684",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Vive_L%27Amour",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "11985",
+   "split": "check"
+  },
+  {
+   "id": "trec-dev-1038",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Ive had a movie on my mind for a few days I watcher several years back (at least 10+) I dont remember alot of it, but there was a guy chased by cops for superlong and at one point it was in a desert environment. He mustve had several dozen of cops right behind him at one point and when it looked like he was about to get caught a trucker showed up in a far distans, shortly after several others showed up behind it and they spread out in a line. Im not sure but I think he was driving an american muscle car, it was for sure an american movie, colored, and if I had to guess maybe from the 80’s or 90’s. Id appreciate any help on this, going crazy over here!"
+   ],
+   "expect_retrieved": [
+    "Smokey and the Bandit II"
+   ],
+   "expect_year": "1980",
+   "expect_tmdb": 12705,
+   "vote_count": 251,
+   "bucket": 92,
+   "wikidata": "Q957698",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Smokey_and_the_Bandit_II",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "12705",
+   "split": "check"
+  },
+  {
+   "id": "trec-dev-1011",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I remember this Action/Gun movie where they went to kill a woman but she was pregnant when they went in the room to kill her, It was time for her to have baby, so they didn’t kill her, I think it was a woman too and she delivered the baby at the house, there’s another scene where she was lying in bed with her boyfriend and she took a bubblegum out her mouth and put it on the lamp table and I think she said she can’t do this anymore, it’s like he’s a hitman/contract killer, that’s all I remembered."
+   ],
+   "expect_retrieved": [
+    "Shadowboxer"
+   ],
+   "expect_year": "2005",
+   "expect_tmdb": 9921,
+   "vote_count": 62,
+   "bucket": 90,
+   "wikidata": "Q537166",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Shadowboxer",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "9921",
+   "split": "check"
+  },
+  {
+   "id": "trec-dev-898",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "One of George Clooney movies in which a woman he is having a night with witnesses a murder from the room’s window. She doesn’t want to testify so George goes to trial instead of her."
+   ],
+   "expect_retrieved": [
+    "The Bedroom Window"
+   ],
+   "expect_year": "1987",
+   "expect_tmdb": 39074,
+   "vote_count": 104,
+   "bucket": 99,
+   "wikidata": "Q1170252",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/The_Bedroom_Window_(1987_film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "39074",
+   "split": "check"
+  },
+  {
+   "id": "trec-dev-579",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "There was a movie that I rented and watched like back in 2002. But the movie could’ve been from the 90s. The one scene that I remembered was the there was this little boy of about 7 years old or so, who encounters aliens or some higher beings. And I think his mum was dead because in one scene in a bedroom or something he wished or asked the aliens to bring his mother back for 1 day so that he could celebrate his birthday with her. They granted that wish and his mother got to spend 1 day with him on his birthday. After that the boy said good bye to her and the aliens came and took her away to wherever….  yeah , it sounds pretty weird and I may have not remembered it all to accurately but I hope one of you can tell me what movie this is. It was in English movie. I think the boy was blonde."
+   ],
+   "expect_retrieved": [
+    "A.I. Artificial Intelligence"
+   ],
+   "expect_year": "2001",
+   "expect_tmdb": 644,
+   "vote_count": 5719,
+   "bucket": 78,
+   "wikidata": "Q221113",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/A.I._Artificial_Intelligence",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "644",
+   "split": "check"
+  },
+  {
+   "id": "trec-dev-281",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I re-call a scene in a film where there is a desolate road with a Badger sniffing around the tarmac and a car speeds toward it on a curve.  The car runs over the badger and comes to a halt. A woman gets out and stares into the horizon, where there is a city or town with smoke plumes and the sound of gunfire and explosions akin to military weapons.  She shows no concern for the dead badger, staring vacantly into the distance. It was in colour, maybe european. Anyone know the film`s name?"
+   ],
+   "expect_retrieved": [
+    "Black Moon"
+   ],
+   "expect_year": "1975",
+   "expect_tmdb": 27361,
+   "vote_count": 130,
+   "bucket": 79,
+   "wikidata": "Q880426",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Black_Moon_(1975_film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "27361",
+   "split": "check"
+  },
+  {
+   "id": "trec-dev-1096",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "The movie was made between the dates 2000-2010 for sure. It was in english, in color, and definetly a movie not a tv episode. I specifically remember a scene where a girl  seemed to be kidnapped in a car by a bunch of weird people. The people were all freaks with things wrong with them. One guy had worms coming from his face and another had something to do with play cards. He could like throw them and use them as like ninja stars. I believe she liked one of the guys? Pleassse help. Thanks so much."
+   ],
+   "expect_retrieved": [
+    "Sometimes They Come Back... Again"
+   ],
+   "expect_year": "1996",
+   "expect_tmdb": 27770,
+   "vote_count": 86,
+   "bucket": 83,
+   "wikidata": "Q605613",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Sometimes_They_Come_Back..._Again",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "27770",
+   "split": "check"
+  },
+  {
+   "id": "trec-dev-371",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I don’t remember what era this movie came out. so I remember a group of girls are staying in a cabin in the woods and this one girl gets out of the shower and the window/or mirror is foggy so she wipes it and a yeti pulls her out of the window. I also think there was more than one of these yeti things."
+   ],
+   "expect_retrieved": [
+    "Abominable"
+   ],
+   "expect_year": "2006",
+   "expect_tmdb": 10011,
+   "vote_count": 84,
+   "bucket": 91,
+   "wikidata": "Q322776",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Abominable_(2006_film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "10011",
+   "split": "check"
+  },
+  {
+   "id": "trec-dev-693",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Hello hive mind, Can anyone help me remember the name of a deeply low budget indie/arthouse/weirdo film from the ’90s that was – i think? – filmed on low res video in black and white (ie, not pixelvision but maybe one step up) and was basically about some weird kind of slug-like creature being born and maybe crawling up the side of a mountain. No dialog, just a weird kind of droning soundtrack and a lot of grainy b&w squirming. It probably had some heavy religious symbolism. I remember renting it on VHS in the mid-’90s and for some reason I associate it with the time around which I would’ve seen the first Tetsuo: Iron Man film. The title, if I recall correctly, was one word – either XXX or The XXX – and I want to say it started with the letter “I.” I could be totally making that up though. Please help."
+   ],
+   "expect_retrieved": [
+    "Begotten"
+   ],
+   "expect_year": "1991",
+   "expect_tmdb": 1483,
+   "vote_count": 271,
+   "bucket": 93,
+   "wikidata": "Q374207",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Begotten_%28film%29",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "1483",
+   "split": "check"
+  },
+  {
+   "id": "trec-dev-512",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I saw this movie sometime around 2011-2014, someone borrowed it from a Redbox, so I would think the movie came out sometime around then. It is set in a fantasy medieval-ish kingdom. Starts of with a man being a guard, or something similar, to a king and somehow a king became a tyrant (or the king died and his son became the tyrant king?). Some people were killed (tried to run and were killed?) including this man’s family. I think this happened during the winter (unless the kingdom was always cold.) Man pretends to be a drunkard who has lost hope and goes home with a prostitute every night, but really isn’t a drunkard and pays the prostitute without actually spending any time with her and goes home, as he is only putting on an act so the king’s men will think he has given up and is not plotting revenge (but he is).  This man along with some other guys are all in on a plan to overthrow the king. Their job is to make shields and somehow use the rivets in the shield (they looked like viking shields with the rivets around the edges, if I remember correctly) as part of their plan, or messaging system to plan the plan. Something of that sort. At some point a man on the inside, as they say, has a daughter that is going to be forced to marry the king, but they smuggle the main character guy inside the castle in an ornate mirror so that he can rescue their inside man’s daughter. I’m quite sure near the end, or at the end of the movie, the group battle the king’s men outside the castle, defeats them, and it show’s the main guy ready to go into the castle to kill the king. I apologize for all the parentheses and run-on sentences, I typed it up as my brain remembered things."
+   ],
+   "expect_retrieved": [
+    "Last Knights"
+   ],
+   "expect_year": "2015",
+   "expect_tmdb": 308504,
+   "vote_count": 999,
+   "bucket": 92,
+   "wikidata": "Q7745847",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Last_Knights",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "308504",
+   "split": "check"
+  },
+  {
+   "id": "trec-dev-1090",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "This is a movie from the early to mid 80’s, in English. I remember it being a vignette format, like Creepshow or The Willies, but I was a little kid so who knows. The part I remember is a kind of Victorian-era vampire scene where at one point the action leads to a cellar/dungeon where one of the protagonists is on a slab table with a hunk of meat (or maybe one whole leg) missing as it was removed for food. In my head I see one of the vampires as Prince Humperdink, but I’m pretty sure that’s just due to Fright Night. Thoughts?"
+   ],
+   "expect_retrieved": [
+    "Waxwork"
+   ],
+   "expect_year": "1988",
+   "expect_tmdb": 29095,
+   "vote_count": 253,
+   "bucket": 72,
+   "wikidata": "Q553632",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Waxwork_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "29095",
+   "split": "check"
+  },
+  {
+   "id": "trec-dev-641",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "This would’ve been an 80s or 90s film, my sister got it from a rental place around the late 90s. The main thing I remember is that a woman wakes up in a hospital to find out that her arms and legs are missing. It was a shock reveal where they pulled the blanket off her. There were a few people (including a police officer/detective?) consoling her that this was for the best. Where my memory gets fuzzy is that there may have been some monster/demonic presence/other evil involved and her limbs have been sacrificed in some way after she tried to escape, but I might be imagining this."
+   ],
+   "expect_retrieved": [
+    "Necronomicon"
+   ],
+   "expect_year": "1993",
+   "expect_tmdb": 32998,
+   "vote_count": 142,
+   "bucket": 93,
+   "wikidata": "Q565143",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Necronomicon_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "32998",
+   "split": "check"
+  },
+  {
+   "id": "trec-dev-169",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I saw the movie when I was really young and sadly can recollect only one memory of it. It was 7~9 years ago so can’t be after that. Most certainly a full fledged English film. On HBO I think, or maybe some other mainstream english movie channel. The scene I remember is of a boy, maybe 8-10 years old or teen… and he was with a man who bought him some talisman of sortsrom an ordinary street vendor and there were symbols swirling inside it. The man pointed it out and said there are symbols in everything and the boy was chosen or something and only he was able to see it. I think the boy was with a girl of his same age but not very sure about that. Very vague info but this is all I can remember."
+   ],
+   "expect_retrieved": [
+    "The Seeker: The Dark Is Rising"
+   ],
+   "expect_year": "2007",
+   "expect_tmdb": 2274,
+   "vote_count": 377,
+   "bucket": 99,
+   "wikidata": "Q1188808",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/The_Seeker_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "2274",
+   "split": "check"
+  },
+  {
+   "id": "trec-dev-492",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "so there’s this movie about this guy and his baby in a city, there’s a gang of children who are turned into monsters because of a drug they use. They can only see you if you fear them. In one scene the man is on the bus and the kids attack the bus and kidnap some people. In another a nurse he made acquaintance of goes up to a group of these kids and they hit her with a club or something."
+   ],
+   "expect_retrieved": [
+    "Citadel"
+   ],
+   "expect_year": "2012",
+   "expect_tmdb": 52001,
+   "vote_count": 145,
+   "bucket": 67,
+   "wikidata": "Q2411766",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Citadel_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "52001",
+   "split": "check"
+  },
+  {
+   "id": "trec-dev-458",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "So the detail I have for this movie is limited, so I apologise. Also it’s a little all over the place. I remember the climax of the movie being like two grown men (possibly a Dad and a teacher – or they could’ve been next door neighbours) fighting in a school gym at night, and they end up on some kind of rock face/waterfall and someone falls, but no one dies! The following scene shows the family leaving the neighbourhood and the teacher/neighbour covered in plaster casts. I saw this movie on Sky Movies in the early 00s, I think I remember it being shown a lot. It was probably made in the late 90s. It was an American family movie. I’m pretty sure it started with the family moving into the neighbourhood with a pretty full car. And if I remember rightly, the Dad was quite a weighty/hefty dude. Sorry I haven’t included much detail but this is all I can remember! Hopefully the fight scene will ring some bells with somebody. Thanks!"
+   ],
+   "expect_retrieved": [
+    "Big Bully"
+   ],
+   "expect_year": "1996",
+   "expect_tmdb": 36929,
+   "vote_count": 69,
+   "bucket": 84,
+   "wikidata": "Q4905397",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Big_Bully_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "36929",
+   "split": "check"
+  },
+  {
+   "id": "trec-dev-906",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Old, toothless guy falls out of the sky and lands at a hospital or something. Breaks every bone in body etc.  Recovers in hospital, starts getting younger, teeth come in.  He falls in love.  She starts sleep-talking in ancient Sumerian.  Thought it took place in 1940’s or 50’s and main character looked like Ralph fiennes or Chistopher Ecclesiaston."
+   ],
+   "expect_retrieved": [
+    "Youth Without Youth"
+   ],
+   "expect_year": "2007",
+   "expect_tmdb": 7797,
+   "vote_count": 204,
+   "bucket": 83,
+   "wikidata": "Q553194",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Youth_Without_Youth_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "7797",
+   "split": "check"
+  },
+  {
+   "id": "trec-dev-552",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "The main character is a girl with black hair and she is just coming home from the asylum. She lives with her dad, her sister, and her dad’s creepy new gf. Their mom died or something and the whole time you think it’s the dads mistress who killed her. Then I remember at the end the girl is running around rampantly and she finally finds herself in front of a mirror with a knife in her hand and blood all over her and realizes that she was the antagonist the whole time and then it ends. SUCH A GOOD ENDING OMG. X/"
+   ],
+   "expect_retrieved": [
+    "The Uninvited"
+   ],
+   "expect_year": "2009",
+   "expect_tmdb": 14254,
+   "vote_count": 1372,
+   "bucket": 75,
+   "wikidata": "Q327613",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/The_Uninvited_(2009_film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "14254",
+   "split": "check"
+  },
+  {
+   "id": "trec-dev-157",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Its a Van Damme movie baaed on human trafficking, it starts where he rescued a little boy and rode off with him on a motorcycle, I think it a (2012-2016) movie. (from comments)"
+   ],
+   "expect_retrieved": [
+    "6 Bullets"
+   ],
+   "expect_year": "2012",
+   "expect_tmdb": 127521,
+   "vote_count": 300,
+   "bucket": 68,
+   "wikidata": "Q246086",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Six_Bullets",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "127521",
+   "split": "check"
+  },
+  {
+   "id": "trec-dev-556",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "i remember i have seen one movie like this: A church father check virgin 3 girls by this method: give she one cup of water and molest her, if she drop that cup then she lost or not…. After that check three girls talk about this….. This movies on HBO and about 2 hours, the american’s movie …. pls someone remember that name pls help me watch it again"
+   ],
+   "expect_retrieved": [
+    "The Devil's Hand"
+   ],
+   "expect_year": "2014",
+   "expect_tmdb": 220471,
+   "vote_count": 121,
+   "bucket": 72,
+   "wikidata": "Q3522061",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/The_Devil%27s_Hand_(2014_film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "220471",
+   "split": "check"
+  },
+  {
+   "id": "trec-dev-546",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I feel the movie is fairly recent, maybe a horror movie, and this scene was on some sort of space craft. Ok, so I remember nothing useful bout this movie at all aside from this scene. A man sits down in the captains seat and to fly the ship, he places each hand into a bowl of gooey space gunk. One was on his left side an the other on his right. …..and that’s really all I have to go on. Thanks"
+   ],
+   "expect_retrieved": [
+    "District 9"
+   ],
+   "expect_year": "2009",
+   "expect_tmdb": 17654,
+   "vote_count": 8721,
+   "bucket": 70,
+   "wikidata": "Q201819",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/District_9",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "17654",
+   "split": "check"
+  },
+  {
+   "id": "trec-dev-568",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I saw this movie back in the 80’s. The only scene I remember is there are hikers going up an icy mountain and one slips and knocks his head off the ice. I don’t know how he doesn’t notice this but below the blood stain is Dracula buried in plain sight. I think he feeds off the blood and re-awakens. I would like to know the name and year-if possible-of this film."
+   ],
+   "expect_retrieved": [
+    "Dracula Has Risen from the Grave"
+   ],
+   "expect_year": "1968",
+   "expect_tmdb": 29778,
+   "vote_count": 160,
+   "bucket": 74,
+   "wikidata": "Q1254472",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Dracula_Has_Risen_from_the_Grave",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "29778",
+   "split": "check"
+  },
+  {
+   "id": "trec-dev-365",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "This might have just been a dream, but i’m 99% sure it’s a movie. I remember two scenes from the movie, one was set in a corridor (possibly a subway platform), the walls and floor seemed to be made out of bathroom/kitchen tile, and a person was running down the corridor away from some invisible force that was making the fluorescent lights on the ceiling go out one-by-one. The other scene was set in a house, same story. The lights were going out inside the house, and I remember clearly that if anybody touched the shadows, then they disappear or are injured. I also remember a woman with a blonde Marge-Simpson hair due."
+   ],
+   "expect_retrieved": [
+    "Vanishing on 7th Street"
+   ],
+   "expect_year": "2010",
+   "expect_tmdb": 43552,
+   "vote_count": 526,
+   "bucket": 71,
+   "wikidata": "Q1213427",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Vanishing_on_7th_Street",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "43552",
+   "split": "check"
+  },
+  {
+   "id": "trec-dev-475",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Im trying to remember if it was a movie or series on disney channel most likely. with a blue dude or alien, idk, which one he was he was blue though and he wore black sun glasses sometimes and a brown jacket and there was a red robot that with him all the time. it was like they lived inside someone body or something. and of course there was a bad guy and the blue guy liked a girl too i cant quit remember what she looked like or anything else about it though."
+   ],
+   "expect_retrieved": [
+    "Osmosis Jones"
+   ],
+   "expect_year": "2001",
+   "expect_tmdb": 12610,
+   "vote_count": 948,
+   "bucket": 93,
+   "wikidata": "Q966690",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Osmosis_Jones",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "12610",
+   "split": "check"
+  },
+  {
+   "id": "trec-dev-521",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "There’s an old one I got to see just once as a kid. Dude takes a bet to survive one nite in a mansion. So, he’s there thinking he’s alone and all these people show up. Remember two real well. A girl he falls I love with and some scientist. Scientist talking at one point shows experiment where he’s talking about how long something can live, cuts the head off a snake, tells dude to try to pick up snake head and dude almost gets bit. Another scene he’s with the girl in bed laying his head in her chest and jumps up worried cause he can’t hear her heartbeat. End of show he walks out stands by the mansion gates and it slams on him with the spikes stabbing him in the back. He loses the bet but gets the girl"
+   ],
+   "expect_retrieved": [
+    "Castle of Blood"
+   ],
+   "expect_year": "1964",
+   "expect_tmdb": 28532,
+   "vote_count": 85,
+   "bucket": 67,
+   "wikidata": "Q2253504",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Castle_of_Blood",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "dev",
+   "film_key": "28532",
+   "split": "check"
+  }
+ ]
+}

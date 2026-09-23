@@ -1,0 +1,818 @@
+{
+ "questions": [
+  {
+   "id": "trec-train-763",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Very rare movie that is scifi/dystopian/experimental/surreal. It’s like Stalker meets el Topo meets Holy Mountain meets Alphaville meets Delicatessen meets Hard to be a God, like Kurosawa, Tarkovsky, and Lynch had a kid together. It was color, possibly Russian, and I don’t really remember the decade but want to say 60s or 70s, though could easily be more recent. It is VERY rare, there is only one crappy partial print of it, and that is what the youtube version is from. Lot of wide shots in a surreal wilderness, winter settings, strange bleeding saturation in some shots. Crazy costumes. Seriously one of the strangest films I’ve ever seen and my favorite films are strange/weird ones. If you’ve ever seen what you’re thinking of on a “best weird movies” or “you’ve never seen this!” list, that’s NOT it. I don’t think this film even has a cult following of ten people. It’s an actual rare gem. Have been looking through selections at 366 Weird Movies and not found it yet (btw the way most of those titles are exactly the kind of not-actually-rare movies this film is definitely not)."
+   ],
+   "expect_retrieved": [
+    "On the Silver Globe"
+   ],
+   "expect_year": "1988",
+   "expect_tmdb": 27072,
+   "vote_count": 107,
+   "bucket": 56,
+   "wikidata": "Q1988165",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/On_the_Silver_Globe_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "27072",
+   "split": "final"
+  },
+  {
+   "id": "trec-train-903",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I think it’s a famous movie or the actor is famous. There was a man in a hotel and I think he was in a Mafia project as a sudden and unwantedly. I remember two man came to him with a bag. The thing I remember is one day the woman in the cafe(cashier or waitress), he used to eat there everyday, was mad at him why he disregardes her! The man was a silent one as I remember(He had dialogues though) I watched it before 2013 and cause I watched a dubbed version I don’t know the original language."
+   ],
+   "expect_retrieved": [
+    "The Consequences of Love"
+   ],
+   "expect_year": "2004",
+   "expect_tmdb": 24653,
+   "vote_count": 751,
+   "bucket": 53,
+   "wikidata": "Q1058226",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/The_Consequences_of_Love",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "24653",
+   "split": "final"
+  },
+  {
+   "id": "trec-train-784",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I didn’t see this movie. I just saw a scene. So i don’t recognize any character. I think it’s a an english movie nearly 2000’s. The scene is two men in a car was waiting for a girl. It was night. Seeing that girl they started to follow her. Then they wore mask. When the girl realized that she was being followed she started to run and escape. But before she could do that they caught her. Then one of the men beats her and then rapes her. And other man was holding a gun. Before raping the girl the man removes his mask. When the girl was screaming there was a train going over a bridge above them. When they were leaving the girl the other man who was holding the gun said,” Hey man, she saw your face.” The man who raped the girl said,” I know, let her go.” Can anyone guess which movie is this. I really wanna see what happens next. And sorry for my english. Plz help…"
+   ],
+   "expect_retrieved": [
+    "Bad Boys"
+   ],
+   "expect_year": "1983",
+   "expect_tmdb": 13633,
+   "vote_count": 233,
+   "bucket": 97,
+   "wikidata": "Q798650",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Bad_Boys_(1983_film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "13633",
+   "split": "final"
+  },
+  {
+   "id": "trec-train-115",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Netflix within three years ago. Colour. English. Cinematography suggests somewhere around the 90s. I saw a movie a while back and I can’t find it again. It was weird and dark, very Tim Burtony. It’s an inn or boardinghouse by the sea. The residents ate crappy food and that’s what kept them ill. They started eating better food and started getting better. There was a bit about a boat at the end of the pier, but I can’t remember. I think that’s how people got off the island that the inn was on?"
+   ],
+   "expect_retrieved": [
+    "Guest House Paradiso"
+   ],
+   "expect_year": "1999",
+   "expect_tmdb": 10482,
+   "vote_count": 117,
+   "bucket": 56,
+   "wikidata": "Q1553290",
+   "wikipedia_url": "http://en.wikipedia.org/wiki/Guest_House_Paradiso",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "10482",
+   "split": "final"
+  },
+  {
+   "id": "trec-train-758",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "There’s a young woman standing in a shop, looks like an antique or curio store, and she is staring out the window. I believe she had dark hair, but it’s black and white, so it might have been hard to tell. I think there was another woman with her to the right on screen, who ran the shop. The camera cuts to the window, where outside some little girls are jumping rope and chanting a nursery rhyme. They might be blond. I think there are two of them. It cuts back to the woman looking out the window, who says “Those kids-” and looks horrified or scared. The kids had a creepy vibe, like children in a horror movie. I guess there was some significance to them. That’s all I remember, so the woman may have finished her sentence and I forgot it. For a while I was convinced that it was from the old Twilight Zone episodes from the sixties, but I watched all the ones I have and haven’t seen anything like that. I also keep searching on the Internet about this show and girls jumping rope, but nothing helpful comes up. I saw it a long time ago when I was a kid, maybe ten years ago, so my memory is fuzzy. There’s the gist of it; I may have gotten some details wrong. Thanks so much if you can help!"
+   ],
+   "expect_retrieved": [
+    "Strait-Jacket"
+   ],
+   "expect_year": "1964",
+   "expect_tmdb": 29396,
+   "vote_count": 102,
+   "bucket": 92,
+   "wikidata": "Q1217802",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Strait-Jacket",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "29396",
+   "split": "final"
+  },
+  {
+   "id": "trec-train-838",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "He meets this girl in a café basically, and he ends up going over to her place later. She has a roomate that is doing paper mache stuff. Rest may or may not be in order: There´s this gag throughout the movie about two guys in a van stealing stuff, among those the paper mache thing, and the main character calls them out for it but we learn those were friends of the roommate. I´m fairly sure the girl(might´ve been the roomate) dies at some point or in the midst of the movie. There´s a note that one of them have gone to a “hard rock” bar or disco, and the main character goes there, and in the party, some guys pin him down and attempt/or succesfully shave his head. Rest I can´t really recall, thanks in advance!"
+   ],
+   "expect_retrieved": [
+    "After Hours"
+   ],
+   "expect_year": "1985",
+   "expect_tmdb": 10843,
+   "vote_count": 1272,
+   "bucket": 68,
+   "wikidata": "Q846209",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/After_Hours_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "10843",
+   "split": "final"
+  },
+  {
+   "id": "trec-train-942",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "There is a movie where the actor suffers some kind of transformation or surgery idk and everybody thinks he lost his memories and his feelings. There was a scene where he was at home with his wife and he was poiting his finger to his nose in order to say to his wife ”I love u”. The wife knows that this thing is just between them and after the surgery or transformation she knows that he s still in there."
+   ],
+   "expect_retrieved": [
+    "Criminal"
+   ],
+   "expect_year": "2016",
+   "expect_tmdb": 302156,
+   "vote_count": 1600,
+   "bucket": 91,
+   "wikidata": "Q18149041",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Criminal_(2016_film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "302156",
+   "split": "final"
+  },
+  {
+   "id": "trec-train-439",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "This is a foreign subtitled film I saw in the 80’s, I believe on PBS. All I can remember is a girl or two girls living parallel lives in the city. It’s been a long time, I’d like to see it again. Thanks, for your help."
+   ],
+   "expect_retrieved": [
+    "The Double Life of Véronique"
+   ],
+   "expect_year": "1991",
+   "expect_tmdb": 1600,
+   "vote_count": 686,
+   "bucket": 79,
+   "wikidata": "Q1130211",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/The_Double_Life_of_Veronique",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "1600",
+   "split": "final"
+  },
+  {
+   "id": "trec-train-635",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I have this vague recollection of a movie that I saw in the early 80s with this scene of a bunch of skeletons walking on the bottom of the ocean toward land. It was a fairly long scene, and it scared the crap out of me as a kid. I cannot for the life of me remember anything else about the movie or what it is called."
+   ],
+   "expect_retrieved": [
+    "The Ghost Galleon"
+   ],
+   "expect_year": "1974",
+   "expect_tmdb": 28067,
+   "vote_count": 56,
+   "bucket": 82,
+   "wikidata": "Q830241",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/The_Ghost_Galleon",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "28067",
+   "split": "final"
+  },
+  {
+   "id": "trec-train-734",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "There was this movie in the starting of it a girl pays homage to his deceased mother in a crocodile lake her mother is not dead which we found in the end and herher father also . A bitchy girl from her college claims that she is the girls step sister from her father. And it provrd truth. The girl star recriving only 25000 dollars a year.actually ir was their planplan . I dont remember the movie name .in the end the girl with her mothermother throw the father out of a plane or helicopter"
+   ],
+   "expect_retrieved": [
+    "Wild Things 2"
+   ],
+   "expect_year": "2004",
+   "expect_tmdb": 10367,
+   "vote_count": 168,
+   "bucket": 75,
+   "wikidata": "Q2302071",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Wild_Things_2",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "10367",
+   "split": "final"
+  },
+  {
+   "id": "trec-train-597",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I saw this move in the early 90s but it looked older, most likely 80s but maybe 70s. The movie is developed in a funerary house, or at least part of it, on the ground level the house is like a regular funerary house with a small chapel-like room, and the basement is where the bodies are “prepared” for the funeral. The “bad guy” is a tall pale man who wears a suit, and I’m pretty sure he wears a hat too. On the last scene, the bad guy, who apparently survived to the usual horror movie drama is seen walking on the funerary house hallway until he reaches a body on an open coffin, he then grabs a syringe and pinch the body extracting (or maybe introducing) some sort of white-yellow-ish translucent liquid to the dead body. We can then see that after removing the syringe from the body, the bad guy licks a drop of the liquid that was dripping from the needle of the syringe. I cant remember well, but I’m pretty sure that the liquid played an important role in the movie."
+   ],
+   "expect_retrieved": [
+    "Phantasm"
+   ],
+   "expect_year": "1979",
+   "expect_tmdb": 9638,
+   "vote_count": 605,
+   "bucket": 68,
+   "wikidata": "Q612740",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Phantasm_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "9638",
+   "split": "final"
+  },
+  {
+   "id": "trec-train-971",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I’m trying to figure out the ne of aovie I saw, I have no idea where  it was made but I feel like it was at lest semi-recent. Anyways what I member is this. This old lady lives in this amazing old mansion, but it’s like in serious disrepair, and she doesn’t seem to notice like she’s living in the past. Anyways she’s raising her niece, and there’s this lil boy who like hangs around because he’s a gardener or something and him and the niece end up falling in love. The niece paints, and the aunt smokes a lot and sheakes the two of the dance together in the ballroom. She warns the boy that the girl will break his heart. And she moves away and he still visits the old lady sometimes… that’s all I know. I could swear the girl is played by cate blanchet but I don’t see any films in her filmography that seem to match! Please help!!!"
+   ],
+   "expect_retrieved": [
+    "Great Expectations"
+   ],
+   "expect_year": "1998",
+   "expect_tmdb": 9410,
+   "vote_count": 544,
+   "bucket": 71,
+   "wikidata": "Q657259",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Great_Expectations_(1998_film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "9410",
+   "split": "final"
+  },
+  {
+   "id": "trec-train-397",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "This might be totally unhelpful description but here goes: english film It involves 2 teenagers (1 boy, 1 girl) who I believe worked at some sort of waterpark/ or theme park (maybe lifeguards??) They are or become friends and a lot of the movie involves these 2 characters and the girl’s younger sister, whom I believe does kiss the boy at some point. i would hazard between 2000-2010 sorry for the vagueness but any guesses at a name would be gladly appriciated. Thanks."
+   ],
+   "expect_retrieved": [
+    "Middle of Nowhere"
+   ],
+   "expect_year": "2008",
+   "expect_tmdb": 19688,
+   "vote_count": 63,
+   "bucket": 91,
+   "wikidata": "Q1677081",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Middle_of_Nowhere_(2008_film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "19688",
+   "split": "final"
+  },
+  {
+   "id": "trec-train-199",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Late 70s or 80s cross between Surviving the Game and Gymkata. I saw it on TV as a kid and remember the hunters all wore masks and had to choose different weapons and the main guy ended up hunting the bad guys at the end. I want to remember more but may confuse it with other movies. But the bad guys wear masks to hide their identity and I remember a fight scene in a swampy area and the final scene is at a house that seemed to be on stilts with a lot of glass and I think the bad guy was trying to get away by helicopter. It was definately a “Let’s hunt humans for fun” type movie."
+   ],
+   "expect_retrieved": [
+    "Avenging Force"
+   ],
+   "expect_year": "1986",
+   "expect_tmdb": 52657,
+   "vote_count": 62,
+   "bucket": 88,
+   "wikidata": "Q1486444",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Avenging_Force",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "52657",
+   "split": "final"
+  },
+  {
+   "id": "trec-train-576",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I watched this on tv sometime in the nineties. It was in English and in color. I was very young so I only remember two scenes: – montage of the two sisters growing up. They’re always in competition. They each bake a cake and when the good sister’s cake comes out perfectly, the evil sister casts magic to make it flop. – the good sister is grown up and walking through the desert. She encounters an African woman with a water flask who offers her a single drop of water. She lets it fall onto her tongue. It’s one of those movies with knights and kings and women in long dresses. Maybe with a dragon somewhere even? It definitely featured magic. Please help it’s driving me crazy!"
+   ],
+   "expect_retrieved": [
+    "The Dragon Ring"
+   ],
+   "expect_year": "1994",
+   "expect_tmdb": 87689,
+   "vote_count": 51,
+   "bucket": 77,
+   "wikidata": "Q644001",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/The_Dragon_Ring",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "87689",
+   "split": "final"
+  },
+  {
+   "id": "trec-train-440",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Hi. I saw this movie many years ago in TV. It was a classic one, maybe 50s or 60s at most. It was about 3 or 4 people, maybe sailors, who are splitting after ending their service, and are in a bar. They somehow decide to meet again 20 or 25 years later, and write a letter to themselves they put somewhere in the bar. Then the movie jumps to years later, when they actually get back, each one expecting to be the only one to show up for the meeting, and tell themselves of their lives. Anyone remembers it?"
+   ],
+   "expect_retrieved": [
+    "It's Always Fair Weather"
+   ],
+   "expect_year": "1955",
+   "expect_tmdb": 17640,
+   "vote_count": 58,
+   "bucket": 70,
+   "wikidata": "Q603651",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/It%27s_Always_Fair_Weather",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "17640",
+   "split": "final"
+  },
+  {
+   "id": "trec-train-418",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "So basically it’s a horror movie i watched in 2009 but can’t seem to remember the title and i’m not sure the movie was released in 2009 or earlier The plot: The movie follows 2 college students – a boy and a girl(the boy seemingly had a crush on the girl) who take the car to drive to somewhere but have an accident on the way and crash in a unknown haunted place. The place is all snowy and full of scary and paranormal activities occurring and they have to find a way to get out. Each time they carry out a plan and if it fails they run back to the car as quick as they can. The girl also starts having feelings for the boy over time and they kiss at around halfway through the movie only for the girl to discover that the boy had been urinating blood all this time(because of kidney damage following the accident)but he didn’t say anything. So at the end the paranormal activities get even more violent and the boy dies but the girl is able to get out of there and is found by the police. Please can someone tell me the name of this movie? Anybody relate to it or have watched it?"
+   ],
+   "expect_retrieved": [
+    "Wind Chill"
+   ],
+   "expect_year": "2007",
+   "expect_tmdb": 14223,
+   "vote_count": 406,
+   "bucket": 69,
+   "wikidata": "Q1198541",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Wind_Chill_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "14223",
+   "split": "final"
+  },
+  {
+   "id": "trec-train-187",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Ok so this was a weird movie I picked out when I was a kid in Blockbuster. It was on VHS and I watched it in the 90s but it could have been made in the late 80s. All I remember is it was either one or two guys kind of stoner like getting stuck in a white maze. I can’t remember if the whole movie is about them getting out of the maze. The parts I remember are there was like an Easter Bunny, a weird grandma, and a grim reaper. My description sounds like I’m getting ready to tell a joke but that’s what I remember about the movie."
+   ],
+   "expect_retrieved": [
+    "Bill & Ted's Bogus Journey"
+   ],
+   "expect_year": "1991",
+   "expect_tmdb": 1649,
+   "vote_count": 1077,
+   "bucket": 71,
+   "wikidata": "Q795040",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Bill_%26_Ted%27s_Bogus_Journey",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "1649",
+   "split": "final"
+  },
+  {
+   "id": "trec-train-239",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I saw the movie in the early 90s, English language, and in color. I watched it on TV, but I believe it was a feature film. The ending involved a young boy, probably 8-10 years old, walking around a burnt out house. I think there were firefighters walking around in full gear, ignoring the boy. The house was burned enough that it was exposed to the outside. I don’t know if his family was dead or simply gone, but he was apparently left alone after returning from some adventure. I believe the whole movie had a somber, sad tone and may have been a  fantasy in line with the Jim Henson movies of that time period (Dark Crystal, Labyrinth, etc). Unfortunately I cannot remember anything else about the plot or characters. Any help is much appreciated. This has been bothering me for at least 15 years."
+   ],
+   "expect_retrieved": [
+    "Time Bandits"
+   ],
+   "expect_year": "1981",
+   "expect_tmdb": 36819,
+   "vote_count": 895,
+   "bucket": 91,
+   "wikidata": "Q1426318",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Time_Bandits",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "36819",
+   "split": "final"
+  },
+  {
+   "id": "trec-train-278",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Hi everyone! I remember watching this movie at a theater somewhat around 1976-79. Most likely it was in black and white and of a Western genre. The plot is not that different from the well known “Curly Sue”, “Alice in the Cities” or even “True Grit” and revolves around a journey of a middle-aged man and a little girl through the Wild West. I remember this man as a corpulent black-bearded cowboy taking care of a girl who was either his daughter or some orphaned child. All I recall is just this one scene: The man and the girl are making pancakes (or tortillas), and the man is showing the girl some sort of a trick – he throws the pancake up into the air, then catches it, then throws and catches it again. At some point, he throws the pancake and it disappears. Then both man and girl lift their eyes and see that the pancake is stuck to the ceiling. Several years ago, I’ve been told that this film is, perhaps, “The Paper Moon” by “Peter Bogdanovich… However, I rewatched it a few years back and never saw such a scene. Any help on identificating this movie is highly appreciated!"
+   ],
+   "expect_retrieved": [
+    "Shoot Out"
+   ],
+   "expect_year": "1971",
+   "expect_tmdb": 79735,
+   "vote_count": 70,
+   "bucket": 52,
+   "wikidata": "Q3062803",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Shoot_Out",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "79735",
+   "split": "final"
+  },
+  {
+   "id": "trec-train-1035",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "There’s a movie with a cult where the leader is trying to go into the after life then come back. I think it’s set in the seventies or eighties. The cult dies when they’re trying to kill them selves to complete their mission. Then years later these kids/people are nosing around and stubble on the cabins and are interested in what happened. Then one of the new people does and the old cult leader come back to life through that guy, and starts killing the rest of them and brings back the rest of the cult."
+   ],
+   "expect_retrieved": [
+    "The Veil"
+   ],
+   "expect_year": "2016",
+   "expect_tmdb": 257087,
+   "vote_count": 239,
+   "bucket": 64,
+   "wikidata": "Q22075011",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/The_Veil_(2016_film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "257087",
+   "split": "final"
+  },
+  {
+   "id": "trec-train-1007",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Hello there! I saw this movie quite a while ago (10 years?) and here are the details I remember: – black and white, though I’m not sure if it was really old or made to look old – Frankenstein style scientist, who had “creations” running errands for him – those creations could be regenerated if he even had the smallest bodypart, for example a finger, that would be placed into a machine (I distinctly remember a metal spiral) and run through with electricity – I think I remember that the creations were kidnapping young women for the scientist to cast them in wax (I’m not sure, I could be mixing this up) – I also think those creations murdered at least a few people – underneath all the grimness, I remember the movie having a humorous undertone, which is why I think it could have been satirical – the whole movie had a little bit of a Frankenstein / the Munsters / the Addams family vibe to it. I’d be really grateful if someone remembers this ? Thx, Caramelia"
+   ],
+   "expect_retrieved": [
+    "Carry On Screaming"
+   ],
+   "expect_year": "1966",
+   "expect_tmdb": 5060,
+   "vote_count": 94,
+   "bucket": 62,
+   "wikidata": "Q1674804",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Carry_On_Screaming!",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "5060",
+   "split": "final"
+  },
+  {
+   "id": "trec-train-812",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I randomly remembered this movie (or maybe an episode of a tv show) where a girl came home late/the next day from prom and her mom asked where she was and she lied and said she got drunk by mixing red and white wine. I think the real reason she didn’t come home was like, she met her real dad or something? For some reason I remember it as Julia Stiles but i looked at imdb and nothing on her filmology page rings any bells. Unfortunately I don’t remember much about the date."
+   ],
+   "expect_retrieved": [
+    "The Banger Sisters"
+   ],
+   "expect_year": "2002",
+   "expect_tmdb": 9034,
+   "vote_count": 227,
+   "bucket": 94,
+   "wikidata": "Q1191106",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/The_Banger_Sisters",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "9034",
+   "split": "final"
+  },
+  {
+   "id": "trec-train-178",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I remember a scene in which a man, possibly Gene Hackman, is attacked in his home by a mob or group of men armed with a blowtorch. They hold him down on a four postered bed and burn his face, killing him.  It was gruesome. What was this film?"
+   ],
+   "expect_retrieved": [
+    "Eureka"
+   ],
+   "expect_year": "1983",
+   "expect_tmdb": 37943,
+   "vote_count": 64,
+   "bucket": 73,
+   "wikidata": "Q373849",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Eureka_(1983_film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "37943",
+   "split": "final"
+  },
+  {
+   "id": "trec-train-355",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I saw it when I was like 10, in 2004 or around there. It was on TV and I can’t tell you the original language because it was translated to Spanish. It was old, though, really old, but in color and I remember the beginning, when the king arrives to the castle with a baby in his arms and he tells his young daughter, who’s blonde, that the baby will be her sister and that he found her in the woods. The princess is excited, but when everyone leaves her alone with the baby, the baby does something (maybe bit her?) and the princess makes the baby turn over and the baby starts crying. The princess is scolded by everyone. Years later, when they’re both grown up, the princess is beautiful and fell in love? But her adopted sister who now has black hair, wants the kingdom for herself and puts like an enchantment or something on everyone so she can be hated and she can become queen. I don’t remember much more, only that the blonde princess goes into the woods and find this scarecrow (I think?) doll that used to be hers and he helps her defeat the girl who wants to take over. And the blonde princess has to fight against the prince she’s in love with for the ‘future queen’s hand’, but it’s actually to make him remember her or something.   I can’t remember anything else"
+   ],
+   "expect_retrieved": [
+    "The Dragon Ring"
+   ],
+   "expect_year": "1994",
+   "expect_tmdb": 87689,
+   "vote_count": 51,
+   "bucket": 77,
+   "wikidata": "Q644001",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/The_Dragon_Ring",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "87689",
+   "split": "final"
+  },
+  {
+   "id": "trec-train-144",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I remember watching this movie in the 90’s. I can remember the movie as being animated with typical cartoon human characters. I remember one of the first scenes as having a boy being chased by a steam locomotive pulling a train of passenger cars. The train chases him across a lake. The boy escapes to his home, then answers a knock at the door only to see that it is the train. He wakes up from the dream, picks up a toy locomotive and mutters, “Trains”. The film was, I believe, a Christmas type film and was a bit on the dark side as far as those films go. Maybe someone else has seen it?"
+   ],
+   "expect_retrieved": [
+    "Little Nemo: Adventures in Slumberland"
+   ],
+   "expect_year": "1989",
+   "expect_tmdb": 22611,
+   "vote_count": 150,
+   "bucket": 87,
+   "wikidata": "Q2411962",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Little_Nemo:_Adventures_in_Slumberland",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "22611",
+   "split": "final"
+  },
+  {
+   "id": "trec-train-401",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I saw a movie a few years ago – color, english, crime/thriller/action genre… I remember it had something to do with a murder, but the main thing I remember is that there was a kid that hitched a ride with this guy who drove a big old car, and the entire interior of the car was pasted with porn. I think this guy wound up being like a major link to the killer, or possibly even the killer himself. I mainly want to find it, cause I was telling someone about it and they don’t believe me about the car."
+   ],
+   "expect_retrieved": [
+    "Switchback"
+   ],
+   "expect_year": "1997",
+   "expect_tmdb": 10871,
+   "vote_count": 201,
+   "bucket": 76,
+   "wikidata": "Q2092528",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Switchback_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "10871",
+   "split": "final"
+  },
+  {
+   "id": "trec-train-116",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I’m looking for an old black & white movie about a woman that visits a small town where she checks into an Inn. There is a trap door in the floor of her room at the inn. There is a run down old church on the town square. Also, there is an antique shop where the visiting lady borrows an old book. Some of the towns people are evil but the old preacher in the church is not. I think the lady that runs the antiques shop is the daughter of the old preacher. The movie set is very simple but very creepy. The towns people are equally as creepy. I think the evil towns people meet once a year"
+   ],
+   "expect_retrieved": [
+    "The City of the Dead"
+   ],
+   "expect_year": "1960",
+   "expect_tmdb": 39890,
+   "vote_count": 131,
+   "bucket": 95,
+   "wikidata": "Q194106",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/The_City_of_the_Dead_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "39890",
+   "split": "final"
+  },
+  {
+   "id": "trec-train-967",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "A friend is asking me, but it’s not my genre. Anyone?   “Hey do you recall a movie from 90’s maybe late 80’s where dude makes a plastic cage in the passenger side of his car and puts girls in there and drives real crazy making them slam into the dash or the cage killing them??”"
+   ],
+   "expect_retrieved": [
+    "Death Proof"
+   ],
+   "expect_year": "2007",
+   "expect_tmdb": 1991,
+   "vote_count": 4703,
+   "bucket": 56,
+   "wikidata": "Q1137310",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Death_Proof ",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "1991",
+   "split": "final"
+  },
+  {
+   "id": "trec-train-795",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I watched this movie a long time ago, when I was a kid (it was far from a kid’s movie) around 2007, so details may be partially incorrect. The movie was likely created around this time. I don’t recall the exact premise, the woman seemed to be a former human test subject on the run. I recall a scene where the main character is having a nightmare. In the dream, the woman is curled up inside a blue bubble-shaped container filled with water or other clear liquid. She is unconscious, eyes closed with an oxygen mask on her face. Black tubes/wires surround the bubble. A scientist in a white lab coat is walking around the bubble, examining her."
+   ],
+   "expect_retrieved": [
+    "Resident Evil: Extinction"
+   ],
+   "expect_year": "2007",
+   "expect_tmdb": 7737,
+   "vote_count": 3792,
+   "bucket": 61,
+   "wikidata": "Q156069",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Resident_Evil:_Extinction",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "7737",
+   "split": "final"
+  },
+  {
+   "id": "trec-train-669",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "Movie where a nuclear family was held hostage in their house I remembered two scenes from the movie:   1st scene:the teenage daughter went to the door and her boyfriend was at the door and she told him to go away and then he came back with flowers and  one of the persons holding them hostage told  her to go with her boyfriend, she went out, then her boyfriend said “I don’t know what’s going on here but let’s get out of here” and drove away.   2nd scene: when it almost finished the man holding them hostage was going to shoot the man but there was no bullet in the gun, then the man held him and pushed him outside or something like that ( there was about four persons holding them hostage, I think a woman was in it too, it’s not firewall )"
+   ],
+   "expect_retrieved": [
+    "Desperate Hours"
+   ],
+   "expect_year": "1990",
+   "expect_tmdb": 31676,
+   "vote_count": 169,
+   "bucket": 65,
+   "wikidata": "Q217307",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Desperate_Hours",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "31676",
+   "split": "final"
+  },
+  {
+   "id": "trec-train-894",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "The movie is something I saw sometime 1996-1997 on cable tv. The movie is about a teenage girl who paints or studies fine arts and lives by herself. She is a bit sexual. She then begins to have an affair with her older and married arts/painting instructor/teacher which sees her and paints her in the nude afterwhich they have sex… It was surely an english movie and colored. There were also scenes like an asian boardmate that played the cello and a scene where the girl and the teacher make out or something in the kitchen while the teacher hosts a friendly dinner at his house for the girl."
+   ],
+   "expect_retrieved": [
+    "Poison Ivy 2: Lily"
+   ],
+   "expect_year": "1996",
+   "expect_tmdb": 18220,
+   "vote_count": 114,
+   "bucket": 74,
+   "wikidata": "Q2341665",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Poison_Ivy_II:_Lily",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "18220",
+   "split": "final"
+  },
+  {
+   "id": "trec-train-653",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "It is in color, and is a children’s movie. She finally confronts him with a gun at a ski trip, and he wears a fake tattoo to hide from her. But it washes off in a jacuzzi. lor, and is a children’s movie. She finally confronts him with a gun at a ski trip, and he wears a fake tattoo to hide from her. But it washes off in a jacuzzi."
+   ],
+   "expect_retrieved": [
+    "Mr. Magoo"
+   ],
+   "expect_year": "1997",
+   "expect_tmdb": 9438,
+   "vote_count": 348,
+   "bucket": 75,
+   "wikidata": "Q1635521",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Mr._Magoo_%28film%29",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "9438",
+   "split": "final"
+  },
+  {
+   "id": "trec-train-394",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I have not seen it for about 10 years, dont know any actors.. Movie covers few intertwined stories in kinda cold and depressing atmosphere. One of them is about a girl who works as maid, and she was involved in a traffic accident and recovers afterwards. The man she working for thought that she stole his watch as he couldnt find it, but it was in a drawer at his home. Another story portrays man going through divorce, and waves at some woman in another subway train at the end of the movie. Another bit i remember is man who has addict son and pays bail for him. Student asks his physics professor for better grade as he wants to study medicine but doesnt get it, and commits suicide(other students speculate it). Always happy fatty gets fired, but his ex-collegue finds him a new job which he is again happy with. One of their collegues wins a lottery and quits. Just very touching an subtle movie(as far as I remember) thank"
+   ],
+   "expect_retrieved": [
+    "Thirteen Conversations About One Thing"
+   ],
+   "expect_year": "2001",
+   "expect_tmdb": 17734,
+   "vote_count": 83,
+   "bucket": 63,
+   "wikidata": "Q1143287",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Thirteen_Conversations_About_One_Thing",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "17734",
+   "split": "final"
+  },
+  {
+   "id": "trec-train-730",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I’m trying for many years to find the title of this movie, which I watched on tv during my childhood (1980’s). I first assumed it was Dune, but was never able to find such scene in it. It’s a sci-fi / fantasy type of movie, set in a desert-like place. A lot of dunes, wind, etc. It remember it having an old feel for the time, so maybe from the end of the 1970’s? The scene I remember involves a worm type monster (hence the Dune thoughts) that lived in a hole surrounded by the dunes. The main characters/heroes had to be careful not be dragged by this worm (tentacles?) back to its hole/den. This happens with one of the main characters, and I never forgot him being dragged screaming by the foot to the hole in the sand. The worm, or tentacle, was not large but long, more like a snake. I also seem to remember it being in the future, or maybe the characters had suits/astronaut gear. Thanks! ?"
+   ],
+   "expect_retrieved": [
+    "Enemy Mine"
+   ],
+   "expect_year": "1985",
+   "expect_tmdb": 11864,
+   "vote_count": 873,
+   "bucket": 79,
+   "wikidata": "Q1088058",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Enemy_Mine_%28film%29",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "11864",
+   "split": "final"
+  },
+  {
+   "id": "trec-train-657",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I was born in 81 and I saw this film as a kid as a video rental. It had a modern family but they went on some sort of magical adventure. I remember several key things that would identify it. There was a focus on a mailbox or something in the mailbox that caused magical things. There was a desert with bones in it. There was a glass wall, like an invisible wall. I’ve already done a lot of web searches, it’s probably not an obvious or common movie."
+   ],
+   "expect_retrieved": [
+    "Time Bandits"
+   ],
+   "expect_year": "1981",
+   "expect_tmdb": 36819,
+   "vote_count": 895,
+   "bucket": 91,
+   "wikidata": "Q1426318",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Time_Bandits",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "36819",
+   "split": "final"
+  },
+  {
+   "id": "trec-train-828",
+   "source": "trec",
+   "category": "identify",
+   "turns": [
+    "I remember watching an animated movie in the years 2009-2015. I don’t remember the name or any of the actors of the movie, but I remember a lot about it. First off, it was animated. It wasn’t super high quality, the people/things looked like silhouettes (you couldn’t see their faces or exact clothing details, but you could see the shadows of them). Second, it was about a boy and a girl acting out these “plays” in an old theater owned by an old man, who may have been their grandfather. There was also an owl in the theater, and it looked at the camera and hooted whenever they changed from one “play” to another. Third, to change from one costume to another, they stood on a sort of platform thing. It “scanned” them, and the silhouettes of the clothes they described appeared on their bodies. The plays/plots I remember are as follows : Boy gets put in prison (wrongly accused of stealing a necklace, I think), but gets pitied by a princess and she takes him food/clothing. However, the good princess’s evil sister tries to marry the boy when he gets out of prison. When he refuses/realizes she’s the evil princess, she curses him to be a wolf. Boy then eventually gets freed by the good princess. Boy finds himself in a city of gold, but an evil dragon rules the city. The dragon gives the people gold, but only if they sacrifice the most beautiful maiden to the dragon every month/year. Boy eventually slays dragon and marries the girl, who was the most beautiful at that time. Boy is in Africa/similar place and likes to play the drum, but is shunned for doing so. The girl’s father is the clan/tribe chief and is dying from illness. Boy gets thrown out of clan/tribe, but saves an old medicine man from a leopard/big cat. Old medicine man teaches boy how to play drum, which ends up healing the sick clan/tribe chief. The drum also makes the clan/tribe unbeatable in battle. Boy is an adventurer in a strange land where he crawls through a tunnel and gets put in prison. He has to choose/marry one of the king’s three daughters, but he doesn’t know which one. A bee flies around the head of the correct daughter because he fed the bee earlier in the tunnel. He also gets help from other monsters he met in the tunnel/cave. There may have been more, but it’s been years since I saw the movie. It was"
+   ],
+   "expect_retrieved": [
+    "Tales of the Night"
+   ],
+   "expect_year": "2011",
+   "expect_tmdb": 79000,
+   "vote_count": 123,
+   "bucket": 50,
+   "wikidata": "Q3231739",
+   "wikipedia_url": "https://en.wikipedia.org/wiki/Tales_of_the_Night_(film)",
+   "matched_by": "IMDb link -> Kaggle csv",
+   "retrieval_graded": true,
+   "trec_split": "train",
+   "film_key": "79000",
+   "split": "final"
+  }
+ ]
+}
