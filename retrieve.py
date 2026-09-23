@@ -566,7 +566,7 @@ RERANK_POOL = 30          # Parasite sat at rank 28 for q07
 RERANK_PLOT_CHARS = 220
 
 
-def rerank(question, conn, q_vec, current_hits):
+def rerank(question, conn, q_vec, current_hits, trace=None):
     """Let the chat model read the candidates' plots and pick the ones that fit.
     The embedding measures wording overlap; the model can see that "Ki-taek's
     unemployed family takes interest in the wealthy Parks for their livelihood"
@@ -581,6 +581,8 @@ def rerank(question, conn, q_vec, current_hits):
                            (mid,)).fetchone()
         if row and row[2]:
             cands.append((mid, d, row))
+    if trace is not None:   # stage 3: exactly what the re-ranker is shown
+        trace["rerank_in"] = [(mid, row[0], row[1], d) for mid, d, row in cands]
     if len(cands) < 2:
         return current_hits, []
     listing = "\n".join(f"{i}. {t} ({(y or '')[:4]}, {v or 0:,} votes): {o[:RERANK_PLOT_CHARS]}"
@@ -612,6 +614,8 @@ def rerank(question, conn, q_vec, current_hits):
             break
     if not picked:
         return current_hits, []
+    if trace is not None:   # stage 4: what the re-ranker chose, best first
+        trace["rerank_out"] = [(mid, row[0], row[1], d) for mid, d, row in picked]
     front = hydrate(conn, [(mid, d) for mid, d, _ in picked])
     return front + [h for h in current_hits if h["id"] not in ids], [c[2][0] for c in picked]
 
@@ -755,10 +759,24 @@ def lookup_named(conn, film, question, recent_titles):
     return g
 
 
-def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=False):
+def _snap(hits):
+    """(id, title, year, distance) for each hit, in order - what a stage handed on."""
+    return [(h["id"], h["title"], h.get("release_year"), h.get("distance")) for h in hits]
+
+
+def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=False,
+             trace=None):
+    """trace: pass a dict to have it filled with the films each stage handed on
+    (pool, subject, guesses, rerank_in, rerank_out, after_cutoff, final) plus
+    timings. Used by stage_scores.py; None (the default) changes nothing."""
+    import time as _tt
+    _t_start = _tt.perf_counter()
     conn = open_db(db_path)
     try:
         plan = understand(question, recent_titles) if USE_QUERY_LLM else None
+        if trace is not None:
+            trace["plan_ms"] = round((_tt.perf_counter() - _t_start) * 1000)
+            trace["path"] = f"plan:{plan['intent']}" if plan else "regex"
         if plan:
             # The model read the question (and what the last answer was about).
             # A plot description never gets a subject from its words - that is
@@ -788,8 +806,13 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
         want = max(k, RECOMMEND_K) if recommending else k
         pool = POOL_WIDE if (filters or recommending) else max(POOL_DEFAULT, k * 5)
 
+        _t_search = _tt.perf_counter()
         q_vec = embed_query(search_text)
         hits = hydrate(conn, knn_multi(conn, q_vec, pool))
+        if trace is not None:   # stage 1: the vector pool, closest first
+            trace["search_ms"] = round((_tt.perf_counter() - _t_search) * 1000)
+            trace["pool_size"] = pool
+            trace["pool"] = _snap(hits)
         notes = {"pool": len(hits), "filters": filters,
                  "recommending": recommending}
         if plan:
@@ -817,6 +840,9 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
             named = kept
         subject = named[0] if named else None
         notes["subject"] = subject["title"] if subject else None
+        if trace is not None:   # stage 2a: the film the question names, if any
+            trace["subject"] = [(subject["id"], subject["title"], subject["release_year"], None)] \
+                if subject else []
 
         # Tip-of-the-tongue questions name no film. Ask the chat model for up
         # to three candidates, keep those that exist in the database and fit
@@ -851,6 +877,9 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
                 hits = hydrate(conn, [(g["id"], d) for d, g in accepted]) + \
                        [h for h in hits if h["id"] not in ids]
                 notes["title_guesses_used"] = [f'{g["title"]} ({d:.3f})' for d, g in accepted]
+            if trace is not None:   # stage 2b: model guesses that passed the checks
+                trace["guesses"] = [(g["id"], g["title"], g["release_year"], d)
+                                    for d, g in sorted(accepted, key=lambda a: a[0])]
 
         # Re-rank tip-of-the-tongue questions: the chat model reads ~30 candidate
         # plots and chooses. RERANK=0 switches it off for A/B evals.
@@ -860,7 +889,9 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
                 and describing):
             import time as _time
             _t0 = _time.perf_counter()
-            hits, picked = rerank(question, conn, q_vec, hits)
+            hits, picked = rerank(question, conn, q_vec, hits, trace=trace)
+            if trace is not None:
+                trace.setdefault("rerank_out", [])   # ran, picked nothing
             notes["reranked_to"] = picked
             # Two independent signals: the model's own guess (what it remembers)
             # and the re-rank (what it reads). If the re-rank leaves out an
@@ -877,6 +908,8 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
                     hits = rest[:1] + g_hit + rest[1:]
                     notes["kept_guess"] = top_guess["title"]
             notes["rerank_ms"] = round((_time.perf_counter() - _t0) * 1000)
+            if trace is not None:
+                trace["rerank_ms"] = notes["rerank_ms"]
 
         if filters:
             hits = [h for h in hits if passes(h, filters)]
@@ -884,6 +917,8 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
 
         hits = [h for h in hits if h["distance"] is None or h["distance"] <= MAX_DISTANCE]
         notes["after_cutoff"] = len(hits)
+        if trace is not None:   # stage 5: after year/genre filters and the 0.90 cutoff
+            trace["after_cutoff"] = _snap(hits)
 
         if recommending and subject:
             # Don't recommend the film someone just named, or its tie-ins -
@@ -963,6 +998,10 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
 
         hits = hits[:want]
         notes["returned"] = len(hits)
+        if trace is not None:   # stage 6: what the answer model receives
+            trace["final"] = _snap(hits)
+            trace["final_distance"] = [h["distance"] for h in hits]
+            trace["total_ms"] = round((_tt.perf_counter() - _t_start) * 1000)
         if explain:
             for h in hits:
                 h["_notes"] = notes
