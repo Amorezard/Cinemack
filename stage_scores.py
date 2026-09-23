@@ -12,6 +12,7 @@ retrieve() and, when it goes missing, which stage lost it.
     python stage_scores.py --tag capped    # name this run: ..._capped.json
     python stage_scores.py --questions trec_tot_2023.json --split dev   # TREC
     python stage_scores.py --questions trec_tot_2023.json --split dev --limit 5
+    python stage_scores.py --report results/<file>.json   # re-read a saved run
 
 Stages, in pipeline order:
   pool          vector search (full record + plot-only), closest first.
@@ -99,11 +100,14 @@ def fmt(row):
 
 
 def diagnose(trace, ranks, expect, expect_year):
-    """One line: which stage lost the film, and why."""
+    """Which stage lost the film, and why: "<cause>: <detail>". The cause part
+    is a fixed phrase, so failures can be counted by cause."""
+    filt = trace.get("filters") or {}
+    film = f"film is {expect_year or '?'}"
     if not expect:
         top = trace.get("final", [])
         why = f"named {trace['subject'][0][1]}" if trace.get("subject") else "from the vector pool"
-        return f"honesty: returned {len(top)} film(s), should be none ({why}): " + \
+        return f"honesty - returned films: {len(top)} ({why}): " + \
                "; ".join(fmt(r) for r in top[:3])
 
     subj = trace.get("subject") or []
@@ -113,33 +117,54 @@ def diagnose(trace, ranks, expect, expect_year):
     found_early = [s for s in ("pool", "subject", "guesses", "rerank_in")
                    if isinstance(ranks.get(s), int)]
     if not found_early:
-        return (f"never found: not in the {trace.get('pool_size', '?')}-film pool, "
+        return (f"never found (not in the pool): {trace.get('pool_size', '?')}-film pool, "
                 f"not named, not among the accepted guesses")
 
+    p_rank = ranks.get("pool")
     if "rerank_out" in trace:                 # the re-ranker ran
         r_in = ranks.get("rerank_in")
         if not isinstance(r_in, int):
-            if trace.get("filters"):
-                return (f"in the pool (#{ranks.get('pool')}) but excluded by the question's "
-                        f"filter {trace['filters']} - film is {expect_year or '?'}")
-            return "in the pool but not shown to the re-ranker (no plot text?)"
+            if filt and isinstance(p_rank, int) and not R.passes(
+                    {"release_year": expect_year, "genres": _genres(trace, expect)}, filt):
+                return f"excluded by the question's year/genre filter: pool #{p_rank}, {filt}, {film}"
+            if isinstance(p_rank, int) and p_rank > R.RERANK_POOL:
+                return (f"in the pool but beyond what the re-ranker sees: pool #{p_rank}, "
+                        f"re-ranker shown the closest {len(trace.get('rerank_in', []))}")
+            return f"in the pool but not shown to the re-ranker (no plot text?): pool #{p_rank}"
         if not isinstance(ranks.get("rerank_out"), int):
             n = len(trace.get("rerank_in", []))
             picks = ", ".join(fmt(r) for r in trace["rerank_out"]) or "nothing"
-            return f"re-ranker saw it (#{r_in} of {n}) but picked: {picks}"
+            return f"re-ranker saw it but chose others: #{r_in} of {n}, picked {picks}"
 
     if not isinstance(ranks.get("after_cutoff"), int):
-        where = f"pool #{ranks['pool']}" if isinstance(ranks.get("pool"), int) else "earlier"
+        where = f"pool #{p_rank}" if isinstance(p_rank, int) else "earlier"
         row = next((r for r in trace.get("pool", [])
                     if any(T.norm(r[1]) == T.norm(e) for e in expect)), None)
         dist = f" at distance {row[3]:.3f}" if row and isinstance(row[3], float) else ""
-        if trace.get("filters"):
-            return (f"removed by the question's filter {trace['filters']} or the 0.90 cutoff "
-                    f"({where}{dist}) - film is {expect_year or '?'}")
-        return f"removed by the 0.90 distance cutoff ({where}{dist})"
+        if filt:
+            return f"removed by the year/genre filter or the 0.90 cutoff: {where}{dist}, {filt}, {film}"
+        return f"removed by the 0.90 distance cutoff: {where}{dist}"
 
-    return (f"survived the cutoff at #{ranks['after_cutoff']} but only the top "
-            f"{len(trace.get('final', []))} are sent (or merged as a same-title version)")
+    return (f"ranked too low to be sent: #{ranks['after_cutoff']} after the cutoff, only "
+            f"{len(trace.get('final', []))} sent (or merged as a same-title version)")
+
+
+_GENRES = {}
+
+
+def _genres(trace, expect):
+    """Genres of the expected film, from movies.db (for the filter check)."""
+    key = tuple(expect)
+    if key not in _GENRES:
+        try:
+            conn = R.open_db("movies.db")
+            row = conn.execute("SELECT genres FROM movies WHERE title = ? ORDER BY vote_count DESC",
+                               (expect[0],)).fetchone()
+            conn.close()
+            _GENRES[key] = row[0] if row else ""
+        except Exception:
+            _GENRES[key] = ""
+    return _GENRES[key]
 
 
 def score(rows, stage):
@@ -154,8 +179,74 @@ def score(rows, stage):
             "mrr": sum(1 / x for x in ranks if x) / n}
 
 
+def report(rows):
+    """Stage table, pass counts, timing and failures by cause. Returns the table."""
+    print("\n" + "-" * 72)
+    print(f"{'stage':13s} {'n':>4s} {'found':>6s} {'s@1':>6s} {'s@3':>6s} {'s@10':>6s} {'MRR':>6s}")
+    summary = {}
+    for s in SCORED:
+        sc = score(rows, s)
+        if not sc:
+            continue
+        summary[s] = sc
+        print(f"{s:13s} {sc['n']:4d} {sc['found']:6.2f} {sc['s@1']:6.2f} "
+              f"{sc['s@3']:6.2f} {sc['s@10']:6.2f} {sc['mrr']:6.2f}")
+
+    print()
+    for group in dict.fromkeys(r["group"] for r in rows):
+        g = [r for r in rows if r["group"] == group]
+        if g:
+            print(f"{group:10s} pass {sum(r['result']['pass'] for r in g)}/{len(g)}")
+    honest = [r for r in rows if not r["expect"]]
+    if honest:
+        print(f"Honesty    pass {sum(r['result']['pass'] for r in honest)}/{len(honest)}")
+
+    tr = [r["result"]["trace"] for r in rows]
+    avg = lambda key: sum(t.get(key, 0) for t in tr) / len(tr)
+    rr = [t["rerank_ms"] for t in tr if "rerank_ms" in t]
+    sizes = [len(t["rerank_in"]) for t in tr if "rerank_in" in t]
+    print(f"\nAverage ms: plan {avg('plan_ms'):.0f}  search {avg('search_ms'):.0f}  "
+          f"re-rank {sum(rr) / len(rr) if rr else 0:.0f} (when it ran)  total {avg('total_ms'):.0f}")
+    if sizes:
+        print(f"Re-ranker candidates: mean {sum(sizes) / len(sizes):.0f}, max {max(sizes)}")
+
+    lost = {}
+    for r in rows:
+        if r["result"]["lost_at"]:
+            key = r["result"]["lost_at"].split(":")[0]
+            lost.setdefault(key, []).append(r["id"])
+    if lost:
+        print("\nFailures by cause:")
+        for k, ids in sorted(lost.items(), key=lambda x: -len(x[1])):
+            print(f"  {len(ids):2d}  {k}: {', '.join(ids)}")
+    pool_ranks = [r["result"]["ranks"].get("pool") for r in rows
+                  if r["result"]["lost_at"] and isinstance(r["result"]["ranks"].get("pool"), int)]
+    if pool_ranks:
+        print(f"\nPool ranks of failed films that were in the pool: {sorted(pool_ranks)}")
+    return summary
+
+
+def rescore(path):
+    """Re-read a saved run and redo the diagnosis and report - no retrieval."""
+    d = json.load(open(path))
+    rows = d["rows"]
+    for r in rows:
+        tr = r["result"]["trace"]
+        ex, ey = r["expect"], r.get("expect_year")
+        ranks = {s: (rank_of(tr[s], ex, ey) if s in tr else "n/a") for s in STAGES}
+        r["result"]["ranks"] = ranks
+        r["result"]["lost_at"] = None if r["result"]["pass"] else diagnose(tr, ranks, ex, ey)
+    print(f"{path}: {len(rows)} questions\n")
+    for r in rows:
+        if r["result"]["lost_at"]:
+            print(f"{r['id']:14s} {r['result']['lost_at'][:150]}")
+    report(rows)
+
+
 def main():
     args = sys.argv[1:]
+    if "--report" in args:
+        return rescore(args[args.index("--report") + 1])
     fresh_only = "--fresh" in args
     old = "--old" in args
     only = None
@@ -201,44 +292,7 @@ def main():
             print(f"      got:     {', '.join(res['hits'])[:90] or '(none)'}")
             print(f"      LOST AT: {res['lost_at']}")
 
-    print("\n" + "-" * 72)
-    print(f"{'stage':13s} {'n':>4s} {'found':>6s} {'s@1':>6s} {'s@3':>6s} {'s@10':>6s} {'MRR':>6s}")
-    summary = {}
-    for s in SCORED:
-        sc = score(rows, s)
-        if not sc:
-            continue
-        summary[s] = sc
-        print(f"{s:13s} {sc['n']:4d} {sc['found']:6.2f} {sc['s@1']:6.2f} "
-              f"{sc['s@3']:6.2f} {sc['s@10']:6.2f} {sc['mrr']:6.2f}")
-
-    print()
-    for group in dict.fromkeys(r["group"] for r in rows):
-        g = [r for r in rows if r["group"] == group]
-        if g:
-            print(f"{group:10s} pass {sum(r['result']['pass'] for r in g)}/{len(g)}")
-    honest = [r for r in rows if not r["expect"]]
-    if honest:
-        print(f"Honesty    pass {sum(r['result']['pass'] for r in honest)}/{len(honest)}")
-
-    tr = [r["result"]["trace"] for r in rows]
-    avg = lambda key: sum(t.get(key, 0) for t in tr) / len(tr)
-    rr = [t["rerank_ms"] for t in tr if "rerank_ms" in t]
-    sizes = [len(t["rerank_in"]) for t in tr if "rerank_in" in t]
-    print(f"\nAverage ms: plan {avg('plan_ms'):.0f}  search {avg('search_ms'):.0f}  "
-          f"re-rank {sum(rr) / len(rr) if rr else 0:.0f} (when it ran)  total {avg('total_ms'):.0f}")
-    if sizes:
-        print(f"Re-ranker candidates: mean {sum(sizes) / len(sizes):.0f}, max {max(sizes)}")
-
-    lost = {}
-    for r in rows:
-        if r["result"]["lost_at"]:
-            key = r["result"]["lost_at"].split(":")[0].split(" (")[0]
-            lost.setdefault(key, []).append(r["id"])
-    if lost:
-        print("\nFailures by cause:")
-        for k, ids in sorted(lost.items(), key=lambda x: -len(x[1])):
-            print(f"  {len(ids):2d}  {k}: {', '.join(ids)}")
+    summary = report(rows)
 
     os.makedirs("results", exist_ok=True)
     out = (f"results/stage_scores_{datetime.date.today()}{'_old' if old else ''}"
