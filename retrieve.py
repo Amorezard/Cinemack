@@ -566,21 +566,49 @@ RERANK_POOL = 30          # Parasite sat at rank 28 for q07
 RERANK_PLOT_CHARS = 220
 
 
-def rerank(question, conn, q_vec, current_hits, trace=None):
+# The re-ranker once got the whole 400-film pool whenever a description also
+# named a genre or year ("an ANIMATED movie where..."): ~100k characters, with
+# the closest films listed last. It picked nothing on all 4 such questions
+# (q28, q29, q38, q40; results/stage_scores_2026-09-23.json). Now it sees at
+# most RERANK_POOL films: accepted guesses first, then the closest by distance,
+# and only films that pass the question's year/genre filter.
+# RERANK_CAP=0 restores the old behaviour for A/B runs.
+import os as _os_r
+RERANK_CAP = _os_r.environ.get("RERANK_CAP", "1") != "0"
+
+
+def rerank(question, conn, q_vec, current_hits, trace=None, keep_ids=(), filters=None):
     """Let the chat model read the candidates' plots and pick the ones that fit.
     The embedding measures wording overlap; the model can see that "Ki-taek's
     unemployed family takes interest in the wealthy Parks for their livelihood"
     is "a poor family hired by a wealthy household".
+    keep_ids: accepted title guesses, always shown first.
+    filters: the question's year/genre filters; candidates must pass them.
     Returns (hits, picked titles). Hits are unchanged if the model picks nothing."""
-    pool = [(m, d) for m, d in knn_multi(conn, q_vec, RERANK_POOL) if d <= MAX_DISTANCE]
-    seen = {m for m, _ in pool}
-    pool = [(h["id"], h["distance"] or 0.0) for h in current_hits if h["id"] not in seen] + pool
+    near = [(m, d) for m, d in knn_multi(conn, q_vec, RERANK_POOL) if d <= MAX_DISTANCE]
+    if RERANK_CAP:
+        best = {}
+        for mid, d in [(h["id"], h["distance"]) for h in current_hits] + near:
+            if d is not None and (mid not in best or d < best[mid]):
+                best[mid] = d
+        kept = [m for m in keep_ids if m in best]
+        pool = [(m, best[m]) for m in kept] + \
+               sorted(((m, d) for m, d in best.items() if m not in kept), key=lambda x: x[1])
+    else:
+        seen = {m for m, _ in near}
+        pool = [(h["id"], h["distance"] or 0.0) for h in current_hits if h["id"] not in seen] + near
     cands = []
     for mid, d in pool:
-        row = conn.execute("SELECT title, release_year, overview, vote_count FROM movies WHERE id = ?",
-                           (mid,)).fetchone()
-        if row and row[2]:
-            cands.append((mid, d, row))
+        row = conn.execute("SELECT title, release_year, overview, vote_count, genres "
+                           "FROM movies WHERE id = ?", (mid,)).fetchone()
+        if not (row and row[2]):
+            continue
+        if RERANK_CAP and filters and not passes({"release_year": row[1], "genres": row[4]},
+                                                 filters):
+            continue
+        cands.append((mid, d, row[:4]))
+        if RERANK_CAP and len(cands) >= RERANK_POOL:
+            break
     if trace is not None:   # stage 3: exactly what the re-ranker is shown
         trace["rerank_in"] = [(mid, row[0], row[1], d) for mid, d, row in cands]
     if len(cands) < 2:
@@ -849,6 +877,7 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
         # any year in the question, and use the one the embedding agrees with
         # most - only if it is close enough. The answer still comes from the
         # database, never from the guess.
+        accepted = []
         if (subject is None and not recommending and not resolved_from
                 and describing):
             # The plan's guesses when it made some; otherwise ask separately.
@@ -889,7 +918,9 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
                 and describing):
             import time as _time
             _t0 = _time.perf_counter()
-            hits, picked = rerank(question, conn, q_vec, hits, trace=trace)
+            hits, picked = rerank(question, conn, q_vec, hits, trace=trace,
+                                  keep_ids=[g["id"] for _d, g in accepted],
+                                  filters=filters)
             if trace is not None:
                 trace.setdefault("rerank_out", [])   # ran, picked nothing
             notes["reranked_to"] = picked

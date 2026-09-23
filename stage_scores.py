@@ -9,6 +9,7 @@ retrieve() and, when it goes missing, which stage lost it.
     python stage_scores.py --fresh         # only the fresh n1-n10
     python stage_scores.py --old           # old regex path, for comparison
     python stage_scores.py --only q38,n10  # just these ids
+    python stage_scores.py --tag capped    # name this run: ..._capped.json
 
 Stages, in pipeline order:
   pool          vector search (full record + plot-only), closest first.
@@ -31,7 +32,8 @@ The answer stage (does the answer text name the film?) comes with change 3,
 since it needs answers generated and graded.
 
 Uses the same questions and pass rule as test_understand.py.
-Writes results/stage_scores_<date>[_old].json.
+Writes results/stage_scores_<date>[_old][_only][_<tag>].json, so partial
+and tagged runs never overwrite a full run.
 """
 
 import contextlib
@@ -150,6 +152,7 @@ def main():
     only = None
     if "--only" in args:
         only = set(args[args.index("--only") + 1].split(","))
+    tag = args[args.index("--tag") + 1] if "--tag" in args else ""
     R.USE_QUERY_LLM = not old
 
     todo = T.cases(fresh_only)
@@ -216,7 +219,8 @@ def main():
             print(f"  {len(ids):2d}  {k}: {', '.join(ids)}")
 
     os.makedirs("results", exist_ok=True)
-    out = f"results/stage_scores_{datetime.date.today()}{'_old' if old else ''}.json"
+    out = (f"results/stage_scores_{datetime.date.today()}{'_old' if old else ''}"
+           f"{'_only' if only else ''}{'_' + tag if tag else ''}.json")
     with open(out, "w") as f:
         json.dump({"summary": summary, "path": "old" if old else "llm_plan", "rows": rows},
                   f, indent=1, default=str)
