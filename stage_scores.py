@@ -83,6 +83,7 @@ def run_case(turns, expect, expect_year):
         titles, _ = traced(q, recent)
         recent = titles or recent
     titles, trace = traced(turns[-1], recent)
+    trace["filters"] = R.parse_filters(turns[-1])     # the question's year/genre filter
     ranks = {s: (rank_of(trace[s], expect, expect_year) if s in trace else "n/a")
              for s in STAGES}
     years = [str(r[2] or "")[:4] for r in trace.get("final", [])]
@@ -118,6 +119,9 @@ def diagnose(trace, ranks, expect, expect_year):
     if "rerank_out" in trace:                 # the re-ranker ran
         r_in = ranks.get("rerank_in")
         if not isinstance(r_in, int):
+            if trace.get("filters"):
+                return (f"in the pool (#{ranks.get('pool')}) but excluded by the question's "
+                        f"filter {trace['filters']} - film is {expect_year or '?'}")
             return "in the pool but not shown to the re-ranker (no plot text?)"
         if not isinstance(ranks.get("rerank_out"), int):
             n = len(trace.get("rerank_in", []))
@@ -129,7 +133,10 @@ def diagnose(trace, ranks, expect, expect_year):
         row = next((r for r in trace.get("pool", [])
                     if any(T.norm(r[1]) == T.norm(e) for e in expect)), None)
         dist = f" at distance {row[3]:.3f}" if row and isinstance(row[3], float) else ""
-        return f"removed by the year/genre filter or the 0.90 cutoff ({where}{dist})"
+        if trace.get("filters"):
+            return (f"removed by the question's filter {trace['filters']} or the 0.90 cutoff "
+                    f"({where}{dist}) - film is {expect_year or '?'}")
+        return f"removed by the 0.90 distance cutoff ({where}{dist})"
 
     return (f"survived the cutoff at #{ranks['after_cutoff']} but only the top "
             f"{len(trace.get('final', []))} are sent (or merged as a same-title version)")
