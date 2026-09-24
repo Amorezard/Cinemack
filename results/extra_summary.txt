@@ -1,0 +1,17 @@
+=== MOVIELENS (change 18)
+downloading MovieLens (small) ...
+99,137 ratings on 8,633 films in movies.db; 1,644 films with >= 15 ratings got neighbours (82,200 rows) in 2s
+  people who liked Inception also liked: The Dark Knight, Guardians of the Galaxy, The Dark Knight Rises, The Wrestler, Saving Private Ryan
+  people who liked Toy Story also liked: Toy Story 2, Aladdin, Toy Story 3, Back to the Future, The Incredibles
+  people who liked Heat also liked: Léon: The Professional, Reservoir Dogs, Casino, Aliens, The Last of the Mohicans
+
+Blind test ready: cat results/recs_blind.txt
+
+=== SMALL PLANNER (change 23): 27B plan vs llama3.2:latest plan, everything else the same
+run                    HONESTY    OWN-TUNE   TREC-TUNE    s@1    MRR   ms/q  switches
+-------------------------------------------------------------------------------------
+night_all              3/3        42/42       15/60      0.56   0.56  13932  UNKNOWN_FILM=1 MULTI_FILM=1 HYDE=1 HYBRID=1 RERANK_N=50 RERANK_CHARS=400 GUESS_WIDE=1
+night_smallplan        3/3        42/42       18/60      0.56   0.57   9423  UNKNOWN_FILM=1 MULTI_FILM=1 HYDE=1 HYBRID=1 RERANK_N=50 RERANK_CHARS=400 GUESS_WIDE=1
+                   vs night_all: +4 trec-dev-252 trec-dev-176 trec-dev-271 trec-dev-1077
+                                -1 trec-dev-676
+Same question type as the 27B: 94/105.  Planning time: 27B 6709 ms, small 1851 ms (both uncached).

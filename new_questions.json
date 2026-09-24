@@ -1,0 +1,212 @@
+[
+ {
+  "id": "u01",
+  "category": "identify",
+  "turns": [
+   "What is a movie where a guy is paid to go out with a girl and falls in love with her"
+  ],
+  "expect_retrieved": [
+   "10 Things I Hate About You"
+  ],
+  "expect_year": "1999",
+  "retrieval_graded": true,
+  "expect_behavior": "PASS = names 10 Things I Hate About You (1999) and describes it from the context.",
+  "added": "2026-09-23"
+ },
+ {
+  "id": "u02",
+  "category": "general",
+  "turns": [
+   "I remember a movie that was about a guy saving earth by going to space"
+  ],
+  "expect_retrieved": [
+   "Interstellar"
+  ],
+  "expect_year": "2014",
+  "retrieval_graded": true,
+  "expect_behavior": "PASS = accurate answer about Interstellar (2014) from the context; no invented facts.",
+  "added": "2026-09-23"
+ },
+ {
+  "id": "u03",
+  "category": "identify",
+  "turns": [
+   "What's the Batman movie where the villain with the mask traps the whole city and breaks Batman's back?"
+  ],
+  "expect_retrieved": [
+   "The Dark Knight Rises"
+  ],
+  "expect_year": "2012",
+  "retrieval_graded": true,
+  "expect_behavior": "PASS = names The Dark Knight Rises (2012) and describes it from the context.",
+  "added": "2026-09-23"
+ },
+ {
+  "id": "u04",
+  "category": "general",
+  "turns": [
+   "What movie had a guy killing babysitters"
+  ],
+  "expect_retrieved": [
+   "Halloween"
+  ],
+  "expect_year": "1978",
+  "retrieval_graded": true,
+  "expect_behavior": "PASS = accurate answer about Halloween (1978) from the context; no invented facts.",
+  "added": "2026-09-23"
+ },
+ {
+  "id": "u05",
+  "category": "general",
+  "turns": [
+   "what movie had kids play a board game and it came to life"
+  ],
+  "expect_retrieved": [
+   "Jumanji"
+  ],
+  "expect_year": "1995",
+  "retrieval_graded": true,
+  "expect_behavior": "PASS = accurate answer about Jumanji (1995) from the context; no invented facts.",
+  "added": "2026-09-23"
+ },
+ {
+  "id": "u06",
+  "category": "general",
+  "turns": [
+   "what movie is about cars racing and is animated"
+  ],
+  "expect_retrieved": [
+   "Cars"
+  ],
+  "expect_year": "2006",
+  "retrieval_graded": true,
+  "expect_behavior": "PASS = accurate answer about Cars (2006) from the context; no invented facts.",
+  "added": "2026-09-23"
+ },
+ {
+  "id": "u07",
+  "category": "general",
+  "turns": [
+   "I saw a movie once about a stockbroker who gets super rich selling penny stocks and throws wild parties in his office"
+  ],
+  "expect_retrieved": [
+   "The Wolf of Wall Street"
+  ],
+  "expect_year": "2013",
+  "retrieval_graded": true,
+  "expect_behavior": "PASS = accurate answer about The Wolf of Wall Street (2013) from the context; no invented facts.",
+  "added": "2026-09-23"
+ },
+ {
+  "id": "u08",
+  "category": "identify",
+  "turns": [
+   "There was a movie about a guy who owned a drug empire"
+  ],
+  "expect_retrieved": [
+   "Scarface"
+  ],
+  "expect_year": "1983",
+  "retrieval_graded": true,
+  "expect_behavior": "PASS = names Scarface (1983) and describes it from the context.",
+  "added": "2026-09-23"
+ },
+ {
+  "id": "u09",
+  "category": "identify",
+  "turns": [
+   "What's the spy movie where time runs backwards and bullets fly back into the guns?"
+  ],
+  "expect_retrieved": [
+   "Tenet"
+  ],
+  "expect_year": "2020",
+  "retrieval_graded": true,
+  "expect_behavior": "PASS = names Tenet (2020) and describes it from the context.",
+  "added": "2026-09-23"
+ },
+ {
+  "id": "u10",
+  "category": "general",
+  "turns": [
+   "What movie is about a princess who meets a guy named wesley"
+  ],
+  "expect_retrieved": [
+   "The Princess Bride"
+  ],
+  "expect_year": "1987",
+  "retrieval_graded": true,
+  "expect_behavior": "PASS = accurate answer about The Princess Bride (1987) from the context; no invented facts.",
+  "added": "2026-09-23"
+ },
+ {
+  "id": "u11",
+  "category": "general",
+  "turns": [
+   "What movie is about group of superhero's fighting aliens from space with a green guy"
+  ],
+  "expect_retrieved": [
+   "The Avengers"
+  ],
+  "expect_year": "2012",
+  "retrieval_graded": true,
+  "expect_behavior": "PASS = accurate answer about The Avengers (2012) from the context; no invented facts.",
+  "added": "2026-09-23"
+ },
+ {
+  "id": "u12",
+  "category": "identify",
+  "turns": [
+   "The movie where a guy finds a yellow robot car"
+  ],
+  "expect_retrieved": [
+   "Transformers"
+  ],
+  "expect_year": "2007",
+  "retrieval_graded": true,
+  "expect_behavior": "PASS = names Transformers (2007) and describes it from the context.",
+  "added": "2026-09-23"
+ },
+ {
+  "id": "u13",
+  "category": "identify",
+  "turns": [
+   "Movie about a hockey player turned into golf superstar"
+  ],
+  "expect_retrieved": [
+   "Happy Gilmore"
+  ],
+  "expect_year": "1996",
+  "retrieval_graded": true,
+  "expect_behavior": "PASS = names Happy Gilmore (1996) and describes it from the context.",
+  "added": "2026-09-23"
+ },
+ {
+  "id": "u14",
+  "category": "general",
+  "turns": [
+   "I saw a movie once where a guy was framed for the murder of his wife by his wife what was it?"
+  ],
+  "expect_retrieved": [
+   "Gone Girl"
+  ],
+  "expect_year": "2014",
+  "retrieval_graded": true,
+  "expect_behavior": "PASS = accurate answer about Gone Girl (2014) from the context; no invented facts.",
+  "added": "2026-09-23"
+ },
+ {
+  "id": "u15",
+  "category": "identify",
+  "turns": [
+   "The movie where an office worker who can't sleep starts an underground fighting club with a soap salesman"
+  ],
+  "expect_retrieved": [
+   "Fight Club"
+  ],
+  "expect_year": "1999",
+  "retrieval_graded": true,
+  "expect_behavior": "PASS = names Fight Club (1999) and describes it from the context.",
+  "added": "2026-09-23"
+ }
+]

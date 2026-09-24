@@ -221,28 +221,6 @@
    "split": "train"
   },
   {
-   "id": "trec-train-119",
-   "source": "trec",
-   "category": "identify",
-   "turns": [
-    "From what I remember it involved 3-4 astronauts.  One stays in orbit (a black man), while the others go to the surface of this planet. The ones on the surface are there to retrieve data (from probes perhaps?). The astronauts on the surface only have a limited time to collect this data and get back to the ship in orbit.  I think something happens to shorten their time there (a storm maybe?).  During this scene they were surrounded by water if I remember correctly. The female (possibly the crew leader?) keeps saying she can finish the data collection in time because it’ll be ages before they can get another chance.  She says this despite the warnings from her comrades to just leave.  Well, they miss their chance to get back to the ship in orbit. Now the kicker is that the time on the planet’s surface is vastly different to the time in orbit.  For instance, on the surface perhaps only a few hours pass, but in orbit several years pass.  I think it ends up being something like 20+ years to the man in orbit before the surface crew gets back. Anyone know what this movie is?  I watched it in the last 3 years, but I streamed it so the movie itself could be older.  Although I don’t think it would be more then say ten years old.  It’s in colour, an American film in English."
-   ],
-   "expect_retrieved": [
-    "Interstellar"
-   ],
-   "expect_year": "2014",
-   "expect_tmdb": 157336,
-   "vote_count": 32571,
-   "bucket": 23,
-   "wikidata": "Q13417189",
-   "wikipedia_url": "https://en.wikipedia.org/wiki/Interstellar_(film)",
-   "matched_by": "IMDb link -> Kaggle csv",
-   "retrieval_graded": true,
-   "trec_split": "train",
-   "film_key": "157336",
-   "split": "train"
-  },
-  {
    "id": "trec-train-699",
    "source": "trec",
    "category": "identify",

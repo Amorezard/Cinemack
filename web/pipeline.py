@@ -36,6 +36,11 @@ if not MOCK:
 
     import functools
 
+    try:
+        import factcheck            # change 16, lives next to chat.py
+    except ImportError:
+        factcheck = None
+
     MODEL = chat.MODEL
     EMBED_MODEL = getattr(chat, "EMBED_MODEL", "mxbai-embed-large")
     KEEP_ALIVE = getattr(chat, "KEEP_ALIVE", "30m")
@@ -131,6 +136,10 @@ def steps(hits):
         out.append("Filtered to " + " · ".join(bits))
     if notes.get("title_match_injected") or notes.get("title_match_promoted"):
         out.append(f'Matched the title "{notes.get("title_match_injected") or notes.get("title_match_promoted")}" directly')
+    if notes.get("soft_filters"):
+        out.append("Treated the year/genre as a hint, not a hard filter (people often misremember dates)")
+    if notes.get("multi_film"):
+        out.append("Looked up each film you named: " + ", ".join(notes["multi_film"]))
     if notes.get("title_guesses_used"):
         out.append("Model's guesses that the database confirmed: " + ", ".join(notes["title_guesses_used"]))
     elif notes.get("title_guesses"):
@@ -139,11 +148,41 @@ def steps(hits):
         ms = notes.get("rerank_ms")
         out.append("Read the candidate plots and picked " + ", ".join(notes["reranked_to"])
                    + (f" ({ms / 1000:.1f}s)" if ms else ""))
+    if notes.get("title_guesses_shown"):
+        out.append("Also showed the reader its own guesses: " + ", ".join(notes["title_guesses_shown"]))
+    if notes.get("second_look"):
+        out.append("Nothing fit at first, so it read the next batch of candidates")
     if notes.get("kept_guess"):
         out.append(f'Kept the model\'s guess "{notes["kept_guess"]}" in 2nd place')
     if notes.get("backfilled"):
         out.append(f'Added {notes["backfilled"]} well-known films matching the filters')
     return out
+
+
+def check(answer, hits, question):
+    """Change 16: rule-based fact check of the finished answer against the films
+    it was given (factcheck.py). {"ok", "flags", "checked"}; ok=None if skipped."""
+    if MOCK:                                    # test mode: show what the badge looks like
+        return {"ok": True, "flags": [], "checked": 3} if hits else {"ok": None, "flags": [], "checked": 0}
+    if not hits or not answer.strip() or factcheck is None:
+        return {"ok": None, "flags": [], "checked": 0}
+    try:
+        return factcheck.fact_check(answer, hits, question)
+    except Exception as e:                      # never break an answer over the check
+        print(f"[movie-buff] fact check failed: {e!r}", flush=True)
+        return {"ok": None, "flags": [], "checked": 0}
+
+
+def alternatives(hits):
+    """Change 19 (simple version): for a plot description, the other films the
+    search found, offered as "Not the one you meant?" buttons."""
+    notes = (hits[0].get("_notes") if hits else None) or {}
+    describing = bool(notes.get("reranked_to") or notes.get("title_guesses")
+                      or (notes.get("plan") or {}).get("intent") == "identify")
+    if not describing or len(hits) < 2:
+        return []
+    return [{"title": h.get("title"), "year": str(h.get("release_year") or "")[:4]}
+            for h in hits[1:3] if h.get("title")]
 
 
 def card(hit):

@@ -649,6 +649,186 @@
    "split": "tune"
   },
   {
+   "id": "u02",
+   "category": "general",
+   "turns": [
+    "I remember a movie that was about a guy saving earth by going to space"
+   ],
+   "expect_retrieved": [
+    "Interstellar"
+   ],
+   "expect_year": "2014",
+   "retrieval_graded": true,
+   "expect_behavior": "PASS = accurate answer about Interstellar (2014) from the context; no invented facts.",
+   "added": "2026-09-23",
+   "source": "own",
+   "film_key": "157336",
+   "bucket": 23,
+   "split": "tune"
+  },
+  {
+   "id": "u03",
+   "category": "identify",
+   "turns": [
+    "What's the Batman movie where the villain with the mask traps the whole city and breaks Batman's back?"
+   ],
+   "expect_retrieved": [
+    "The Dark Knight Rises"
+   ],
+   "expect_year": "2012",
+   "retrieval_graded": true,
+   "expect_behavior": "PASS = names The Dark Knight Rises (2012) and describes it from the context.",
+   "added": "2026-09-23",
+   "source": "own",
+   "film_key": "49026",
+   "bucket": 19,
+   "split": "tune"
+  },
+  {
+   "id": "u04",
+   "category": "general",
+   "turns": [
+    "What movie had a guy killing babysitters"
+   ],
+   "expect_retrieved": [
+    "Halloween"
+   ],
+   "expect_year": "1978",
+   "retrieval_graded": true,
+   "expect_behavior": "PASS = accurate answer about Halloween (1978) from the context; no invented facts.",
+   "added": "2026-09-23",
+   "source": "own",
+   "film_key": "948",
+   "bucket": 24,
+   "split": "tune"
+  },
+  {
+   "id": "u06",
+   "category": "general",
+   "turns": [
+    "what movie is about cars racing and is animated"
+   ],
+   "expect_retrieved": [
+    "Cars"
+   ],
+   "expect_year": "2006",
+   "retrieval_graded": true,
+   "expect_behavior": "PASS = accurate answer about Cars (2006) from the context; no invented facts.",
+   "added": "2026-09-23",
+   "source": "own",
+   "film_key": "920",
+   "bucket": 59,
+   "split": "tune"
+  },
+  {
+   "id": "u07",
+   "category": "general",
+   "turns": [
+    "I saw a movie once about a stockbroker who gets super rich selling penny stocks and throws wild parties in his office"
+   ],
+   "expect_retrieved": [
+    "The Wolf of Wall Street"
+   ],
+   "expect_year": "2013",
+   "retrieval_graded": true,
+   "expect_behavior": "PASS = accurate answer about The Wolf of Wall Street (2013) from the context; no invented facts.",
+   "added": "2026-09-23",
+   "source": "own",
+   "film_key": "106646",
+   "bucket": 31,
+   "split": "tune"
+  },
+  {
+   "id": "u09",
+   "category": "identify",
+   "turns": [
+    "What's the spy movie where time runs backwards and bullets fly back into the guns?"
+   ],
+   "expect_retrieved": [
+    "Tenet"
+   ],
+   "expect_year": "2020",
+   "retrieval_graded": true,
+   "expect_behavior": "PASS = names Tenet (2020) and describes it from the context.",
+   "added": "2026-09-23",
+   "source": "own",
+   "film_key": "577922",
+   "bucket": 34,
+   "split": "tune"
+  },
+  {
+   "id": "u10",
+   "category": "general",
+   "turns": [
+    "What movie is about a princess who meets a guy named wesley"
+   ],
+   "expect_retrieved": [
+    "The Princess Bride"
+   ],
+   "expect_year": "1987",
+   "retrieval_graded": true,
+   "expect_behavior": "PASS = accurate answer about The Princess Bride (1987) from the context; no invented facts.",
+   "added": "2026-09-23",
+   "source": "own",
+   "film_key": "2493",
+   "bucket": 13,
+   "split": "tune"
+  },
+  {
+   "id": "u12",
+   "category": "identify",
+   "turns": [
+    "The movie where a guy finds a yellow robot car"
+   ],
+   "expect_retrieved": [
+    "Transformers"
+   ],
+   "expect_year": "2007",
+   "retrieval_graded": true,
+   "expect_behavior": "PASS = names Transformers (2007) and describes it from the context.",
+   "added": "2026-09-23",
+   "source": "own",
+   "film_key": "1858",
+   "bucket": 34,
+   "split": "tune"
+  },
+  {
+   "id": "u14",
+   "category": "general",
+   "turns": [
+    "I saw a movie once where a guy was framed for the murder of his wife by his wife what was it?"
+   ],
+   "expect_retrieved": [
+    "Gone Girl"
+   ],
+   "expect_year": "2014",
+   "retrieval_graded": true,
+   "expect_behavior": "PASS = accurate answer about Gone Girl (2014) from the context; no invented facts.",
+   "added": "2026-09-23",
+   "source": "own",
+   "film_key": "210577",
+   "bucket": 23,
+   "split": "tune"
+  },
+  {
+   "id": "u15",
+   "category": "identify",
+   "turns": [
+    "The movie where an office worker who can't sleep starts an underground fighting club with a soap salesman"
+   ],
+   "expect_retrieved": [
+    "Fight Club"
+   ],
+   "expect_year": "1999",
+   "retrieval_graded": true,
+   "expect_behavior": "PASS = names Fight Club (1999) and describes it from the context.",
+   "added": "2026-09-23",
+   "source": "own",
+   "film_key": "550",
+   "bucket": 2,
+   "split": "tune"
+  },
+  {
    "id": "f1",
    "source": "own",
    "category": "followup",

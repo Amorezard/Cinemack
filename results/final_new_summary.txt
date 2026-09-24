@@ -1,0 +1,6 @@
+run                       FILE    s@1    MRR   ms/q  switches
+-------------------------------------------------------------
+final_new_before       9/15      0.53   0.57   9331  UNKNOWN_FILM=0 MULTI_FILM=0 HYDE=0 HYBRID=0 RERANK_N=30 RERANK_CHARS=220 GUESS_WIDE=0
+final_new_after       10/15      0.53   0.60  14553  UNKNOWN_FILM=1 MULTI_FILM=1 HYDE=1 HYBRID=1 RERANK_N=50 RERANK_CHARS=400 GUESS_WIDE=1
+                   vs final_new_before: +1 u02
+                                       -0 

@@ -13,6 +13,11 @@ EMBED_MODEL = "mxbai-embed-large"
 # for everyone else on the box.
 KEEP_ALIVE = "30m"
 
+# Change 15 switch: ANSWER_STYLE=1 picks the answer instructions by question
+# type (answer_style.py). Off until the judge shows it helps.
+import os as _os
+ANSWER_STYLE = _os.environ.get("ANSWER_STYLE", "1") == "1"
+
 
 import sqlite3
 _CTX_DB = sqlite3.connect("movies.db", check_same_thread=False)
@@ -48,9 +53,13 @@ def build_prompt(question, k=3, recent_titles=None):
     """Returns (prompt, hits). hits feed the next turn's follow-up resolution."""
     hits = retrieve(question, k=k, recent_titles=recent_titles)
     if not hits:
-        return question, hits
+        # Change 9: nothing in the database matched (e.g. a film we don't have).
+        # Say so instead of answering from memory.
+        return f"""Question: {question}
+
+The movie database found nothing that matches this question. If the question is about a specific film, say plainly and briefly that you don't have that film in your database, and do not describe it, its cast or its plot from memory. If it is a general question about movies, answer briefly and say you are answering without information from the database.""", hits
     context = "\n\n---\n\n".join(context_for(h) for h in hits)
-    return f"""Here is information on movies that might be relevant to the question:
+    prompt = f"""Here is information on movies that might be relevant to the question:
 
 {context}
 
@@ -60,7 +69,13 @@ Answer using the information above. If none of it actually answers the question,
 
 How to answer: lead with the direct answer in your first sentence - if the question asks which film, name it with its year. If several films are listed, answer about the one that best fits the question and leave out the others unless they help. Back the answer with one or two specific details from the information above (a plot point, the director, the rating) rather than general praise. For recommendations, suggest two or three films from the information above, each with a one-line reason tied to what the person asked for. Only give a verdict or recommendation when the question asks for one. When asked whether a film is good or worth watching, give a clear verdict first and say who would enjoy it, using its rating and plot. Do not bring in awards, sequels, source novels, or films that are not listed above, even if you know them.
 
-Only state a director, cast member, character name, award, or box-office figure if it appears in the information above. If a detail is not there, say you don't have it rather than recalling it from memory. Never reason out loud or correct yourself mid-answer - if you are unsure, say so in one short sentence and move on.""", hits
+Only state a director, cast member, character name, award, or box-office figure if it appears in the information above. If a detail is not there, say you don't have it rather than recalling it from memory. Never reason out loud or correct yourself mid-answer - if you are unsure, say so in one short sentence and move on."""
+    if ANSWER_STYLE:
+        # Change 15: the "How to answer" paragraph matched to the question type
+        # (credits / opinion / recommend / identify / general), from answer_style.py.
+        from answer_style import apply_style
+        prompt = apply_style(prompt, question)
+    return prompt, hits
 
 
 def prewarm():

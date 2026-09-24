@@ -114,6 +114,78 @@
    "split": "check"
   },
   {
+   "id": "u01",
+   "category": "identify",
+   "turns": [
+    "What is a movie where a guy is paid to go out with a girl and falls in love with her"
+   ],
+   "expect_retrieved": [
+    "10 Things I Hate About You"
+   ],
+   "expect_year": "1999",
+   "retrieval_graded": true,
+   "expect_behavior": "PASS = names 10 Things I Hate About You (1999) and describes it from the context.",
+   "added": "2026-09-23",
+   "source": "own",
+   "film_key": "4951",
+   "bucket": 70,
+   "split": "check"
+  },
+  {
+   "id": "u05",
+   "category": "general",
+   "turns": [
+    "what movie had kids play a board game and it came to life"
+   ],
+   "expect_retrieved": [
+    "Jumanji"
+   ],
+   "expect_year": "1995",
+   "retrieval_graded": true,
+   "expect_behavior": "PASS = accurate answer about Jumanji (1995) from the context; no invented facts.",
+   "added": "2026-09-23",
+   "source": "own",
+   "film_key": "8844",
+   "bucket": 73,
+   "split": "check"
+  },
+  {
+   "id": "u08",
+   "category": "identify",
+   "turns": [
+    "There was a movie about a guy who owned a drug empire"
+   ],
+   "expect_retrieved": [
+    "Scarface"
+   ],
+   "expect_year": "1983",
+   "retrieval_graded": true,
+   "expect_behavior": "PASS = names Scarface (1983) and describes it from the context.",
+   "added": "2026-09-23",
+   "source": "own",
+   "film_key": "111",
+   "bucket": 62,
+   "split": "check"
+  },
+  {
+   "id": "u13",
+   "category": "identify",
+   "turns": [
+    "Movie about a hockey player turned into golf superstar"
+   ],
+   "expect_retrieved": [
+    "Happy Gilmore"
+   ],
+   "expect_year": "1996",
+   "retrieval_graded": true,
+   "expect_behavior": "PASS = names Happy Gilmore (1996) and describes it from the context.",
+   "added": "2026-09-23",
+   "source": "own",
+   "film_key": "9614",
+   "bucket": 74,
+   "split": "check"
+  },
+  {
    "id": "trec-dev-152",
    "source": "trec",
    "category": "identify",

@@ -603,8 +603,94 @@ def fits_hint(year, genres, filters):
     return passes({"release_year": year, "genres": genres}, wide)
 
 
+# ------------------------------------------------ search batch, 23 Sep 2026
+# Each change has its own switch so one overnight run can measure them together
+# and one at a time (run_overnight.sh). 1 = on (default), 0 = off.
+#   UNKNOWN_FILM  change 9:  a film the question names that isn't in movies.db
+#                            -> return nothing (not three nearby films)
+#   MULTI_FILM    change 13: a question naming 2-3 films gets all of them
+#   HYDE          change 10: for descriptions the plan also writes a guessed
+#                            TMDB-style plot; it is searched too, and the
+#                            re-ranker gets a second look if it picks nothing
+#   HYBRID        change 11: for descriptions, keyword search (SQLite FTS5,
+#                            build_fts.py) is merged with vector search by
+#                            reciprocal rank fusion
+#   RERANK_N      how many candidates the re-ranker reads (was 30)
+# With HYDE or HYBRID on, a film the re-ranker picked is kept even if its
+# question-to-plot distance is over the 0.90 cutoff (it was found another way).
+UNKNOWN_FILM = _os_r.environ.get("UNKNOWN_FILM", "1") != "0"
+MULTI_FILM = _os_r.environ.get("MULTI_FILM", "1") != "0"
+HYDE = _os_r.environ.get("HYDE", "1") != "0"
+HYBRID = _os_r.environ.get("HYBRID", "1") != "0"
+RERANK_N = int(_os_r.environ.get("RERANK_N", "50"))
+# RERANK_CHARS: how much of each plot the re-ranker reads (was 220; TMDB plots
+# are usually 300-500 characters, so the remembered detail was often cut off).
+# GUESS_WIDE: every title the planner guessed that exists in movies.db is shown
+# to the re-ranker first, even when its distance to the (long, rambling)
+# question is over GUESS_MAX_DISTANCE; the re-ranker reads its plot and decides.
+RERANK_CHARS = int(_os_r.environ.get("RERANK_CHARS", "400"))
+GUESS_WIDE = _os_r.environ.get("GUESS_WIDE", "1") != "0"
+DESCRIBE_POOL = 100          # vector pool per list for descriptions when HYDE/HYBRID
+RRF_K = 60
+SWITCHES = {"RERANK_CAP": RERANK_CAP, "SOFT_FILTERS": SOFT_FILTERS,
+            "SOFT_FIT_SLOTS": SOFT_FIT_SLOTS, "UNKNOWN_FILM": UNKNOWN_FILM,
+            "MULTI_FILM": MULTI_FILM, "HYDE": HYDE, "HYBRID": HYBRID, "RERANK_N": RERANK_N,
+            "RERANK_CHARS": RERANK_CHARS, "GUESS_WIDE": GUESS_WIDE}
+
+_STOP = set("""a about above after again against all am an and any are as at be because been
+before being below between both but by can could did do does doing down during each few for
+from further had has have having he her here hers herself him himself his how i if in into is
+it its itself just me more most my myself no nor not now of off on once only or other our ours
+out over own same she should so some such than that the their theirs them then there these they
+this those through to too under until up very was we were what when where which while who whom
+why will with would you your yours yourself movie movies film films think remember remembered
+watched watch saw seen scene scenes really like kind sort something anything thing things one
+also maybe probably pretty get got know dont didnt cant think believe years year ago old
+""".split())
+_FTS_OK = None
+
+
+def keyword_ranking(conn, text, n=100):
+    """Film ids by SQLite FTS5 keyword match (bm25), best first. [] if the
+    movies_fts index hasn't been built (python build_fts.py)."""
+    global _FTS_OK
+    if _FTS_OK is None:
+        _FTS_OK = bool(conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE name = 'movies_fts'").fetchone())
+    if not _FTS_OK:
+        return []
+    words = []
+    for w in _re.findall(r"[a-z0-9]+", normalize(text)):
+        if len(w) >= 3 and w not in _STOP and w not in words:
+            words.append(w)
+    if not words:
+        return []
+    match = " OR ".join(f'"{w}"' for w in words[:40])
+    try:
+        return [r[0] for r in conn.execute(
+            "SELECT rowid FROM movies_fts WHERE movies_fts MATCH ? "
+            "ORDER BY bm25(movies_fts, 3.0, 1.0) LIMIT ?", (match, n))]
+    except sqlite3.OperationalError:
+        return []
+
+
+def embed_document(text):
+    """A guessed plot is embedded like a film record (no query prefix)."""
+    import ollama
+    return ollama.embed(model=EMBED_MODEL, input=[text])["embeddings"][0]
+
+
+def rrf(*rankings):
+    """Reciprocal rank fusion: each list adds 1/(RRF_K + rank) per film."""
+    score = {}
+    for ranking in rankings:
+        for rank, mid in enumerate(ranking, 1):
+            score[mid] = score.get(mid, 0.0) + 1.0 / (RRF_K + rank)
+    return sorted(score, key=lambda m: -score[m])
+
+
 def rerank(question, conn, q_vec, current_hits, trace=None, keep_ids=(), filters=None,
-           prefer=None):
+           prefer=None, ranked=False, exclude_ids=()):
     """Let the chat model read the candidates' plots and pick the ones that fit.
     The embedding measures wording overlap; the model can see that "Ki-taek's
     unemployed family takes interest in the wealthy Parks for their livelihood"
@@ -612,32 +698,43 @@ def rerank(question, conn, q_vec, current_hits, trace=None, keep_ids=(), filters
     keep_ids: accepted title guesses, always shown first.
     filters: the question's year/genre filters; candidates must pass them.
     prefer: the same filters as a hint - fitting films move up, none are dropped.
+    ranked: current_hits are already in the order to use (fused ranking), not
+    to be re-sorted by distance. exclude_ids: films shown in a first look.
     Returns (hits, picked titles). Hits are unchanged if the model picks nothing."""
-    near = [(m, d) for m, d in knn_multi(conn, q_vec, RERANK_POOL) if d <= MAX_DISTANCE]
+    n_show = RERANK_N if RERANK_CAP else RERANK_POOL
+    near = [(m, d) for m, d in knn_multi(conn, q_vec, n_show) if d <= MAX_DISTANCE]
+    exclude = set(exclude_ids)
+    pos = {}
     if RERANK_CAP:
         best = {}
         for mid, d in [(h["id"], h["distance"]) for h in current_hits] + near:
-            if d is not None and (mid not in best or d < best[mid]):
+            if d is not None and mid not in exclude and (mid not in best or d < best[mid]):
                 best[mid] = d
+        if ranked:
+            seq = [h["id"] for h in current_hits if h["id"] in best]
+            seen_ids = set(seq)
+            seq += sorted((m for m in best if m not in seen_ids), key=best.get)
+        else:
+            seq = sorted(best, key=best.get)
+        pos = {m: i for i, m in enumerate(seq)}
         kept = [m for m in keep_ids if m in best]
-        order = dict(best)
+        rest = [m for m in seq if m not in kept]
         fit = {}
         if prefer:
-            for mid in best:
+            for mid in rest:
                 row = conn.execute("SELECT release_year, genres FROM movies WHERE id = ?",
                                    (mid,)).fetchone()
                 fit[mid] = bool(row and fits_hint(row[0], row[1], prefer))
-                if fit[mid]:
-                    order[mid] = best[mid] - SOFT_BONUS
-        rest = [m for m in best if m not in kept]
         if prefer and SOFT_FIT_SLOTS > 0:
-            # Reserved slots: the closest fitting films first, then the closest
-            # of the remainder (any year). Shown to the model by distance below.
-            first = sorted((m for m in rest if fit[m]), key=best.get)[:SOFT_FIT_SLOTS]
+            # Reserved slots: the best-ranked fitting films first, then the
+            # best-ranked of the remainder (any year). Shown in rank order below.
+            first = [m for m in rest if fit[m]][:SOFT_FIT_SLOTS]
             chosen = set(first)
-            rest_order = first + sorted((m for m in rest if m not in chosen), key=best.get)
+            rest_order = first + [m for m in rest if m not in chosen]
+        elif prefer and not ranked:
+            rest_order = sorted(rest, key=lambda m: best[m] - (SOFT_BONUS if fit[m] else 0))
         else:
-            rest_order = sorted(rest, key=lambda m: order[m])
+            rest_order = rest
         pool = [(m, best[m]) for m in kept] + [(m, best[m]) for m in rest_order]
     else:
         seen = {m for m, _ in near}
@@ -652,18 +749,18 @@ def rerank(question, conn, q_vec, current_hits, trace=None, keep_ids=(), filters
                                                  filters):
             continue
         cands.append((mid, d, row[:4]))
-        if RERANK_CAP and len(cands) >= RERANK_POOL:
+        if RERANK_CAP and len(cands) >= n_show:
             break
     if RERANK_CAP and prefer and SOFT_FIT_SLOTS > 0:
-        # Same films, listed closest first (guesses stay on top) so the reserved
+        # Same films, listed in rank order (guesses stay on top) so the reserved
         # slots don't also decide the order the model reads them in.
         nk = sum(1 for c in cands if c[0] in set(keep_ids))
-        cands = cands[:nk] + sorted(cands[nk:], key=lambda c: c[1])
+        cands = cands[:nk] + sorted(cands[nk:], key=lambda c: pos.get(c[0], 1e9))
     if trace is not None:   # stage 3: exactly what the re-ranker is shown
         trace["rerank_in"] = [(mid, row[0], row[1], d) for mid, d, row in cands]
     if len(cands) < 2:
         return current_hits, []
-    listing = "\n".join(f"{i}. {t} ({(y or '')[:4]}, {v or 0:,} votes): {o[:RERANK_PLOT_CHARS]}"
+    listing = "\n".join(f"{i}. {t} ({(y or '')[:4]}, {v or 0:,} votes): {o[:RERANK_CHARS if RERANK_CAP else RERANK_PLOT_CHARS]}"
                         for i, (_, _, (t, y, o, v)) in enumerate(cands, 1))
     try:
         import ollama
@@ -695,6 +792,8 @@ def rerank(question, conn, q_vec, current_hits, trace=None, keep_ids=(), filters
     if trace is not None:   # stage 4: what the re-ranker chose, best first
         trace["rerank_out"] = [(mid, row[0], row[1], d) for mid, d, row in picked]
     front = hydrate(conn, [(mid, d) for mid, d, _ in picked])
+    for h in front:
+        h["_picked"] = True
     return front + [h for h in current_hits if h["id"] not in ids], [c[2][0] for c in picked]
 
 
@@ -755,6 +854,31 @@ Recent films: (none)
 Question: something like Inception but lighter
 {"intent":"recommend","films":[{"title":"Inception","year":2010}],"guesses":[],"search_query":"lighter films similar to Inception (2010)"}"""
 
+# Change 10 (HYDE): the same plan, plus a guessed TMDB-style plot for descriptions.
+PLAN_SCHEMA_HYDE = {**PLAN_SCHEMA, "properties": {**PLAN_SCHEMA["properties"],
+                                                  "guessed_plot": {"type": "string"}},
+                    "required": PLAN_SCHEMA["required"] + ["guessed_plot"]}
+PLAN_SYSTEM_HYDE = PLAN_SYSTEM.split("\n\nExamples\n")[0] + """
+
+guessed_plot: only for "identify" - 2-3 sentences written the way a movie database summarises the film's plot: who the main character is, the setup, the central conflict. Plain and factual, no title, no "the user remembers". Otherwise "".
+
+Examples
+Recent films: (none)
+Question: Who directed Pulp Fiction?
+{"intent":"named_film","films":[{"title":"Pulp Fiction","year":1994}],"guesses":[],"search_query":"Who directed Pulp Fiction (1994)?","guessed_plot":""}
+
+Recent films: (none)
+Question: a kid at a boarding school spends one night trapped in the library with a ghost
+{"intent":"identify","films":[],"guesses":[],"search_query":"a kid at a boarding school spends one night trapped in the library with a ghost","guessed_plot":"A lonely boy at a strict boarding school is locked in the old library overnight. There he meets the ghost of a former student who needs his help to uncover what happened to her decades ago."}
+
+Recent films: 1. Back to the Future  2. Back to the Future Part III  3. Back to the Future Part II
+Question: how did the first one end?
+{"intent":"named_film","films":[{"title":"Back to the Future","year":1985}],"guesses":[],"search_query":"How does Back to the Future (1985) end?","guessed_plot":""}
+
+Recent films: (none)
+Question: something like Inception but lighter
+{"intent":"recommend","films":[{"title":"Inception","year":2010}],"guesses":[],"search_query":"lighter films similar to Inception (2010)","guessed_plot":""}"""
+
 _ARTICLES = {"the", "a", "an", "of", "and"}
 _NORM_TITLES = None
 
@@ -765,12 +889,13 @@ def understand(question, recent_titles=None):
     user = f"Recent films: {recent}\nQuestion: {question}"
     try:
         import ollama
+        hyde = globals().get("HYDE", False)
         kw = dict(model=QUERY_MODEL, think=False,
-                  options={"num_predict": 220, "temperature": 0},
-                  messages=[{"role": "system", "content": PLAN_SYSTEM},
+                  options={"num_predict": 400 if hyde else 220, "temperature": 0},
+                  messages=[{"role": "system", "content": PLAN_SYSTEM_HYDE if hyde else PLAN_SYSTEM},
                             {"role": "user", "content": user}])
         try:
-            r = ollama.chat(format=PLAN_SCHEMA, **kw)
+            r = ollama.chat(format=PLAN_SCHEMA_HYDE if hyde else PLAN_SCHEMA, **kw)
         except TypeError:          # older ollama client: no schema support
             r = ollama.chat(format="json", **kw)
         raw = _json.loads(r["message"]["content"])
@@ -797,8 +922,10 @@ def _clean_plan(raw, question):
         return out[:3]
 
     sq = str(raw.get("search_query") or "").strip() or question
+    gp = str(raw.get("guessed_plot") or "").strip()
     return {"intent": raw["intent"], "films": films("films"),
-            "guesses": films("guesses"), "search_query": sq}
+            "guesses": films("guesses"), "search_query": sq,
+            "guessed_plot": gp if raw["intent"] == "identify" else ""}
 
 
 def _mentioned(ntitle, nquestion):
@@ -873,6 +1000,22 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
             search_text = plan["search_query"] if named else question
             recommending = plan["intent"] == "recommend"
             describing = plan["intent"] == "identify"
+            # Change 9: the question names a film (its words point at the title)
+            # and it isn't in movies.db -> nothing, not three look-alikes.
+            if UNKNOWN_FILM and plan["intent"] == "named_film" and not named:
+                nq = normalize(question)
+                unknown = [f["title"] for f in plan["films"]
+                           if _mentioned(normalize(f["title"]), nq)]
+                if unknown:
+                    if trace is not None:
+                        trace["unknown_film"] = unknown
+                        for key in ("pool", "after_cutoff", "final"):
+                            trace[key] = []
+                        trace["final_distance"] = []
+                        trace["total_ms"] = round((_tt.perf_counter() - _t_start) * 1000)
+                    if explain:
+                        print(f"  [retrieve] not in movies.db: {unknown}")
+                    return []
         else:
             question, resolved_from = resolve_followup(question, recent_titles, conn)
             search_text = question
@@ -889,7 +1032,36 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
 
         _t_search = _tt.perf_counter()
         q_vec = embed_query(search_text)
-        hits = hydrate(conn, knn_multi(conn, q_vec, pool))
+        fused = bool(describing and not recommending and (HYDE or HYBRID))
+        if fused:
+            # Changes 10 + 11: the question's vector list, the guessed plot's
+            # vector list and the keyword list, merged by reciprocal rank fusion.
+            # Each hit keeps its distance to the QUESTION (the cutoff's scale).
+            pool = max(pool, DESCRIBE_POOL)
+            q_list = knn_multi(conn, q_vec, pool)
+            dist = dict(q_list)
+            lists = [[m for m, _ in q_list]]
+            gp = (plan or {}).get("guessed_plot") if HYDE else ""
+            if gp:
+                h_list = knn_multi(conn, embed_document(gp), pool)
+                lists.append([m for m, _ in h_list])
+                if trace is not None:
+                    trace["guessed_plot"] = gp
+                    trace["pool_hyde"] = [m for m, _ in h_list[:50]]
+            if HYBRID:
+                k_list = keyword_ranking(conn, question, pool)
+                lists.append(k_list)
+                if trace is not None:
+                    trace["pool_keyword"] = k_list[:50]
+            order = rrf(*lists)[:pool * 2]
+            for m in order:
+                if m not in dist:
+                    dist[m] = distance_to(conn, m, q_vec)
+            hits = hydrate(conn, [(m, dist[m]) for m in order])
+            if trace is not None:
+                trace["pool_q"] = [m for m, _ in q_list[:50]]
+        else:
+            hits = hydrate(conn, knn_multi(conn, q_vec, pool))
         if trace is not None:   # stage 1: the vector pool, closest first
             trace["search_ms"] = round((_tt.perf_counter() - _t_search) * 1000)
             trace["pool_size"] = pool
@@ -930,13 +1102,14 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
         # any year in the question, and use the one the embedding agrees with
         # most - only if it is close enough. The answer still comes from the
         # database, never from the guess.
-        accepted = []
+        accepted, wide = [], []
         if (subject is None and not recommending and not resolved_from
                 and describing):
             # The plan's guesses when it made some; otherwise ask separately.
             guesses = (plan or {}).get("guesses") or guess_titles(question)
             notes["title_guesses"] = [f'{g["title"]} ({g["year"]})' for g in guesses]
             accepted = []
+            wide = []            # GUESS_WIDE: in the database, but too far to auto-accept
             for guess in guesses:
                 g = lookup_guess(conn, guess)
                 if not g or any(a[1]["id"] == g["id"] for a in accepted):
@@ -950,6 +1123,8 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
                 d = distance_to(conn, g["id"], q_vec)
                 if d is not None and d <= GUESS_MAX_DISTANCE:
                     accepted.append((d, g))
+                elif GUESS_WIDE and d is not None and all(w[1]["id"] != g["id"] for w in wide):
+                    wide.append((d, g))
             if accepted:
                 # All plausible guesses go in, closest first. Picking one let
                 # eXistenZ (0.77) beat The Matrix (0.79); the answering model can
@@ -959,9 +1134,15 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
                 hits = hydrate(conn, [(g["id"], d) for d, g in accepted]) + \
                        [h for h in hits if h["id"] not in ids]
                 notes["title_guesses_used"] = [f'{g["title"]} ({d:.3f})' for d, g in accepted]
+            if wide:
+                # Not placed ahead of other films; only guaranteed a place in
+                # the re-ranker's list (keep_ids below).
+                have = {h["id"] for h in hits}
+                hits = hits + hydrate(conn, [(g["id"], d) for d, g in wide if g["id"] not in have])
+                notes["title_guesses_shown"] = [f'{g["title"]} ({d:.3f})' for d, g in wide]
             if trace is not None:   # stage 2b: model guesses that passed the checks
                 trace["guesses"] = [(g["id"], g["title"], g["release_year"], d)
-                                    for d, g in sorted(accepted, key=lambda a: a[0])]
+                                    for d, g in sorted(accepted + wide, key=lambda a: a[0])]
 
         # Re-rank tip-of-the-tongue questions: the chat model reads ~30 candidate
         # plots and chooses. RERANK=0 switches it off for A/B evals.
@@ -971,11 +1152,26 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
                 and describing):
             import time as _time
             _t0 = _time.perf_counter()
-            hits, picked = rerank(question, conn, q_vec, hits, trace=trace,
-                                  keep_ids=[g["id"] for _d, g in accepted],
-                                  filters=None if soft else filters,
-                                  prefer=filters if soft else None)
+            rr_kw = dict(keep_ids=[g["id"] for _d, g in accepted] +
+                                  [g["id"] for _d, g in (wide if describing else [])],
+                         filters=None if soft else filters,
+                         prefer=filters if soft else None, ranked=fused)
+            first_look = {}
+            hits, picked = rerank(question, conn, q_vec, hits, trace=first_look, **rr_kw)
+            if not picked and HYDE and fused:
+                # Change 10: a second look at the next candidates down the list.
+                shown = [c[0] for c in first_look.get("rerank_in", [])]
+                second = {}
+                hits, picked = rerank(question, conn, q_vec, hits, trace=second,
+                                      exclude_ids=shown, **rr_kw)
+                notes["second_look"] = bool(picked)
+                first_look["rerank_in"] = first_look.get("rerank_in", []) + second.get("rerank_in", [])
+                if "rerank_out" in second:
+                    first_look["rerank_out"] = second["rerank_out"]
+                if trace is not None:
+                    trace["second_look"] = True
             if trace is not None:
+                trace.update(first_look)
                 trace.setdefault("rerank_out", [])   # ran, picked nothing
             notes["reranked_to"] = picked
             # Two independent signals: the model's own guess (what it remembers)
@@ -1002,7 +1198,9 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
         elif soft:
             notes["soft_filters"] = filters     # a hint only; nothing removed
 
-        hits = [h for h in hits if h["distance"] is None or h["distance"] <= MAX_DISTANCE]
+        trust = HYDE or HYBRID
+        hits = [h for h in hits if h["distance"] is None or h["distance"] <= MAX_DISTANCE
+                or (trust and h.get("_picked"))]
         notes["after_cutoff"] = len(hits)
         if trace is not None:   # stage 5: after year/genre filters and the 0.90 cutoff
             trace["after_cutoff"] = _snap(hits)
@@ -1014,6 +1212,19 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
             nsub = normalize(subject["title"])
             hits = [h for h in hits if nsub not in normalize(h["title"])]
             notes["after_subject_exclusion"] = len(hits)
+        elif (MULTI_FILM and plan and subject and not recommending
+              and len(named) > 1):
+            # Change 13: "Is Aliens better than Alien?" - every named film (up
+            # to 3) goes in, in the order named, instead of only the first.
+            have = {h["id"]: h for h in hits}
+            front = []
+            for n in named[:3]:
+                h = have.get(n["id"]) or next(iter(hydrate(conn, [(n["id"], 0.0)])), None)
+                if h:
+                    front.append(h)
+            hits = front
+            want = max(want, len(front))
+            notes["multi_film"] = [h["title"] for h in front]
         elif subject and not recommending:
             # Factual question naming a film: make sure that film is present
             # even if the embedding buried it (q12's failure mode).

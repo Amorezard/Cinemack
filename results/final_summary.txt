@@ -1,0 +1,7 @@
+=== SEALED FINAL SET: start of 23 Sep vs final configuration (no cache, real timings)
+run                  OWN-FINAL  TREC-FINAL    s@1    MRR   ms/q  switches
+-------------------------------------------------------------------------
+final_final_before     0/1         5/37      0.11   0.12  12942  UNKNOWN_FILM=0 MULTI_FILM=0 HYDE=0 HYBRID=0 RERANK_N=30 RERANK_CHARS=220 GUESS_WIDE=0
+final_final_after      0/1        11/37      0.16   0.21  17857  UNKNOWN_FILM=1 MULTI_FILM=1 HYDE=1 HYBRID=1 RERANK_N=50 RERANK_CHARS=400 GUESS_WIDE=1
+                   vs final_final_before: +6 trec-train-838 trec-train-439 trec-train-440 trec-train-418 trec-train-187 trec-train-1035
+                                         -0 

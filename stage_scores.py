@@ -14,6 +14,7 @@ retrieve() and, when it goes missing, which stage lost it.
     python stage_scores.py --questions trec_tot_2023.json --split dev --limit 5
     python stage_scores.py --report results/<file>.json   # re-read a saved run
     python stage_scores.py --questions sets/tune.json --tag <name>   # after split_sets.py
+    python stage_scores.py ... --no-cache   # don't replay model calls (for timing)
 
 Stages, in pipeline order:
   pool          vector search (full record + plot-only), closest first.
@@ -49,6 +50,67 @@ import sys
 
 import retrieve as R
 import test_understand as T
+
+def enable_cache(path="results/llm_cache.sqlite"):
+    """Replay identical model calls from disk. Every ollama.chat / ollama.embed
+    call is keyed by its full arguments (model, prompt, options), so a call is
+    reused only when it would be exactly the same call - a changed prompt,
+    model name or candidate list is a new call. This makes reruns fast and
+    removes run-to-run noise between configurations. Timings of cached calls
+    are near zero, so measure speed with --no-cache.
+    Delete the file after changing a model in Ollama (same name, new weights)."""
+    import hashlib
+    import sqlite3
+    import ollama
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    db = sqlite3.connect(path)
+    db.execute("CREATE TABLE IF NOT EXISTS c (k TEXT PRIMARY KEY, v TEXT)")
+    real_chat, real_embed = ollama.chat, ollama.embed
+    stats = {"hit": 0, "miss": 0}
+
+    def key(kind, kw):
+        kw = {k: v for k, v in kw.items() if k != "keep_alive"}
+        return hashlib.sha1(json.dumps([kind, kw], sort_keys=True, default=str).encode()).hexdigest()
+
+    def lookup(k):
+        row = db.execute("SELECT v FROM c WHERE k = ?", (k,)).fetchone()
+        return json.loads(row[0]) if row else None
+
+    def store(k, v):
+        db.execute("INSERT OR REPLACE INTO c VALUES (?, ?)", (k, json.dumps(v)))
+        db.commit()
+
+    def chat(*args, **kw):
+        if args or kw.get("stream"):
+            return real_chat(*args, **kw)
+        k = key("chat", kw)
+        hit = lookup(k)
+        if hit is not None:
+            stats["hit"] += 1
+            return hit
+        r = real_chat(**kw)
+        out = {"message": {"content": r["message"]["content"] or ""}}
+        stats["miss"] += 1
+        store(k, out)
+        return out
+
+    def embed(*args, **kw):
+        if args:
+            return real_embed(*args, **kw)
+        k = key("embed", kw)
+        hit = lookup(k)
+        if hit is not None:
+            stats["hit"] += 1
+            return hit
+        r = real_embed(**kw)
+        out = {"embeddings": [list(map(float, e)) for e in r["embeddings"]]}
+        stats["miss"] += 1
+        store(k, out)
+        return out
+
+    ollama.chat, ollama.embed = chat, embed
+    return stats
+
 
 STAGES = ["pool", "subject", "guesses", "rerank_in", "rerank_out", "after_cutoff", "final"]
 SCORED = ["pool", "rerank_in", "rerank_out", "after_cutoff", "final"]
@@ -112,6 +174,9 @@ def diagnose(trace, ranks, expect, expect_year):
         return f"honesty - returned films: {len(top)} ({why}): " + \
                "; ".join(fmt(r) for r in top[:3])
 
+    if trace.get("unknown_film"):
+        return f"treated as a film not in the database: {trace['unknown_film']}"
+
     subj = trace.get("subject") or []
     if subj and ranks["subject"] is None:
         return f"locked onto the wrong named film: {fmt(subj[0])}"
@@ -129,9 +194,13 @@ def diagnose(trace, ranks, expect, expect_year):
             if filt and isinstance(p_rank, int) and not R.passes(
                     {"release_year": expect_year, "genres": _genres(trace, expect)}, filt):
                 return f"excluded by the question's year/genre filter: pool #{p_rank}, {filt}, {film}"
-            if isinstance(p_rank, int) and p_rank > R.RERANK_POOL:
+            shown = len(trace.get("rerank_in", []))
+            if trace.get("soft_filters") and isinstance(p_rank, int) and p_rank <= shown:
+                return (f"crowded out of the re-ranker by films that fit the year hint: "
+                        f"pool #{p_rank}, {shown} shown")
+            if isinstance(p_rank, int) and p_rank > shown:
                 return (f"in the pool but beyond what the re-ranker sees: pool #{p_rank}, "
-                        f"re-ranker shown the closest {len(trace.get('rerank_in', []))}")
+                        f"re-ranker shown the top {shown}")
             return f"in the pool but not shown to the re-ranker (no plot text?): pool #{p_rank}"
         if not isinstance(ranks.get("rerank_out"), int):
             n = len(trace.get("rerank_in", []))
@@ -259,6 +328,9 @@ def main():
     split = args[args.index("--split") + 1] if "--split" in args else None
     limit = int(args[args.index("--limit") + 1]) if "--limit" in args else None
     R.USE_QUERY_LLM = not old
+    cache = None if "--no-cache" in args else enable_cache()
+    print("Switches:", " ".join(f"{k}={int(v) if isinstance(v, bool) else v}"
+                               for k, v in getattr(R, "SWITCHES", {}).items()))
 
     if qfile:
         # Another question file in the test_set.json format: trec_tot_2023.json,
@@ -307,8 +379,12 @@ def main():
            f"{'_' + split if split else ''}"
            f"{'_only' if only or limit else ''}{'_' + tag if tag else ''}.json")
     with open(out, "w") as f:
-        json.dump({"summary": summary, "path": "old" if old else "llm_plan", "rows": rows},
+        json.dump({"summary": summary, "path": "old" if old else "llm_plan",
+                   "switches": getattr(R, "SWITCHES", {}), "cache": cache, "rows": rows},
                   f, indent=1, default=str)
+    if cache:
+        print(f"Model calls: {cache['hit']} replayed from cache, {cache['miss']} new "
+              f"(timings above include cached calls; use --no-cache to measure speed)")
     print(f"\nFull results: {out}")
 
 

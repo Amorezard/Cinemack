@@ -17,23 +17,39 @@ retrieval and prompt code as chat.py, then streams the answer back as
 Server-Sent Events:
 
     status   {"stage": "queued", "ahead": 1} | {"stage": "searching"} | {"stage": "answering"}
-    sources  {"films": [...], "retrieve_s": 1.3}
+    sources  {"id", "films": [...], "steps": [...], "alternatives": [...], "retrieve_s": 1.3}
     thinking {"text": "..."}             (only when reasoning is on)
     token    {"text": "..."}
-    done     {"answer", "recent_titles", "timings", "stopped"}
+    done     {"id", "answer", "recent_titles", "timings", "stopped", "check", "cached"}
     error    {"message": "..."}
 
 One A10 runs one 27B generation at a time, so questions are served one at a
 time in arrival order. A second person sees "1 question ahead of yours"
 instead of both answers slowing to a crawl.
+
+Added 23 Sep 2026:
+  change 4   every question is logged to ../logs/requests.jsonl (question,
+             films found, retrieval steps, timings, answer, fact check), and
+             the page's thumbs up/down go to ../logs/feedback.jsonl via
+             POST /api/feedback. python review_feedback.py lists the thumbs-down.
+  change 16  the finished answer is fact-checked against the films it was given
+             (factcheck.py); the result rides on the "done" event.
+  change 24  an exact repeat of a conversation (same question, same history,
+             same reasoning setting) is answered from memory, instantly.
+             In-process only: a restart (after any code or data change) clears it.
+  /how       the How It Works page (how.html); /api/stats serves
+             ../results/site_stats.json for its numbers, if present.
 """
 
 import asyncio
+import hashlib
 import hmac
 import json
 import os
 import threading
 import time
+import uuid
+from collections import OrderedDict
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import List
@@ -47,6 +63,26 @@ import pipeline
 HERE = Path(__file__).resolve().parent
 MAX_QUESTION_CHARS = 2000
 ACCESS_CODE = os.environ.get("MOVIE_BUFF_CODE", "")
+LOG_DIR = pipeline.RAG_DIR / "logs"
+STATS = pipeline.RAG_DIR / "results" / "site_stats.json"
+CACHE_SIZE = 200
+answer_cache = OrderedDict()          # key -> (sources payload, done payload)
+log_lock = threading.Lock()
+
+
+def log_line(name, record):
+    """Append one JSON line to logs/<name>.jsonl. Never raises."""
+    try:
+        LOG_DIR.mkdir(exist_ok=True)
+        with log_lock, open(LOG_DIR / f"{name}.jsonl", "a", encoding="utf-8") as f:
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+    except Exception as e:
+        print(f"[movie-buff] couldn't write {name} log: {e!r}", flush=True)
+
+
+def cache_key(question, recent, history, think):
+    raw = json.dumps([question.strip().casefold(), recent, history, bool(think)], sort_keys=True)
+    return hashlib.sha1(raw.encode()).hexdigest()
 
 
 def code_ok(request):
@@ -89,6 +125,36 @@ def index():
     return FileResponse(HERE / "index.html", headers={"Cache-Control": "no-store"})
 
 
+@app.get("/how")
+def how():
+    return FileResponse(HERE / "how.html", headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/stats")
+def stats():
+    try:
+        return JSONResponse(json.loads(STATS.read_text()))
+    except Exception:
+        return JSONResponse({}, status_code=404)
+
+
+class Feedback(BaseModel):
+    id: str
+    vote: str
+    comment: str = ""
+
+
+@app.post("/api/feedback")
+async def feedback(fb: Feedback, request: Request):
+    if not code_ok(request):
+        return JSONResponse({"error": "Wrong or missing access code."}, status_code=401)
+    if fb.vote not in ("up", "down"):
+        return JSONResponse({"error": "vote must be up or down"}, status_code=400)
+    log_line("feedback", {"time": time.strftime("%Y-%m-%d %H:%M:%S"), "id": fb.id[:40],
+                          "vote": fb.vote, "comment": fb.comment[:1000]})
+    return JSONResponse({"ok": True})
+
+
 @app.get("/api/health")
 async def health(request: Request):
     info = await asyncio.get_running_loop().run_in_executor(None, pipeline.health)
@@ -114,6 +180,24 @@ async def chat(req: ChatRequest, request: Request):
     history = [{"role": t.role, "content": t.content}
                for t in req.history if t.role in ("user", "assistant") and t.content]
     history = history[-pipeline.MAX_HISTORY_MESSAGES:]
+    rid = uuid.uuid4().hex[:12]
+    key = cache_key(question, req.recent_titles, history, req.think)
+
+    if key in answer_cache:
+        # Change 24: an exact repeat - replay the stored answer, no GPU needed.
+        answer_cache.move_to_end(key)
+        src, done = answer_cache[key]
+
+        async def replay():
+            yield sse("sources", **dict(src, id=rid))
+            yield sse("status", stage="answering")
+            yield sse("token", text=done["answer"])
+            yield sse("done", **dict(done, id=rid, cached=True,
+                                     timings={"total_s": 0.0, "retrieve_s": 0.0, "first_text_s": 0.0}))
+        log_line("requests", {"time": time.strftime("%Y-%m-%d %H:%M:%S"), "id": rid,
+                              "question": question, "cached": True})
+        return StreamingResponse(replay(), media_type="text/event-stream",
+                                 headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
     out = asyncio.Queue()
     cancel = threading.Event()
@@ -132,8 +216,9 @@ async def chat(req: ChatRequest, request: Request):
             put(sse("status", stage="searching"))
             prompt, hits = pipeline.prepare(question, req.recent_titles)
             retrieve_s = time.perf_counter() - t0
-            put(sse("sources", films=[pipeline.card(h) for h in hits],
-                    steps=pipeline.steps(hits), retrieve_s=round(retrieve_s, 2)))
+            src = dict(films=[pipeline.card(h) for h in hits], steps=pipeline.steps(hits),
+                       alternatives=pipeline.alternatives(hits), retrieve_s=round(retrieve_s, 2))
+            put(sse("sources", id=rid, **src))
             if cancel.is_set():
                 return
 
@@ -149,14 +234,27 @@ async def chat(req: ChatRequest, request: Request):
                     answer.append(text)
                 put(sse(kind, text=text))
 
-            put(sse("done",
-                    answer="".join(answer).strip(),
-                    recent_titles=pipeline.next_recent_titles(hits, req.recent_titles),
-                    stopped=cancel.is_set(),
-                    timings={"retrieve_s": round(retrieve_s, 2),
-                             "first_text_s": round(first, 2) if first else None,
-                             "generate_s": round(time.perf_counter() - t1, 2),
-                             "total_s": round(time.perf_counter() - t0, 2)}))
+            final = "".join(answer).strip()
+            checked = pipeline.check(final, hits, question) if not cancel.is_set() else \
+                {"ok": None, "flags": [], "checked": 0}
+            done = dict(answer=final,
+                        recent_titles=pipeline.next_recent_titles(hits, req.recent_titles),
+                        stopped=cancel.is_set(), check=checked, cached=False,
+                        timings={"retrieve_s": round(retrieve_s, 2),
+                                 "first_text_s": round(first, 2) if first else None,
+                                 "generate_s": round(time.perf_counter() - t1, 2),
+                                 "total_s": round(time.perf_counter() - t0, 2)})
+            put(sse("done", id=rid, **done))
+            if final and not cancel.is_set() and not req.think:
+                answer_cache[key] = (src, done)
+                while len(answer_cache) > CACHE_SIZE:
+                    answer_cache.popitem(last=False)
+            log_line("requests", {
+                "time": time.strftime("%Y-%m-%d %H:%M:%S"), "id": rid, "question": question,
+                "recent_titles": req.recent_titles, "history_turns": len(history) // 2,
+                "think": req.think, "films": [f"{c['title']} ({c['year']})" for c in src["films"]],
+                "steps": src["steps"], "timings": done["timings"], "answer": final,
+                "check": checked, "stopped": done["stopped"], "cached": False})
 
         try:
             ahead = line.index(me)
