@@ -576,14 +576,37 @@ RERANK_PLOT_CHARS = 220
 import os as _os_r
 RERANK_CAP = _os_r.environ.get("RERANK_CAP", "1") != "0"
 
+# Descriptions: a year or genre is a hint, not a rule. On the TREC dev set the
+# hard filter threw away the right film on 21 of 84 questions (often ranked #1-5
+# by the search): people misremember release years ("early 2000s I believe" for
+# a 1995 film) or give the year the story is set in ("1940" for a 2007 film).
+# Now, for description questions, films that fit the year (+/- SOFT_YEAR_SLACK)
+# and genre just move up the re-ranker's list, and nothing is filtered out; the
+# re-ranker sees each film's year next to the question and can weigh it.
+# SOFT_FILTERS=0 restores the hard filter for A/B runs.
+SOFT_FILTERS = _os_r.environ.get("SOFT_FILTERS", "1") != "0"
+SOFT_YEAR_SLACK = 3
+SOFT_BONUS = 0.03        # distance credit for fitting the hint (distances are ~0.6-0.9)
 
-def rerank(question, conn, q_vec, current_hits, trace=None, keep_ids=(), filters=None):
+
+def fits_hint(year, genres, filters):
+    """passes(), with the year range widened by SOFT_YEAR_SLACK."""
+    lo, hi = filters.get("year_min"), filters.get("year_max")
+    wide = dict(filters)
+    if lo is not None:
+        wide["year_min"], wide["year_max"] = lo - SOFT_YEAR_SLACK, hi + SOFT_YEAR_SLACK
+    return passes({"release_year": year, "genres": genres}, wide)
+
+
+def rerank(question, conn, q_vec, current_hits, trace=None, keep_ids=(), filters=None,
+           prefer=None):
     """Let the chat model read the candidates' plots and pick the ones that fit.
     The embedding measures wording overlap; the model can see that "Ki-taek's
     unemployed family takes interest in the wealthy Parks for their livelihood"
     is "a poor family hired by a wealthy household".
     keep_ids: accepted title guesses, always shown first.
     filters: the question's year/genre filters; candidates must pass them.
+    prefer: the same filters as a hint - fitting films move up, none are dropped.
     Returns (hits, picked titles). Hits are unchanged if the model picks nothing."""
     near = [(m, d) for m, d in knn_multi(conn, q_vec, RERANK_POOL) if d <= MAX_DISTANCE]
     if RERANK_CAP:
@@ -592,8 +615,16 @@ def rerank(question, conn, q_vec, current_hits, trace=None, keep_ids=(), filters
             if d is not None and (mid not in best or d < best[mid]):
                 best[mid] = d
         kept = [m for m in keep_ids if m in best]
+        order = dict(best)
+        if prefer:
+            for mid in best:
+                row = conn.execute("SELECT release_year, genres FROM movies WHERE id = ?",
+                                   (mid,)).fetchone()
+                if row and fits_hint(row[0], row[1], prefer):
+                    order[mid] = best[mid] - SOFT_BONUS
         pool = [(m, best[m]) for m in kept] + \
-               sorted(((m, d) for m, d in best.items() if m not in kept), key=lambda x: x[1])
+               [(m, best[m]) for m in sorted((m for m in best if m not in kept),
+                                             key=lambda m: order[m])]
     else:
         seen = {m for m, _ in near}
         pool = [(h["id"], h["distance"] or 0.0) for h in current_hits if h["id"] not in seen] + near
@@ -833,6 +864,9 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
         filters = parse_filters(question)
         want = max(k, RECOMMEND_K) if recommending else k
         pool = POOL_WIDE if (filters or recommending) else max(POOL_DEFAULT, k * 5)
+        soft = bool(SOFT_FILTERS and filters and describing and not recommending)
+        if trace is not None:
+            trace["soft_filters"] = soft
 
         _t_search = _tt.perf_counter()
         q_vec = embed_query(search_text)
@@ -888,7 +922,7 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
                 g = lookup_guess(conn, guess)
                 if not g or any(a[1]["id"] == g["id"] for a in accepted):
                     continue
-                if lo is not None:
+                if lo is not None and not soft:
                     try:
                         if not (lo <= int(g["release_year"]) <= hi):
                             continue
@@ -920,7 +954,8 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
             _t0 = _time.perf_counter()
             hits, picked = rerank(question, conn, q_vec, hits, trace=trace,
                                   keep_ids=[g["id"] for _d, g in accepted],
-                                  filters=filters)
+                                  filters=None if soft else filters,
+                                  prefer=filters if soft else None)
             if trace is not None:
                 trace.setdefault("rerank_out", [])   # ran, picked nothing
             notes["reranked_to"] = picked
@@ -942,9 +977,11 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
             if trace is not None:
                 trace["rerank_ms"] = notes["rerank_ms"]
 
-        if filters:
+        if filters and not soft:
             hits = [h for h in hits if passes(h, filters)]
             notes["after_filter"] = len(hits)
+        elif soft:
+            notes["soft_filters"] = filters     # a hint only; nothing removed
 
         hits = [h for h in hits if h["distance"] is None or h["distance"] <= MAX_DISTANCE]
         notes["after_cutoff"] = len(hits)

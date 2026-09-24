@@ -103,7 +103,8 @@ def fmt(row):
 def diagnose(trace, ranks, expect, expect_year):
     """Which stage lost the film, and why: "<cause>: <detail>". The cause part
     is a fixed phrase, so failures can be counted by cause."""
-    filt = trace.get("filters") or {}
+    # With soft filters (descriptions) the year/genre only reorders; it removes nothing.
+    filt = {} if trace.get("soft_filters") else (trace.get("filters") or {})
     film = f"film is {expect_year or '?'}"
     if not expect:
         top = trace.get("final", [])
