@@ -587,6 +587,11 @@ RERANK_CAP = _os_r.environ.get("RERANK_CAP", "1") != "0"
 SOFT_FILTERS = _os_r.environ.get("SOFT_FILTERS", "1") != "0"
 SOFT_YEAR_SLACK = 3
 SOFT_BONUS = 0.03        # distance credit for fitting the hint (distances are ~0.6-0.9)
+# Of the re-ranker's RERANK_POOL slots, this many go to the closest films that
+# fit the hint; the rest to the closest films of any year. With the bonus alone
+# (SOFT_FIT_SLOTS=0), non-fitting films crowded out right-era ones that the old
+# hard filter had made room for (tune set: +7 questions, -3; 23 Sep).
+SOFT_FIT_SLOTS = int(_os_r.environ.get("SOFT_FIT_SLOTS", "20"))
 
 
 def fits_hint(year, genres, filters):
@@ -616,15 +621,24 @@ def rerank(question, conn, q_vec, current_hits, trace=None, keep_ids=(), filters
                 best[mid] = d
         kept = [m for m in keep_ids if m in best]
         order = dict(best)
+        fit = {}
         if prefer:
             for mid in best:
                 row = conn.execute("SELECT release_year, genres FROM movies WHERE id = ?",
                                    (mid,)).fetchone()
-                if row and fits_hint(row[0], row[1], prefer):
+                fit[mid] = bool(row and fits_hint(row[0], row[1], prefer))
+                if fit[mid]:
                     order[mid] = best[mid] - SOFT_BONUS
-        pool = [(m, best[m]) for m in kept] + \
-               [(m, best[m]) for m in sorted((m for m in best if m not in kept),
-                                             key=lambda m: order[m])]
+        rest = [m for m in best if m not in kept]
+        if prefer and SOFT_FIT_SLOTS > 0:
+            # Reserved slots: the closest fitting films first, then the closest
+            # of the remainder (any year). Shown to the model by distance below.
+            first = sorted((m for m in rest if fit[m]), key=best.get)[:SOFT_FIT_SLOTS]
+            chosen = set(first)
+            rest_order = first + sorted((m for m in rest if m not in chosen), key=best.get)
+        else:
+            rest_order = sorted(rest, key=lambda m: order[m])
+        pool = [(m, best[m]) for m in kept] + [(m, best[m]) for m in rest_order]
     else:
         seen = {m for m, _ in near}
         pool = [(h["id"], h["distance"] or 0.0) for h in current_hits if h["id"] not in seen] + near
@@ -640,6 +654,11 @@ def rerank(question, conn, q_vec, current_hits, trace=None, keep_ids=(), filters
         cands.append((mid, d, row[:4]))
         if RERANK_CAP and len(cands) >= RERANK_POOL:
             break
+    if RERANK_CAP and prefer and SOFT_FIT_SLOTS > 0:
+        # Same films, listed closest first (guesses stay on top) so the reserved
+        # slots don't also decide the order the model reads them in.
+        nk = sum(1 for c in cands if c[0] in set(keep_ids))
+        cands = cands[:nk] + sorted(cands[nk:], key=lambda c: c[1])
     if trace is not None:   # stage 3: exactly what the re-ranker is shown
         trace["rerank_in"] = [(mid, row[0], row[1], d) for mid, d, row in cands]
     if len(cands) < 2:
