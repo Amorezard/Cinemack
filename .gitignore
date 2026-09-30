@@ -4,3 +4,5 @@ logs/
 backups/
 __pycache__/
 data/
+wiki.db
+vec_cache/

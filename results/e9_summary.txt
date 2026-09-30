@@ -1,0 +1,463 @@
+E9 summary  Wed Sep 30 12:28:39 AM EDT 2026
+
+##### VECTOR CACHE + MODEL CALL PROBE (from the log)
+=== vector cache 23:03
+13/25 searches returned exactly the same list; largest distance difference 1.01e-06
+time: sqlite-vec 4.03 s, numpy 0.23 s  (18x)
+(a list that differs only where two distances tie to ~6 decimals is expected and harmless)
+=== model call overhead probe 23:03
+  movie-buff plain #1                load   7735 ms  read    549 ms (178 tok)  write   354 ms  total   8652 ms
+  movie-buff plain #2                load    510 ms  read    185 ms (178 tok)  write   196 ms  total    905 ms
+  movie-buff plain #3                load    487 ms  read    201 ms (178 tok)  write   291 ms  total    987 ms
+  movie-buff format=json #1          load    495 ms  read    291 ms (178 tok)  write   473 ms  total   1267 ms
+  movie-buff format=json #2          load    482 ms  read    235 ms (178 tok)  write   279 ms  total   1003 ms
+  movie-buff right after an embed    load    490 ms  read    202 ms (178 tok)  write   401 ms  total   1099 ms
+  llama3.2                           load   4134 ms  read    183 ms (32 tok)  write    41 ms  total   4365 ms
+  movie-buff right after llama3.2    load    560 ms  read    213 ms (178 tok)  write   353 ms  total   1137 ms
+=== small re-ranker load test 23:03
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights:   0%|          | 0/311 [00:00<?, ?it/s]Loading weights:  80%|████████  | 249/311 [00:00<00:00, 2489.30it/s]Loading weights: 100%|██████████| 311/311 [00:00<00:00, 2629.44it/s]
+[W929 23:04:06.346878686 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 12582912 bytes (free: 11993088, total: 23684841472).
+[W929 23:04:06.346990892 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 12582912 bytes (free: 11993088, total: 23684841472).
+Loading weights:   0%|          | 0/311 [00:00<?, ?it/s]Loading weights: 100%|██████████| 311/311 [00:00<00:00, 4223.00it/s]
+  scores: [0.9896284341812134, 0.0019233283819630742]
+
+##### SPEED BUDGET (no cache): mean seconds per stage
+run                      n  plan search rerank  total median  <=5s
+time_e9_base            20   4.9    2.3    7.3   14.7   17.5   0/20
+time_e9_vec             20   4.9    0.6    7.3   12.9   15.3   1/20
+time_e9_vecroute        20   6.4    0.6    7.3   14.4   17.3   0/20
+time_e9_x15             20   4.5    0.6   16.8   22.1   23.4   2/20
+time_e9_own_base        20   3.4    1.2    3.0    7.6    4.5  10/20
+time_e9_own_vecroute    20   3.7    0.3    0.5    4.6    4.0  12/20
+
+MODEL CALLS (mean per question that made the call)
+run                    call      n read s read tok write s out tok load s
+time_e9_base           plan     20   0.86      791    3.00      86   0.56
+time_e9_base           rerank   14   8.69     5477    0.29       7   0.58
+time_e9_vec            plan     20   0.76      791    3.02      86   0.57
+time_e9_vec            rerank   14   8.83     5478    0.30       7   0.54
+time_e9_vecroute       route    20   0.12      768    0.93      63   0.44
+time_e9_vecroute       plan     20   0.75      791    3.02      86   0.54
+time_e9_vecroute       rerank   14   8.84     5478    0.30       7   0.54
+time_e9_x15            plan     20   0.72      791    2.92      86   0.52
+time_e9_x15            rerank   14   3.02     1830    0.25       6   0.51
+time_e9_own_base       plan     19   0.54      657    2.08      65   0.56
+time_e9_own_base       rerank    6   8.44     5294    0.22       4   0.59
+time_e9_own_vecroute   route    19   0.08      635    0.84      60   0.45
+time_e9_own_vecroute   plan     13   0.55      658    2.25      70   0.53
+time_e9_own_vecroute   rerank    5   0.31     5251    0.24       5   0.55
+
+##### WHO PLANNED, SMALL RE-RANKER ERRORS
+2026-09-29_tune_e9_vec.json                  planner {'movie-buff': 115}  small re-ranker errors 0 
+2026-09-29_tune_e9_route.json                planner {'movie-buff': 97, 'llama3.2': 18}  small re-ranker errors 0 
+2026-09-29_check_e9_vec.json                 planner {'movie-buff': 33}  small re-ranker errors 0 
+2026-09-29_check_e9_route.json               planner {'movie-buff': 29, 'llama3.2': 4}  small re-ranker errors 0 
+2026-09-29_tune_only_time_e9_base.json       planner {'movie-buff': 20}  small re-ranker errors 0 
+2026-09-29_tune_only_time_e9_vec.json        planner {'movie-buff': 20}  small re-ranker errors 0 
+2026-09-29_tune_only_time_e9_vecroute.json   planner {'movie-buff': 20}  small re-ranker errors 0 
+2026-09-29_tune_only_time_e9_x15.json        planner {'movie-buff': 20}  small re-ranker errors 0 
+2026-09-29_tune_only_time_e9_own_base.json   planner {'movie-buff': 20}  small re-ranker errors 0 
+2026-09-29_tune_only_time_e9_own_vecroute.json planner {'movie-buff': 13, 'llama3.2': 7}  small re-ranker errors 0 
+2026-09-29_tune_e9_x15.json                  planner {'movie-buff': 115}  small re-ranker errors 0 
+2026-09-30_tune_e9_x30n100.json              planner {'movie-buff': 115}  small re-ranker errors 0 
+2026-09-30_tune_e9_n65.json                  planner {'movie-buff': 115}  small re-ranker errors 0 
+2026-09-30_check_e9_x15.json                 planner {'movie-buff': 33}  small re-ranker errors 0 
+2026-09-30_check_e9_x30n100.json             planner {'movie-buff': 33}  small re-ranker errors 0 
+2026-09-30_check_e9_n65.json                 planner {'movie-buff': 33}  small re-ranker errors 0 
+
+##### TUNE: A = locked defaults, B = in-memory vector search (should be identical)
+A = results/stage_scores_2026-09-29_tune_v2_locked.json
+B = results/stage_scores_2026-09-29_tune_e9_vec.json
+
+group        A pass   B pass
+OWN-TUNE      53/55    53/55 
+TREC-TUNE     21/60    21/60 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.86     0.86    0.36    0.36    0.62    0.62
+rerank_in         0.68     0.68    0.27    0.27    0.52    0.52
+rerank_out        0.53     0.53    0.52    0.52    0.53    0.53
+after_cutoff      0.81     0.81    0.59    0.59    0.67    0.67
+final             0.63     0.63    0.60    0.60    0.63    0.63
+
+Average ms          A        B
+plan_ms             1        1
+search_ms        1424      190
+rerank_ms         183       35
+total_ms         1507      216
+rerank_chars    21083    21083   (re-ranker prompt size; ~4 chars per token)
+
+Gained (0): -
+Lost   (0): -
+
+Expected film in the search pool: A 96  B 96  (newly found by B: 0)
+
+##### TUNE: A = in-memory search, B = + two-step planner
+A = results/stage_scores_2026-09-29_tune_e9_vec.json
+B = results/stage_scores_2026-09-29_tune_e9_route.json
+
+group        A pass   B pass
+OWN-TUNE      53/55    52/55 
+TREC-TUNE     21/60    21/60 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.86     0.85    0.36    0.37    0.62    0.61
+rerank_in         0.68     0.67    0.27    0.27    0.52    0.52
+rerank_out        0.53     0.53    0.52    0.52    0.53    0.53
+after_cutoff      0.81     0.80    0.59    0.58    0.67    0.66
+final             0.63     0.62    0.60    0.59    0.63    0.62
+
+Average ms          A        B
+plan_ms             1       23
+search_ms         190      189
+rerank_ms          35       38
+total_ms          216      237
+rerank_chars    21083    21079   (re-ranker prompt size; ~4 chars per token)
+
+Gained (0): -
+Lost   (1): u03
+  u03: ranked too low to be sent: #12 after the cutoff, only 3 sent (or merged as a same-title version)
+
+Expected film in the search pool: A 96  B 95  (newly found by B: 0)
+
+##### TUNE: A = in-memory search, B = small re-ranker 50 -> 15
+A = results/stage_scores_2026-09-29_tune_e9_vec.json
+B = results/stage_scores_2026-09-29_tune_e9_x15.json
+
+group        A pass   B pass
+OWN-TUNE      53/55    54/55 
+TREC-TUNE     21/60    21/60 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.86     0.86    0.36    0.36    0.62    0.62
+rerank_in         0.68     0.68    0.27    0.27    0.52    0.52
+rerank_out        0.53     0.53    0.52    0.48    0.53    0.53
+after_cutoff      0.81     0.80    0.59    0.57    0.67    0.68
+final             0.63     0.64    0.60    0.58    0.63    0.64
+
+Average ms          A        B
+plan_ms             1        2
+search_ms         190      206
+rerank_ms          35    21135
+total_ms          216    11608
+rerank_chars    21083     6300   (re-ranker prompt size; ~4 chars per token)
+
+Gained (3): u12, u14, trec-dev-676
+Lost   (2): u04, trec-dev-913
+  u04: re-ranker saw it but chose others: #2 of 50, picked When a Stranger Calls (1979, 0.801), Babysitter Wanted (2007, 0.802), The Babysitter (20
+  trec-dev-913: re-ranker saw it but chose others: #4 of 50, picked Harpoon (2019, 0.849), The Breed (2006, 0.889)
+
+Expected film in the search pool: A 96  B 96  (newly found by B: 0)
+
+##### TUNE: A = in-memory search, B = small re-ranker 100 -> 30
+A = results/stage_scores_2026-09-29_tune_e9_vec.json
+B = results/stage_scores_2026-09-30_tune_e9_x30n100.json
+
+group        A pass   B pass
+OWN-TUNE      53/55    53/55 
+TREC-TUNE     21/60    20/60 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.86     0.86    0.36    0.36    0.62    0.62
+rerank_in         0.68     0.73    0.27    0.27    0.52    0.52
+rerank_out        0.53     0.48    0.52    0.45    0.53    0.48
+after_cutoff      0.81     0.80    0.59    0.55    0.67    0.67
+final             0.63     0.62    0.60    0.56    0.63    0.62
+
+Average ms          A        B
+plan_ms             1        2
+search_ms         190      222
+rerank_ms          35     8889
+total_ms          216     5022
+rerank_chars    21083    12627   (re-ranker prompt size; ~4 chars per token)
+
+Gained (3): u12, trec-dev-676, trec-dev-834
+Lost   (4): u04, trec-dev-689, trec-dev-913, trec-dev-325
+  u04: re-ranker saw it but chose others: #2 of 100, picked Absurd (1981, 0.924), Handsome: A Netflix Mystery Movie (2017, 1.038), The Babysitter (
+  trec-dev-689: re-ranker saw it but chose others: #4 of 100, picked Land of Silence and Darkness (1971, 0.952), Black (2005, 0.984)
+  trec-dev-913: re-ranker saw it but chose others: #4 of 100, picked Ciao Alberto (2021, 1.011), Speed 2: Cruise Control (1997, 0.924)
+  trec-dev-325: re-ranker saw it but chose others: #11 of 100, picked The Sect (1991, 0.834), The City of the Dead (1960, 0.830), Warlock (1989, 0.854)
+
+Expected film in the search pool: A 96  B 96  (newly found by B: 0)
+
+##### TUNE: A = in-memory search, B = 65 films x 300 chars
+A = results/stage_scores_2026-09-29_tune_e9_vec.json
+B = results/stage_scores_2026-09-30_tune_e9_n65.json
+
+group        A pass   B pass
+OWN-TUNE      53/55    53/55 
+TREC-TUNE     21/60    20/60 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.86     0.86    0.36    0.36    0.62    0.62
+rerank_in         0.68     0.71    0.27    0.27    0.52    0.52
+rerank_out        0.53     0.50    0.52    0.47    0.53    0.50
+after_cutoff      0.81     0.80    0.59    0.56    0.67    0.66
+final             0.63     0.62    0.60    0.57    0.63    0.62
+
+Average ms          A        B
+plan_ms             1        2
+search_ms         190      229
+rerank_ms          35    10950
+total_ms          216     6141
+rerank_chars    21083    21590   (re-ranker prompt size; ~4 chars per token)
+
+Gained (3): u12, trec-dev-346, trec-dev-735
+Lost   (4): u04, trec-dev-271, trec-dev-723, trec-dev-325
+  u04: re-ranker saw it but chose others: #2 of 65, picked The Babysitter: Killer Queen (2020, 0.803), The Babysitter (2017, 0.810)
+  trec-dev-271: re-ranker saw it but chose others: #5 of 65, picked The Italian (2010, 0.873), Department Store (1986, 0.854)
+  trec-dev-723: re-ranker saw it but chose others: #14 of 65, picked Them (2006, 0.725), Wrong Turn (2003, 0.831), The Mimic (2017, 0.761)
+  trec-dev-325: re-ranker saw it but chose others: #11 of 65, picked The Tag-Along (2015, 0.807), I Drink Your Blood (1970, 0.843), An American Haunting (20
+
+Expected film in the search pool: A 96  B 96  (newly found by B: 0)
+
+##### CHECK: A = locked defaults, B = in-memory vector search (should be identical)
+A = results/stage_scores_2026-09-29_check_v2_locked.json
+B = results/stage_scores_2026-09-29_check_e9_vec.json
+
+group        A pass   B pass
+OWN-CHECK      8/9      8/9  
+TREC-CHECK    10/24    10/24 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.79     0.79    0.27    0.27    0.52    0.52
+rerank_in         0.81     0.81    0.14    0.14    0.57    0.57
+rerank_out        0.57     0.57    0.52    0.52    0.57    0.57
+after_cutoff      0.76     0.76    0.45    0.45    0.61    0.61
+final             0.55     0.55    0.45    0.45    0.55    0.55
+
+Average ms          A        B
+plan_ms             1        1
+search_ms        1552      218
+rerank_ms         178       36
+total_ms         1677      255
+rerank_chars    20997    20997   (re-ranker prompt size; ~4 chars per token)
+
+Gained (0): -
+Lost   (0): -
+
+Expected film in the search pool: A 26  B 26  (newly found by B: 0)
+
+##### CHECK: A = in-memory search, B = + two-step planner
+A = results/stage_scores_2026-09-29_check_e9_vec.json
+B = results/stage_scores_2026-09-29_check_e9_route.json
+
+group        A pass   B pass
+OWN-CHECK      8/9      7/9  
+TREC-CHECK    10/24     9/24 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.79     0.79    0.27    0.27    0.52    0.48
+rerank_in         0.81     0.79    0.14    0.11    0.57    0.53
+rerank_out        0.57     0.53    0.52    0.53    0.57    0.53
+after_cutoff      0.76     0.76    0.45    0.42    0.61    0.58
+final             0.55     0.48    0.45    0.42    0.55    0.48
+
+Average ms          A        B
+plan_ms             1        1
+search_ms         218      228
+rerank_ms          36       43
+total_ms          255      265
+rerank_chars    20997    21025   (re-ranker prompt size; ~4 chars per token)
+
+Gained (0): -
+Lost   (2): u08, trec-dev-157
+  u08: ranked too low to be sent: #4 after the cutoff, only 3 sent (or merged as a same-title version)
+  trec-dev-157: ranked too low to be sent: #15 after the cutoff, only 3 sent (or merged as a same-title version)
+
+Expected film in the search pool: A 26  B 26  (newly found by B: 0)
+
+##### CHECK: A = in-memory search, B = small re-ranker 50 -> 15
+A = results/stage_scores_2026-09-29_check_e9_vec.json
+B = results/stage_scores_2026-09-30_check_e9_x15.json
+
+group        A pass   B pass
+OWN-CHECK      8/9      8/9  
+TREC-CHECK    10/24    10/24 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.79     0.79    0.27    0.27    0.52    0.52
+rerank_in         0.81     0.81    0.14    0.14    0.57    0.57
+rerank_out        0.57     0.57    0.52    0.48    0.57    0.57
+after_cutoff      0.76     0.76    0.45    0.42    0.61    0.58
+final             0.55     0.55    0.45    0.42    0.55    0.55
+
+Average ms          A        B
+plan_ms             1        2
+search_ms         218      226
+rerank_ms          36     5791
+total_ms          255     3927
+rerank_chars    20997     6331   (re-ranker prompt size; ~4 chars per token)
+
+Gained (2): trec-dev-492, trec-dev-568
+Lost   (2): trec-dev-512, trec-dev-169
+  trec-dev-512: re-ranker saw it but chose others: #23 of 50, picked Ivanhoe (1952, 0.886), Robin Hood (2010, 0.870), Robin Hood: Prince of Thieves (1991, 0
+  trec-dev-169: re-ranker saw it but chose others: #10 of 50, picked Aladdin (1992, 0.861), The Giver (2014, 0.967)
+
+Expected film in the search pool: A 26  B 26  (newly found by B: 0)
+
+##### CHECK: A = in-memory search, B = small re-ranker 100 -> 30
+A = results/stage_scores_2026-09-29_check_e9_vec.json
+B = results/stage_scores_2026-09-30_check_e9_x30n100.json
+
+group        A pass   B pass
+OWN-CHECK      8/9      8/9  
+TREC-CHECK    10/24     9/24 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.79     0.79    0.27    0.27    0.52    0.52
+rerank_in         0.81     0.86    0.14    0.14    0.57    0.57
+rerank_out        0.57     0.52    0.52    0.43    0.57    0.52
+after_cutoff      0.76     0.76    0.45    0.39    0.61    0.61
+final             0.55     0.52    0.45    0.39    0.55    0.52
+
+Average ms          A        B
+plan_ms             1        2
+search_ms         218      239
+rerank_ms          36     9108
+total_ms          255     6050
+rerank_chars    20997    12587   (re-ranker prompt size; ~4 chars per token)
+
+Gained (1): trec-dev-552
+Lost   (2): trec-dev-512, trec-dev-169
+  trec-dev-512: re-ranker saw it but chose others: #23 of 100, picked King Arthur: Legend of the Sword (2017, 0.866), The Princess (2022, 0.839)
+  trec-dev-169: re-ranker saw it but chose others: #10 of 100, picked Aladdin (1992, 0.861), The Sword in the Stone (1963, 0.832), The Giver (2014, 0.967)
+
+Expected film in the search pool: A 26  B 26  (newly found by B: 0)
+
+##### CHECK: A = in-memory search, B = 65 films x 300 chars
+A = results/stage_scores_2026-09-29_check_e9_vec.json
+B = results/stage_scores_2026-09-30_check_e9_n65.json
+
+group        A pass   B pass
+OWN-CHECK      8/9      8/9  
+TREC-CHECK    10/24     9/24 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.79     0.79    0.27    0.27    0.52    0.52
+rerank_in         0.81     0.81    0.14    0.14    0.57    0.57
+rerank_out        0.57     0.62    0.52    0.38    0.57    0.62
+after_cutoff      0.76     0.76    0.45    0.36    0.61    0.61
+final             0.55     0.52    0.45    0.36    0.55    0.52
+
+Average ms          A        B
+plan_ms             1        2
+search_ms         218      239
+rerank_ms          36    10942
+total_ms          255     7215
+rerank_chars    20997    21502   (re-ranker prompt size; ~4 chars per token)
+
+Gained (0): -
+Lost   (1): trec-dev-458
+  trec-dev-458: re-ranker saw it but chose others: #5 of 65, picked Getting Even with Dad (1994, 0.887), Suburban Commando (1991, 0.921)
+
+Expected film in the search pool: A 26  B 26  (newly found by B: 0)
+
+##### SPEED 20 TREC: A = locked defaults, B = in-memory search
+A = results/stage_scores_2026-09-29_tune_only_time_e9_base.json
+B = results/stage_scores_2026-09-29_tune_only_time_e9_vec.json
+
+group        A pass   B pass
+TREC-TUNE      6/20     6/20 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.75     0.75    0.10    0.10    0.30    0.30
+rerank_in         0.57     0.57    0.00    0.00    0.36    0.36
+rerank_out        0.36     0.36    0.36    0.36    0.36    0.36
+after_cutoff      0.70     0.70    0.25    0.25    0.40    0.40
+final             0.30     0.30    0.25    0.25    0.30    0.30
+
+Average ms          A        B
+plan_ms          4940     4898
+search_ms        2258      612
+rerank_ms       10477    10358
+total_ms        14670    12913
+rerank_chars    20973    20967   (re-ranker prompt size; ~4 chars per token)
+
+Gained (0): -
+Lost   (0): -
+
+Expected film in the search pool: A 15  B 15  (newly found by B: 0)
+
+##### SPEED 20 TREC: A = in-memory search, B = + two-step planner
+A = results/stage_scores_2026-09-29_tune_only_time_e9_vec.json
+B = results/stage_scores_2026-09-29_tune_only_time_e9_vecroute.json
+
+group        A pass   B pass
+TREC-TUNE      6/20     6/20 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.75     0.75    0.10    0.10    0.30    0.30
+rerank_in         0.57     0.57    0.00    0.00    0.36    0.36
+rerank_out        0.36     0.36    0.36    0.36    0.36    0.36
+after_cutoff      0.70     0.70    0.25    0.25    0.40    0.40
+final             0.30     0.30    0.25    0.25    0.30    0.30
+
+Average ms          A        B
+plan_ms          4898     6373
+search_ms         612      604
+rerank_ms       10358    10402
+total_ms        12913    14402
+rerank_chars    20967    20967   (re-ranker prompt size; ~4 chars per token)
+
+Gained (0): -
+Lost   (0): -
+
+Expected film in the search pool: A 15  B 15  (newly found by B: 0)
+
+##### SPEED 20 TREC: A = in-memory search, B = small re-ranker 50->15
+A = results/stage_scores_2026-09-29_tune_only_time_e9_vec.json
+B = results/stage_scores_2026-09-29_tune_only_time_e9_x15.json
+
+group        A pass   B pass
+TREC-TUNE      6/20     6/20 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.75     0.75    0.10    0.10    0.30    0.30
+rerank_in         0.57     0.57    0.00    0.00    0.36    0.36
+rerank_out        0.36     0.36    0.36    0.36    0.36    0.36
+after_cutoff      0.70     0.70    0.25    0.25    0.40    0.40
+final             0.30     0.30    0.25    0.25    0.30    0.30
+
+Average ms          A        B
+plan_ms          4898     4494
+search_ms         612      611
+rerank_ms       10358    24041
+total_ms        12913    22071
+rerank_chars    20967     6210   (re-ranker prompt size; ~4 chars per token)
+
+Gained (0): -
+Lost   (0): -
+
+Expected film in the search pool: A 15  B 15  (newly found by B: 0)
+
+##### SPEED 20 own: A = locked defaults, B = in-memory + two-step planner
+A = results/stage_scores_2026-09-29_tune_only_time_e9_own_base.json
+B = results/stage_scores_2026-09-29_tune_only_time_e9_own_vecroute.json
+
+group        A pass   B pass
+OWN-TUNE      20/20    20/20 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              1.00     1.00    0.61    0.67    1.00    1.00
+rerank_in         1.00     1.00    1.00    1.00    1.00    1.00
+rerank_out        1.00     1.00    1.00    1.00    1.00    1.00
+after_cutoff      1.00     1.00    0.94    0.94    1.00    1.00
+final             1.00     1.00    1.00    1.00    1.00    1.00
+
+Average ms          A        B
+plan_ms          3384     3737
+search_ms        1265      313
+rerank_ms       10066     2055
+total_ms         7626     4564
+rerank_chars    20782    20682   (re-ranker prompt size; ~4 chars per token)
+
+Gained (0): -
+Lost   (0): -
+
+Expected film in the search pool: A 18  B 18  (newly found by B: 0)
+
+##### ollama ps at the end
+NAME                 ID              SIZE     PROCESSOR    CONTEXT    UNTIL              
+movie-buff:latest    791950318959    17 GB    100% GPU     8192       4 minutes from now    

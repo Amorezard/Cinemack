@@ -42,14 +42,12 @@ Added 23 Sep 2026:
 """
 
 import asyncio
-import hashlib
 import hmac
 import json
 import os
 import threading
 import time
 import uuid
-from collections import OrderedDict
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import List
@@ -65,8 +63,7 @@ MAX_QUESTION_CHARS = 2000
 ACCESS_CODE = os.environ.get("MOVIE_BUFF_CODE", "")
 LOG_DIR = pipeline.RAG_DIR / "logs"
 STATS = pipeline.RAG_DIR / "results" / "site_stats.json"
-CACHE_SIZE = 200
-answer_cache = OrderedDict()          # key -> (sources payload, done payload)
+site_cache = pipeline.site_cache       # answers + searches, kept across restarts
 log_lock = threading.Lock()
 
 
@@ -78,11 +75,6 @@ def log_line(name, record):
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
     except Exception as e:
         print(f"[movie-buff] couldn't write {name} log: {e!r}", flush=True)
-
-
-def cache_key(question, recent, history, think):
-    raw = json.dumps([question.strip().casefold(), recent, history, bool(think)], sort_keys=True)
-    return hashlib.sha1(raw.encode()).hexdigest()
 
 
 def code_ok(request):
@@ -181,12 +173,14 @@ async def chat(req: ChatRequest, request: Request):
                for t in req.history if t.role in ("user", "assistant") and t.content]
     history = history[-pipeline.MAX_HISTORY_MESSAGES:]
     rid = uuid.uuid4().hex[:12]
-    key = cache_key(question, req.recent_titles, history, req.think)
+    key = site_cache.answer_key(question, req.recent_titles, history)
+    hit = None if req.think else site_cache.get_answer(key)
 
-    if key in answer_cache:
-        # Change 24: an exact repeat - replay the stored answer, no GPU needed.
-        answer_cache.move_to_end(key)
-        src, done = answer_cache[key]
+    if hit:
+        # Change 24: a repeat (same question, same point in the conversation) - replay
+        # the stored answer, no GPU needed. Now kept on disk and matched after
+        # normalizing (web/site_cache.py).
+        src, done = hit
 
         async def replay():
             yield sse("sources", **dict(src, id=rid))
@@ -245,10 +239,8 @@ async def chat(req: ChatRequest, request: Request):
                                  "generate_s": round(time.perf_counter() - t1, 2),
                                  "total_s": round(time.perf_counter() - t0, 2)})
             put(sse("done", id=rid, **done))
-            if final and not cancel.is_set() and not req.think:
-                answer_cache[key] = (src, done)
-                while len(answer_cache) > CACHE_SIZE:
-                    answer_cache.popitem(last=False)
+            if final and not cancel.is_set() and not req.think and hits:
+                site_cache.put_answer(key, question, src, done)
             log_line("requests", {
                 "time": time.strftime("%Y-%m-%d %H:%M:%S"), "id": rid, "question": question,
                 "recent_titles": req.recent_titles, "history_turns": len(history) // 2,

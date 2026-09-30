@@ -1,0 +1,172 @@
+E5 summary  Mon Sep 28 05:01:04 PM EDT 2026
+
+##### TUNE: A = f_wiki50 (always re-rank), B = new defaults (gate agree>=1 gap>=0.05)
+A = results/stage_scores_2026-09-28_tune_f_wiki50.json
+B = results/stage_scores_2026-09-28_tune_v2_default.json
+
+group        A pass   B pass
+OWN-TUNE      53/55    53/55 
+TREC-TUNE     23/60    23/60 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.87     0.87    0.38    0.38    0.62    0.62
+rerank_in         0.70     0.68    0.36    0.26    0.57    0.51
+rerank_out        0.59     0.54    0.54    0.49    0.59    0.54
+after_cutoff      0.80     0.80    0.59    0.57    0.69    0.69
+final             0.65     0.65    0.60    0.58    0.65    0.65
+
+Average ms          A        B
+plan_ms             1        1
+search_ms        1802     1327
+rerank_ms       10810      252
+total_ms        10840     1480
+rerank_chars    21111    21169   (re-ranker prompt size; ~4 chars per token)
+
+Gained (0): -
+Lost   (0): -
+
+Expected film in the search pool: A 97  B 97  (newly found by B: 0)
+
+##### TUNE: A = new defaults (50 films), B = re-ranker reads 30 films
+A = results/stage_scores_2026-09-28_tune_v2_default.json
+B = results/stage_scores_2026-09-28_tune_v2_n30.json
+
+group        A pass   B pass
+OWN-TUNE      53/55    53/55 
+TREC-TUNE     23/60    22/60 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.87     0.87    0.38    0.38    0.62    0.62
+rerank_in         0.68     0.65    0.26    0.26    0.51    0.51
+rerank_out        0.54     0.53    0.49    0.51    0.54    0.53
+after_cutoff      0.80     0.80    0.57    0.59    0.69    0.67
+final             0.65     0.64    0.58    0.60    0.65    0.64
+
+Average ms          A        B
+plan_ms             1        1
+search_ms        1327     1715
+rerank_ms         252     7549
+total_ms         1480     6191
+rerank_chars    21169    12755   (re-ranker prompt size; ~4 chars per token)
+
+Gained (1): trec-dev-1095
+Lost   (2): trec-dev-299, trec-dev-325
+  trec-dev-299: re-ranker saw it but chose others: #20 of 30, picked Nausicaä of the Valley of the Wind (1984, 0.879), Quest for Fire (1981, 0.910), When Di
+  trec-dev-325: crowded out of the re-ranker by films that fit the year hint: pool #22, 30 shown
+
+Expected film in the search pool: A 97  B 97  (newly found by B: 0)
+
+##### CHECK: A = f_wiki50 (always re-rank), B = new defaults (gate agree>=1 gap>=0.05)
+A = results/stage_scores_2026-09-28_check_f_wiki50.json
+B = results/stage_scores_2026-09-28_check_v2_default.json
+
+group        A pass   B pass
+OWN-CHECK      8/9      8/9  
+TREC-CHECK    10/24    10/24 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.85     0.85    0.21    0.21    0.52    0.52
+rerank_in         0.71     0.72    0.16    0.12    0.48    0.48
+rerank_out        0.55     0.56    0.48    0.48    0.55    0.56
+after_cutoff      0.79     0.79    0.52    0.48    0.67    0.64
+final             0.55     0.55    0.48    0.45    0.55    0.55
+
+Average ms          A        B
+plan_ms             1        1
+search_ms        2066     1555
+rerank_ms       10693      276
+total_ms        12142     1784
+rerank_chars    21046    21011   (re-ranker prompt size; ~4 chars per token)
+
+Gained (1): trec-dev-492
+Lost   (1): trec-dev-906
+  trec-dev-906: ranked too low to be sent: #11 after the cutoff, only 3 sent (or merged as a same-title version)
+
+Expected film in the search pool: A 28  B 28  (newly found by B: 0)
+
+##### CHECK: A = new defaults (50 films), B = re-ranker reads 30 films
+A = results/stage_scores_2026-09-28_check_v2_default.json
+B = results/stage_scores_2026-09-28_check_v2_n30.json
+
+group        A pass   B pass
+OWN-CHECK      8/9      8/9  
+TREC-CHECK    10/24     7/24 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.85     0.85    0.21    0.21    0.52    0.52
+rerank_in         0.72     0.56    0.12    0.12    0.48    0.48
+rerank_out        0.56     0.44    0.48    0.40    0.56    0.44
+after_cutoff      0.79     0.79    0.48    0.42    0.64    0.58
+final             0.55     0.45    0.45    0.39    0.55    0.45
+
+Average ms          A        B
+plan_ms             1        1
+search_ms        1555     1982
+rerank_ms         276     7430
+total_ms         1784     7643
+rerank_chars    21011    12728   (re-ranker prompt size; ~4 chars per token)
+
+Gained (0): -
+Lost   (3): trec-dev-512, trec-dev-458, trec-dev-552
+  trec-dev-512: crowded out of the re-ranker by films that fit the year hint: pool #22, 30 shown
+  trec-dev-458: re-ranker saw it but chose others: #6 of 30, picked Fist Fight (2017, 0.870), 3 Ninjas (1992, 0.847)
+  trec-dev-552: in the pool but beyond what the re-ranker sees: pool #45, re-ranker shown the top 30
+
+Expected film in the search pool: A 28  B 28  (newly found by B: 0)
+
+##### SPEED (no cache, 20 TREC): A = f_wiki50 (always re-rank), B = new defaults
+A = results/stage_scores_2026-09-28_tune_only_time_f_wiki50.json
+B = results/stage_scores_2026-09-28_tune_only_time_v2_trec.json
+
+group        A pass   B pass
+TREC-TUNE      7/20     7/20 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.75     0.75    0.10    0.10    0.30    0.30
+rerank_in         0.55     0.65    0.00    0.00    0.30    0.35
+rerank_out        0.35     0.41    0.35    0.41    0.35    0.41
+after_cutoff      0.70     0.70    0.35    0.35    0.45    0.45
+final             0.35     0.35    0.35    0.35    0.35    0.35
+
+Average ms          A        B
+plan_ms          8073     8174
+search_ms        2285     2437
+rerank_ms       10599    10902
+total_ms        21109    20042
+rerank_chars    20928    20908   (re-ranker prompt size; ~4 chars per token)
+
+Gained (0): -
+Lost   (0): -
+
+Expected film in the search pool: A 15  B 15  (newly found by B: 0)
+
+##### SPEED (no cache, 20 own): A = v1 + Wikipedia search (E1), B = new defaults
+A = results/stage_scores_2026-09-27_tune_only_time_wiki.json
+B = results/stage_scores_2026-09-28_tune_only_time_v2_own.json
+
+group        A pass   B pass
+OWN-TUNE      20/20    20/20 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              1.00     1.00    0.78    0.67    1.00    1.00
+rerank_in         1.00     1.00    1.00    1.00    1.00    1.00
+rerank_out        0.90     1.00    0.90    1.00    0.90    1.00
+after_cutoff      1.00     1.00    0.89    0.94    1.00    1.00
+final             1.00     1.00    0.94    1.00    1.00    1.00
+
+Average ms          A        B
+plan_ms          7216     4117
+search_ms        1610     1430
+rerank_ms        4947    10516
+total_ms        11240     8133
+rerank_chars        0    21021   (re-ranker prompt size; ~4 chars per token)
+
+Gained (0): -
+Lost   (0): -
+
+Expected film in the search pool: A 18  B 18  (newly found by B: 0)
+
+##### ANSWER QUALITY (judge.py, gemma3:27b): A = TMDB context only, B = + Wikipedia intro and matched passage
+run                   pass grounded   direct specific   honest  concise
+judge-v2_ans0.json  40/56      4.20     4.96     4.55     4.89     3.73
+judge-v2_ans1.json  44/56      4.21     5.00     4.04     5.00     3.57

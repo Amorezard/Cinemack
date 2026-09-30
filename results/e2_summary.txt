@@ -1,0 +1,311 @@
+E2 summary  Mon Sep 28 01:58:35 PM EDT 2026
+
+##### TUNE: A = WIKI=1 re-ranker on 50 TMDB overviews (E1),  B = norerank
+A = results/stage_scores_2026-09-27_tune_wiki.json
+B = results/stage_scores_2026-09-28_tune_norerank.json
+
+group        A pass   B pass
+OWN-TUNE      52/55    51/55 
+TREC-TUNE     18/60    12/60 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.85     0.86    0.43    0.41    0.59    0.59
+after_cutoff      0.79     0.81    0.54    0.43    0.62    0.61
+final             0.60     0.54    0.55    0.44    0.60    0.54
+
+Average ms          A        B
+plan_ms             2        1
+search_ms        1986     2346
+rerank_ms        6665        0
+total_ms         7545     2337
+
+Gained (1): trec-dev-176
+Lost   (8): q15, trec-dev-714, trec-dev-832, trec-dev-513, trec-dev-913, trec-dev-309, trec-dev-868, trec-dev-271
+  q15: honesty - returned films: 1 (from the vector pool): Big Night (1996, 0.829)
+  trec-dev-714: ranked too low to be sent: #13 after the cutoff, only 3 sent (or merged as a same-title version)
+  trec-dev-832: ranked too low to be sent: #42 after the cutoff, only 3 sent (or merged as a same-title version)
+  trec-dev-513: ranked too low to be sent: #9 after the cutoff, only 3 sent (or merged as a same-title version)
+  trec-dev-913: ranked too low to be sent: #4 after the cutoff, only 3 sent (or merged as a same-title version)
+  trec-dev-309: ranked too low to be sent: #151 after the cutoff, only 3 sent (or merged as a same-title version)
+  trec-dev-868: ranked too low to be sent: #22 after the cutoff, only 3 sent (or merged as a same-title version)
+  trec-dev-271: ranked too low to be sent: #14 after the cutoff, only 3 sent (or merged as a same-title version)
+
+Expected film in the search pool: A 95  B 96  (newly found by B: 4)
+
+##### TUNE: A = WIKI=1 re-ranker on 50 TMDB overviews (E1),  B = both20
+A = results/stage_scores_2026-09-27_tune_wiki.json
+B = results/stage_scores_2026-09-28_tune_both20.json
+
+group        A pass   B pass
+OWN-TUNE      52/55    52/55 
+TREC-TUNE     18/60    19/60 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.85     0.86    0.43    0.41    0.59    0.59
+rerank_in         0.68     0.60    0.36    0.34    0.55    0.56
+rerank_out        0.52     0.56    0.49    0.55    0.52    0.56
+after_cutoff      0.79     0.82    0.54    0.60    0.62    0.64
+final             0.60     0.62    0.55    0.61    0.60    0.62
+
+Average ms          A        B
+plan_ms             2        1
+search_ms        1986     2921
+rerank_ms        6665     8283
+total_ms         7545     9834
+rerank_chars        0    15787   (re-ranker prompt size; ~4 chars per token)
+
+Gained (6): u04, u12, trec-dev-482, trec-dev-176, trec-dev-185, trec-dev-723
+Lost   (5): q15, u02, trec-dev-832, trec-dev-513, trec-dev-309
+  q15: honesty - returned films: 1 (from the vector pool): Big Night (1996, 0.829)
+  u02: re-ranker saw it but chose others: #2 of 20, picked Armageddon (1998, 0.719), The Cloverfield Paradox (2018, 0.692), The Wandering Earth (20
+  trec-dev-832: in the pool but beyond what the re-ranker sees: pool #60, re-ranker shown the top 20
+  trec-dev-513: crowded out of the re-ranker by films that fit the year hint: pool #10, 20 shown
+  trec-dev-309: in the pool but beyond what the re-ranker sees: pool #447, re-ranker shown the top 20
+
+Expected film in the search pool: A 95  B 96  (newly found by B: 4)
+
+##### TUNE: A = WIKI=1 re-ranker on 50 TMDB overviews (E1),  B = tmdb20
+A = results/stage_scores_2026-09-27_tune_wiki.json
+B = results/stage_scores_2026-09-28_tune_tmdb20.json
+
+group        A pass   B pass
+OWN-TUNE      52/55    51/55 
+TREC-TUNE     18/60    18/60 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.85     0.86    0.43    0.41    0.59    0.59
+rerank_in         0.68     0.60    0.36    0.34    0.55    0.56
+rerank_out        0.52     0.54    0.49    0.49    0.52    0.54
+after_cutoff      0.79     0.81    0.54    0.54    0.62    0.64
+final             0.60     0.60    0.55    0.55    0.60    0.60
+
+Average ms          A        B
+plan_ms             2        1
+search_ms        1986     2625
+rerank_ms        6665     4575
+total_ms         7545     6442
+rerank_chars        0     6003   (re-ranker prompt size; ~4 chars per token)
+
+Gained (4): u12, trec-dev-482, trec-dev-176, trec-dev-185
+Lost   (5): q15, u02, trec-dev-832, trec-dev-513, trec-dev-309
+  q15: honesty - returned films: 1 (from the vector pool): Big Night (1996, 0.829)
+  u02: re-ranker saw it but chose others: #2 of 20, picked Armageddon (1998, 0.719), The Wandering Earth (2019, 0.802), Red Planet (2000, 0.766)
+  trec-dev-832: in the pool but beyond what the re-ranker sees: pool #60, re-ranker shown the top 20
+  trec-dev-513: crowded out of the re-ranker by films that fit the year hint: pool #10, 20 shown
+  trec-dev-309: in the pool but beyond what the re-ranker sees: pool #447, re-ranker shown the top 20
+
+Expected film in the search pool: A 95  B 96  (newly found by B: 4)
+
+##### TUNE: A = WIKI=1 re-ranker on 50 TMDB overviews (E1),  B = wiki50
+A = results/stage_scores_2026-09-27_tune_wiki.json
+B = results/stage_scores_2026-09-28_tune_wiki50.json
+
+group        A pass   B pass
+OWN-TUNE      52/55    51/55 
+TREC-TUNE     18/60    22/60 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.85     0.86    0.43    0.41    0.59    0.59
+rerank_in         0.68     0.66    0.36    0.34    0.55    0.53
+rerank_out        0.52     0.58    0.49    0.56    0.52    0.58
+after_cutoff      0.79     0.82    0.54    0.61    0.62    0.67
+final             0.60     0.63    0.55    0.62    0.60    0.63
+
+Average ms          A        B
+plan_ms             2        1
+search_ms        1986     2831
+rerank_ms        6665    10955
+total_ms         7545    11973
+rerank_chars        0    21224   (re-ranker prompt size; ~4 chars per token)
+
+Gained (8): u04, trec-dev-1095, trec-dev-985, trec-dev-482, trec-dev-176, trec-dev-346, trec-dev-185, trec-dev-385
+Lost   (5): q15, u02, trec-dev-832, trec-dev-309, trec-dev-735
+  q15: honesty - returned films: 1 (from the vector pool): Big Night (1996, 0.829)
+  u02: re-ranker saw it but chose others: #2 of 50, picked Armageddon (1998, 0.719), Sunshine (2007, 0.807), The Green Slime (1968, 0.802)
+  trec-dev-832: in the pool but beyond what the re-ranker sees: pool #60, re-ranker shown the top 50
+  trec-dev-309: in the pool but beyond what the re-ranker sees: pool #447, re-ranker shown the top 50
+  trec-dev-735: re-ranker saw it but chose others: #3 of 50, picked Little Children (2006, 0.816), Don Jon (2013, 0.839), Thanks for Sharing (2013, 0.796)
+
+Expected film in the search pool: A 95  B 96  (newly found by B: 4)
+
+##### CHECK: A = WIKI=1 re-ranker on 50 TMDB overviews (E1),  B = norerank
+A = results/stage_scores_2026-09-27_check_wiki.json
+B = results/stage_scores_2026-09-28_check_norerank.json
+
+group        A pass   B pass
+OWN-CHECK      8/9      8/9  
+TREC-CHECK    10/24     4/24 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.85     0.76    0.30    0.27    0.52    0.45
+after_cutoff      0.79     0.67    0.42    0.27    0.58    0.45
+final             0.55     0.36    0.42    0.27    0.55    0.36
+
+Average ms          A        B
+plan_ms             2        1
+search_ms        2281     2558
+rerank_ms        8113        0
+total_ms         9923     2580
+
+Gained (1): trec-dev-157
+Lost   (7): trec-dev-152, trec-dev-693, trec-dev-169, trec-dev-906, trec-dev-552, trec-dev-568, trec-dev-521
+  trec-dev-152: ranked too low to be sent: #5 after the cutoff, only 3 sent (or merged as a same-title version)
+  trec-dev-693: ranked too low to be sent: #93 after the cutoff, only 3 sent (or merged as a same-title version)
+  trec-dev-169: ranked too low to be sent: #71 after the cutoff, only 3 sent (or merged as a same-title version)
+  trec-dev-906: ranked too low to be sent: #32 after the cutoff, only 3 sent (or merged as a same-title version)
+  trec-dev-552: ranked too low to be sent: #57 after the cutoff, only 3 sent (or merged as a same-title version)
+  trec-dev-568: ranked too low to be sent: #5 after the cutoff, only 3 sent (or merged as a same-title version)
+  trec-dev-521: ranked too low to be sent: #15 after the cutoff, only 3 sent (or merged as a same-title version)
+
+Expected film in the search pool: A 28  B 25  (newly found by B: 1)
+
+##### CHECK: A = WIKI=1 re-ranker on 50 TMDB overviews (E1),  B = both20
+A = results/stage_scores_2026-09-27_check_wiki.json
+B = results/stage_scores_2026-09-28_check_both20.json
+
+group        A pass   B pass
+OWN-CHECK      8/9      8/9  
+TREC-CHECK    10/24     6/24 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.85     0.76    0.30    0.27    0.52    0.45
+rerank_in         0.71     0.42    0.16    0.16    0.45    0.35
+rerank_out        0.48     0.42    0.39    0.39    0.48    0.42
+after_cutoff      0.79     0.70    0.42    0.42    0.58    0.52
+final             0.55     0.42    0.42    0.39    0.55    0.42
+
+Average ms          A        B
+plan_ms             2        1
+search_ms        2281     3048
+rerank_ms        8113     8309
+total_ms         9923    10888
+rerank_chars        0    15826   (re-ranker prompt size; ~4 chars per token)
+
+Gained (2): trec-dev-281, trec-dev-157
+Lost   (6): trec-dev-152, trec-dev-693, trec-dev-169, trec-dev-906, trec-dev-552, trec-dev-521
+  trec-dev-152: crowded out of the re-ranker by films that fit the year hint: pool #3, 20 shown
+  trec-dev-693: in the pool but beyond what the re-ranker sees: pool #154, re-ranker shown the top 20
+  trec-dev-169: in the pool but beyond what the re-ranker sees: pool #137, re-ranker shown the top 20
+  trec-dev-906: in the pool but beyond what the re-ranker sees: pool #54, re-ranker shown the top 40
+  trec-dev-552: in the pool but beyond what the re-ranker sees: pool #105, re-ranker shown the top 20
+  trec-dev-521: in the pool but beyond what the re-ranker sees: pool #30, re-ranker shown the top 20
+
+Expected film in the search pool: A 28  B 25  (newly found by B: 1)
+
+##### CHECK: A = WIKI=1 re-ranker on 50 TMDB overviews (E1),  B = tmdb20
+A = results/stage_scores_2026-09-27_check_wiki.json
+B = results/stage_scores_2026-09-28_check_tmdb20.json
+
+group        A pass   B pass
+OWN-CHECK      8/9      8/9  
+TREC-CHECK    10/24     5/24 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.85     0.76    0.30    0.27    0.52    0.45
+rerank_in         0.71     0.42    0.16    0.16    0.45    0.35
+rerank_out        0.48     0.35    0.39    0.29    0.48    0.35
+after_cutoff      0.79     0.67    0.42    0.33    0.58    0.48
+final             0.55     0.39    0.42    0.30    0.55    0.39
+
+Average ms          A        B
+plan_ms             2        1
+search_ms        2281     2802
+rerank_ms        8113     4547
+total_ms         9923     7109
+rerank_chars        0     6054   (re-ranker prompt size; ~4 chars per token)
+
+Gained (1): trec-dev-157
+Lost   (6): trec-dev-152, trec-dev-693, trec-dev-169, trec-dev-906, trec-dev-552, trec-dev-521
+  trec-dev-152: crowded out of the re-ranker by films that fit the year hint: pool #3, 20 shown
+  trec-dev-693: in the pool but beyond what the re-ranker sees: pool #154, re-ranker shown the top 20
+  trec-dev-169: in the pool but beyond what the re-ranker sees: pool #137, re-ranker shown the top 20
+  trec-dev-906: in the pool but beyond what the re-ranker sees: pool #54, re-ranker shown the top 40
+  trec-dev-552: in the pool but beyond what the re-ranker sees: pool #105, re-ranker shown the top 20
+  trec-dev-521: in the pool but beyond what the re-ranker sees: pool #30, re-ranker shown the top 20
+
+Expected film in the search pool: A 28  B 25  (newly found by B: 1)
+
+##### CHECK: A = WIKI=1 re-ranker on 50 TMDB overviews (E1),  B = wiki50
+A = results/stage_scores_2026-09-27_check_wiki.json
+B = results/stage_scores_2026-09-28_check_wiki50.json
+
+group        A pass   B pass
+OWN-CHECK      8/9      8/9  
+TREC-CHECK    10/24     6/24 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.85     0.76    0.30    0.27    0.52    0.45
+rerank_in         0.71     0.52    0.16    0.16    0.45    0.42
+rerank_out        0.48     0.39    0.39    0.26    0.48    0.39
+after_cutoff      0.79     0.67    0.42    0.30    0.58    0.52
+final             0.55     0.42    0.42    0.27    0.55    0.42
+
+Average ms          A        B
+plan_ms             2        1
+search_ms        2281     3010
+rerank_ms        8113    10857
+total_ms         9923    13245
+rerank_chars        0    21238   (re-ranker prompt size; ~4 chars per token)
+
+Gained (1): trec-dev-157
+Lost   (5): trec-dev-693, trec-dev-169, trec-dev-906, trec-dev-552, trec-dev-568
+  trec-dev-693: in the pool but beyond what the re-ranker sees: pool #154, re-ranker shown the top 50
+  trec-dev-169: in the pool but beyond what the re-ranker sees: pool #137, re-ranker shown the top 50
+  trec-dev-906: in the pool but beyond what the re-ranker sees: pool #54, re-ranker shown the top 50
+  trec-dev-552: in the pool but beyond what the re-ranker sees: pool #105, re-ranker shown the top 50
+  trec-dev-568: re-ranker saw it but chose others: #5 of 50, picked Dead Snow (2009, 0.882), Don't Go in the Woods (1981, 0.811)
+
+Expected film in the search pool: A 28  B 25  (newly found by B: 1)
+
+##### SPEED (no cache, 20 TREC tune questions): A = tmdb50 (v1 re-ranker + Wikipedia search), B = both20
+A = results/stage_scores_2026-09-28_tune_only_time_tmdb50.json
+B = results/stage_scores_2026-09-28_tune_only_time_both20.json
+
+group        A pass   B pass
+TREC-TUNE      6/20     6/20 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.65     0.65    0.05    0.05    0.30    0.30
+rerank_in         0.55     0.40    0.00    0.05    0.30    0.35
+rerank_out        0.30     0.30    0.25    0.30    0.30    0.30
+after_cutoff      0.65     0.65    0.25    0.30    0.40    0.35
+final             0.30     0.30    0.25    0.30    0.30    0.30
+
+Average ms          A        B
+plan_ms          7961     8059
+search_ms        4287     3859
+rerank_ms        8216     8875
+total_ms        20632    20961
+rerank_chars    15092    15601   (re-ranker prompt size; ~4 chars per token)
+
+Gained (1): trec-dev-176
+Lost   (1): trec-dev-985
+  trec-dev-985: crowded out of the re-ranker by films that fit the year hint: pool #20, 40 shown
+
+Expected film in the search pool: A 13  B 13  (newly found by B: 0)
+
+##### SPEED: A = tmdb50, B = no re-ranker
+A = results/stage_scores_2026-09-28_tune_only_time_tmdb50.json
+B = results/stage_scores_2026-09-28_tune_only_time_norerank.json
+
+group        A pass   B pass
+TREC-TUNE      6/20     5/20 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.65     0.65    0.05    0.05    0.30    0.30
+after_cutoff      0.65     0.65    0.25    0.00    0.40    0.35
+final             0.30     0.25    0.25    0.00    0.30    0.25
+
+Average ms          A        B
+plan_ms          7961     7329
+search_ms        4287     3763
+rerank_ms        8216        0
+total_ms        20632    11243
+rerank_chars    15092        0   (re-ranker prompt size; ~4 chars per token)
+
+Gained (1): trec-dev-176
+Lost   (2): trec-dev-985, trec-dev-252
+  trec-dev-985: ranked too low to be sent: #12 after the cutoff, only 3 sent (or merged as a same-title version)
+  trec-dev-252: ranked too low to be sent: #43 after the cutoff, only 3 sent (or merged as a same-title version)
+
+Expected film in the search pool: A 13  B 13  (newly found by B: 0)

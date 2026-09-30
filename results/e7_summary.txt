@@ -1,0 +1,263 @@
+E7 summary  Tue Sep 29 01:45:29 AM EDT 2026
+
+##### TUNE: A = current defaults, B = 250 characters per film
+A = results/stage_scores_2026-09-28_tune_e6_planfast.json
+B = results/stage_scores_2026-09-28_tune_e7_rc250.json
+
+group        A pass   B pass
+OWN-TUNE      53/55    52/55 
+TREC-TUNE     21/60    20/60 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.86     0.86    0.36    0.36    0.62    0.62
+rerank_in         0.64     0.64    0.27    0.27    0.49    0.49
+rerank_out        0.51     0.46    0.49    0.43    0.51    0.46
+after_cutoff      0.81     0.80    0.59    0.55    0.67    0.65
+final             0.63     0.62    0.60    0.56    0.63    0.62
+
+Average ms          A        B
+plan_ms          4766        1
+search_ms        1750     1592
+rerank_ms       10845     8422
+total_ms        12828     6496
+rerank_chars    21114    14240   (re-ranker prompt size; ~4 chars per token)
+
+Gained (2): trec-dev-346, trec-dev-735
+Lost   (4): u04, trec-dev-513, trec-dev-723, trec-dev-325
+  u04: re-ranker saw it but chose others: #2 of 50, picked Absurd (1981, 0.924), Some Guy Who Kills People (2011, 0.877)
+  trec-dev-513: re-ranker saw it but chose others: #4 of 50, picked Flight of the Navigator (1986, 0.886), The Wizard (1989, 0.825), Super Mario Bros. (1993
+  trec-dev-723: re-ranker saw it but chose others: #14 of 50, picked Them (2006, 0.725), Wrong Turn (2003, 0.831), V/H/S/2 (2013, 0.808)
+  trec-dev-325: re-ranker saw it but chose others: #11 of 50, picked The Woods (2006, 0.811), The Unholy (2021, 0.785), Don't Look Under the Bed (1999, 0.83
+
+Expected film in the search pool: A 96  B 96  (newly found by B: 0)
+
+##### TUNE: A = current defaults, B = 300 characters per film
+A = results/stage_scores_2026-09-28_tune_e6_planfast.json
+B = results/stage_scores_2026-09-29_tune_e7_rc300.json
+
+group        A pass   B pass
+OWN-TUNE      53/55    53/55 
+TREC-TUNE     21/60    21/60 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.86     0.86    0.36    0.36    0.62    0.62
+rerank_in         0.64     0.64    0.27    0.27    0.49    0.49
+rerank_out        0.51     0.49    0.49    0.46    0.51    0.49
+after_cutoff      0.81     0.80    0.59    0.57    0.67    0.66
+final             0.63     0.63    0.60    0.58    0.63    0.63
+
+Average ms          A        B
+plan_ms          4766        1
+search_ms        1750     1617
+rerank_ms       10845     9276
+total_ms        12828     7018
+rerank_chars    21114    16575   (re-ranker prompt size; ~4 chars per token)
+
+Gained (3): u12, trec-dev-735, trec-dev-834
+Lost   (3): u04, trec-dev-723, trec-dev-325
+  u04: re-ranker saw it but chose others: #2 of 50, picked The Babysitter (2017, 0.810), The Babysitter: Killer Queen (2020, 0.803)
+  trec-dev-723: re-ranker saw it but chose others: #14 of 50, picked Them (2006, 0.725), Wrong Turn (2003, 0.831), The Monster (2016, 0.803)
+  trec-dev-325: re-ranker saw it but chose others: #11 of 50, picked The Woods (2006, 0.811), Warlock (1989, 0.854), The Blood on Satan's Claw (1971, 0.812)
+
+Expected film in the search pool: A 96  B 96  (newly found by B: 0)
+
+##### TUNE: A = current defaults, B = 40 films
+A = results/stage_scores_2026-09-28_tune_e6_planfast.json
+B = results/stage_scores_2026-09-29_tune_e7_n40.json
+
+group        A pass   B pass
+OWN-TUNE      53/55    53/55 
+TREC-TUNE     21/60    20/60 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.86     0.86    0.36    0.36    0.62    0.62
+rerank_in         0.64     0.63    0.27    0.27    0.49    0.49
+rerank_out        0.51     0.48    0.49    0.46    0.51    0.48
+after_cutoff      0.81     0.81    0.59    0.57    0.67    0.67
+final             0.63     0.62    0.60    0.58    0.63    0.62
+
+Average ms          A        B
+plan_ms          4766        1
+search_ms        1750     1742
+rerank_ms       10845     9185
+total_ms        12828     7088
+rerank_chars    21114    16999   (re-ranker prompt size; ~4 chars per token)
+
+Gained (0): -
+Lost   (1): trec-dev-714
+  trec-dev-714: re-ranker saw it but chose others: #3 of 40, picked White Chicks (2004, 0.883), Some Like It Hot (1959, 0.836), Sexmission (1984, 0.864)
+
+Expected film in the search pool: A 96  B 96  (newly found by B: 0)
+
+##### CHECK: A = current defaults, B = 250 characters per film
+A = results/stage_scores_2026-09-28_check_e6_planfast.json
+B = results/stage_scores_2026-09-29_check_e7_rc250.json
+
+group        A pass   B pass
+OWN-CHECK      8/9      8/9  
+TREC-CHECK    10/24     6/24 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.79     0.79    0.27    0.27    0.52    0.52
+rerank_in         0.75     0.75    0.12    0.12    0.50    0.50
+rerank_out        0.54     0.42    0.50    0.25    0.54    0.42
+after_cutoff      0.76     0.76    0.48    0.30    0.64    0.61
+final             0.55     0.42    0.45    0.30    0.55    0.42
+
+Average ms          A        B
+plan_ms          5171        1
+search_ms        1902     1888
+rerank_ms       10947     8735
+total_ms        15062     8268
+rerank_chars    20966    14185   (re-ranker prompt size; ~4 chars per token)
+
+Gained (0): -
+Lost   (4): trec-dev-1011, trec-dev-898, trec-dev-512, trec-dev-458
+  trec-dev-1011: re-ranker saw it but chose others: #4 of 50, picked Shoot 'Em Up (2007, 0.766), Kill List (2011, 0.908)
+  trec-dev-898: re-ranker saw it but chose others: #2 of 50, picked Michael Clayton (2007, 0.823), Deception (2008, 0.857)
+  trec-dev-512: re-ranker saw it but chose others: #23 of 100, picked War of the Arrows (2011, 0.854), Viking (2016, 0.782)
+  trec-dev-458: re-ranker saw it but chose others: #5 of 50, picked MouseHunt (1997, 0.916), Suburban Commando (1991, 0.921)
+
+Expected film in the search pool: A 26  B 26  (newly found by B: 0)
+
+##### CHECK: A = current defaults, B = 300 characters per film
+A = results/stage_scores_2026-09-28_check_e6_planfast.json
+B = results/stage_scores_2026-09-29_check_e7_rc300.json
+
+group        A pass   B pass
+OWN-CHECK      8/9      8/9  
+TREC-CHECK    10/24     9/24 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.79     0.79    0.27    0.27    0.52    0.52
+rerank_in         0.75     0.75    0.12    0.12    0.50    0.50
+rerank_out        0.54     0.50    0.50    0.33    0.54    0.50
+after_cutoff      0.76     0.76    0.48    0.36    0.64    0.64
+final             0.55     0.52    0.45    0.36    0.55    0.52
+
+Average ms          A        B
+plan_ms          5171        1
+search_ms        1902     1783
+rerank_ms       10947     9116
+total_ms        15062     8442
+rerank_chars    20966    16496   (re-ranker prompt size; ~4 chars per token)
+
+Gained (0): -
+Lost   (1): trec-dev-898
+  trec-dev-898: re-ranker saw it but chose others: #2 of 50, picked Michael Clayton (2007, 0.823), Shampoo (1975, 0.859)
+
+Expected film in the search pool: A 26  B 26  (newly found by B: 0)
+
+##### CHECK: A = current defaults, B = 40 films
+A = results/stage_scores_2026-09-28_check_e6_planfast.json
+B = results/stage_scores_2026-09-29_check_e7_n40.json
+
+group        A pass   B pass
+OWN-CHECK      8/9      8/9  
+TREC-CHECK    10/24     8/24 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.79     0.79    0.27    0.27    0.52    0.52
+rerank_in         0.75     0.71    0.12    0.12    0.50    0.50
+rerank_out        0.54     0.54    0.50    0.50    0.54    0.54
+after_cutoff      0.76     0.76    0.48    0.48    0.64    0.61
+final             0.55     0.48    0.45    0.45    0.55    0.48
+
+Average ms          A        B
+plan_ms          5171        2
+search_ms        1902     1860
+rerank_ms       10947     9054
+total_ms        15062     8475
+rerank_chars    20966    16853   (re-ranker prompt size; ~4 chars per token)
+
+Gained (0): -
+Lost   (2): trec-dev-512, trec-dev-458
+  trec-dev-512: re-ranker saw it but chose others: #23 of 40, picked King Arthur: Legend of the Sword (2017, 0.866), DragonHeart (1996, 0.878), The Court Je
+  trec-dev-458: re-ranker saw it but chose others: #5 of 40, picked MouseHunt (1997, 0.916), Suburban Commando (1991, 0.921)
+
+Expected film in the search pool: A 26  B 26  (newly found by B: 0)
+
+##### SPEED (no cache, 20 TREC): A = current defaults, B = 250 characters
+A = results/stage_scores_2026-09-28_tune_only_time_e6_planfast.json
+B = results/stage_scores_2026-09-29_tune_only_time_e7_rc250.json
+
+group        A pass   B pass
+TREC-TUNE      6/20     6/20 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.75     0.75    0.10    0.10    0.30    0.30
+rerank_in         0.56     0.60    0.00    0.00    0.38    0.40
+rerank_out        0.38     0.40    0.38    0.33    0.38    0.40
+after_cutoff      0.70     0.70    0.30    0.25    0.40    0.40
+final             0.30     0.30    0.30    0.25    0.30    0.30
+
+Average ms          A        B
+plan_ms          5252     5004
+search_ms        2046     2426
+rerank_ms       11008     8413
+total_ms        16269    13901
+rerank_chars    20899    14165   (re-ranker prompt size; ~4 chars per token)
+
+Gained (0): -
+Lost   (0): -
+
+Expected film in the search pool: A 15  B 15  (newly found by B: 0)
+
+##### SPEED (no cache, 20 TREC): A = current defaults, B = 300 characters
+A = results/stage_scores_2026-09-28_tune_only_time_e6_planfast.json
+B = results/stage_scores_2026-09-29_tune_only_time_e7_rc300.json
+
+group        A pass   B pass
+TREC-TUNE      6/20     5/20 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.75     0.75    0.10    0.10    0.30    0.30
+rerank_in         0.56     0.60    0.00    0.00    0.38    0.40
+rerank_out        0.38     0.33    0.38    0.33    0.38    0.33
+after_cutoff      0.70     0.70    0.30    0.25    0.40    0.40
+final             0.30     0.25    0.30    0.25    0.30    0.25
+
+Average ms          A        B
+plan_ms          5252     4957
+search_ms        2046     2428
+rerank_ms       11008     9232
+total_ms        16269    14475
+rerank_chars    20899    16464   (re-ranker prompt size; ~4 chars per token)
+
+Gained (0): -
+Lost   (1): trec-dev-689
+  trec-dev-689: re-ranker saw it but chose others: #3 of 50, picked Fantozzi in Heaven (1993, 0.848), The Man Without Gravity (2019, 0.862), Fantozzi The Re
+
+Expected film in the search pool: A 15  B 15  (newly found by B: 0)
+
+##### SPEED (no cache, 20 TREC): A = current defaults, B = 40 films
+A = results/stage_scores_2026-09-28_tune_only_time_e6_planfast.json
+B = results/stage_scores_2026-09-29_tune_only_time_e7_n40.json
+
+group        A pass   B pass
+TREC-TUNE      6/20     6/20 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.75     0.75    0.10    0.10    0.30    0.30
+rerank_in         0.56     0.60    0.00    0.00    0.38    0.40
+rerank_out        0.38     0.40    0.38    0.40    0.38    0.40
+after_cutoff      0.70     0.70    0.30    0.30    0.40    0.40
+final             0.30     0.30    0.30    0.30    0.30    0.30
+
+Average ms          A        B
+plan_ms          5252     4875
+search_ms        2046     2414
+rerank_ms       11008     9136
+total_ms        16269    14302
+rerank_chars    20899    16944   (re-ranker prompt size; ~4 chars per token)
+
+Gained (0): -
+Lost   (0): -
+
+Expected film in the search pool: A 15  B 15  (newly found by B: 0)
+
+##### ANSWER QUALITY (judge.py): A = TMDB only (E5), B = current defaults, C = Wikipedia passages cut to 350
+run                   pass grounded   direct specific   honest  concise
+judge-v2_ans0.json  40/56      4.20     4.96     4.55     4.89     3.73
+judge-v2_pf.json    44/56      4.29     5.00     4.11     5.00     3.70
+judge-v2_aw350.json  45/56      4.12     4.93     4.20     5.00     3.61

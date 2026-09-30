@@ -1,0 +1,468 @@
+E6 summary  Mon Sep 28 11:08:09 PM EDT 2026
+
+##### TUNE: A = new defaults (LLM re-ranker, gate), B = cross-encoder on every description
+A = results/stage_scores_2026-09-28_tune_v2_default.json
+B = results/stage_scores_2026-09-28_tune_e6_cross.json
+
+group        A pass   B pass
+OWN-TUNE      53/55    54/55 
+TREC-TUNE     23/60     8/60 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.87     0.87    0.38    0.38    0.62    0.62
+rerank_in         0.68     0.70    0.26    0.36    0.51    0.57
+rerank_out        0.54     0.42    0.49    0.33    0.54    0.42
+after_cutoff      0.80     0.81    0.57    0.41    0.69    0.67
+final             0.65     0.53    0.58    0.42    0.65    0.53
+
+Average ms          A        B
+plan_ms             1        1
+search_ms        1327     1604
+rerank_ms         252      790
+total_ms         1480     2268
+rerank_chars    21169        0   (re-ranker prompt size; ~4 chars per token)
+
+Gained (1): u04
+Lost   (15): trec-dev-714, trec-dev-689, trec-dev-176, trec-dev-1072, trec-dev-513, trec-dev-913, trec-dev-346, trec-dev-309, trec-dev-868, trec-dev-299, trec-dev-749, trec-dev-735, trec-dev-442, trec-dev-926, trec-dev-271
+  trec-dev-714: re-ranker saw it but chose others: #3 of 50, picked The Sex Trip (2017, 0.761), A Bad Idea Gone Wrong (2017, 0.806), Two Girls and a Guy (19
+  trec-dev-689: re-ranker saw it but chose others: #3 of 50, picked The Band of Honest Men (1956, 0.834), Out of the Blue (2013, 0.860), The Swindle (1955, 
+  trec-dev-176: re-ranker saw it but chose others: #2 of 50, picked Kaminey (2009, 0.858), Jet Set (2000, 0.859), Billionaire Boys Club (2018, 0.944)
+  trec-dev-1072: re-ranker saw it but chose others: #3 of 50, picked Get Rich or Die Tryin' (2005, 0.836), Five (2016, 0.758), Mouchette (1967, 0.822)
+  trec-dev-513: re-ranker saw it but chose others: #4 of 50, picked Tunnel (2016, 0.863), Weird Science (1985, 0.911), Star Kid (1997, 0.873)
+  trec-dev-913: re-ranker saw it but chose others: #4 of 50, picked Sunrise: A Song of Two Humans (1927, 0.912), The Bow (2005, 0.887), Shipwrecked (1990, 0
+  trec-dev-346: re-ranker saw it but chose others: #12 of 50, picked Spanglish (2004, 0.873), Corrina, Corrina (1994, 0.854), Malicious (1973, 0.864)
+  trec-dev-309: re-ranker saw it but chose others: #34 of 50, picked The Black Hole (1979, 0.842), Fantastic Voyage (1966, 0.849), Downsizing (2017, 0.951)
+  trec-dev-868: re-ranker saw it but chose others: #11 of 50, picked The Black Demon (2023, 0.816), Open Water (2003, 0.791), The Requin (2022, 0.846)
+  trec-dev-299: re-ranker saw it but chose others: #20 of 50, picked Fantastic Planet (1973, 0.839), Rock & Rule (1983, 0.874), Heavy Metal 2000 (2000, 0.88
+  trec-dev-749: re-ranker saw it but chose others: #3 of 50, picked Three Ages (1923, 0.861), The Boat (1921, 0.889), Neighbors (1920, 0.752)
+  trec-dev-735: re-ranker saw it but chose others: #8 of 50, picked Last Night (2010, 0.851), Not Easily Broken (2009, 0.805), The Lovers (2017, 0.818)
+  trec-dev-442: re-ranker saw it but chose others: #2 of 50, picked Three Fugitives (1989, 0.921), SK1 (2015, 0.794), Caché (2005, 0.791)
+  trec-dev-926: re-ranker saw it but chose others: #4 of 50, picked Dark City (1998, 0.905), Color of Night (1994, 0.798), Memento (2000, 0.797)
+  trec-dev-271: re-ranker saw it but chose others: #6 of 50, picked Dawn of the Dead (1978, 1.006), Mall Girls (2009, 0.832), Mostly Martha (2001, 0.947)
+
+Expected film in the search pool: A 97  B 97  (newly found by B: 0)
+
+##### TUNE: A = LLM re-ranker always (f_wiki50), B = cross-encoder always
+A = results/stage_scores_2026-09-28_tune_f_wiki50.json
+B = results/stage_scores_2026-09-28_tune_e6_cross.json
+
+group        A pass   B pass
+OWN-TUNE      53/55    54/55 
+TREC-TUNE     23/60     8/60 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.87     0.87    0.38    0.38    0.62    0.62
+rerank_in         0.70     0.70    0.36    0.36    0.57    0.57
+rerank_out        0.59     0.42    0.54    0.33    0.59    0.42
+after_cutoff      0.80     0.81    0.59    0.41    0.69    0.67
+final             0.65     0.53    0.60    0.42    0.65    0.53
+
+Average ms          A        B
+plan_ms             1        1
+search_ms        1802     1604
+rerank_ms       10810      790
+total_ms        10840     2268
+rerank_chars    21111        0   (re-ranker prompt size; ~4 chars per token)
+
+Gained (1): u04
+Lost   (15): trec-dev-714, trec-dev-689, trec-dev-176, trec-dev-1072, trec-dev-513, trec-dev-913, trec-dev-346, trec-dev-309, trec-dev-868, trec-dev-299, trec-dev-749, trec-dev-735, trec-dev-442, trec-dev-926, trec-dev-271
+  trec-dev-714: re-ranker saw it but chose others: #3 of 50, picked The Sex Trip (2017, 0.761), A Bad Idea Gone Wrong (2017, 0.806), Two Girls and a Guy (19
+  trec-dev-689: re-ranker saw it but chose others: #3 of 50, picked The Band of Honest Men (1956, 0.834), Out of the Blue (2013, 0.860), The Swindle (1955, 
+  trec-dev-176: re-ranker saw it but chose others: #2 of 50, picked Kaminey (2009, 0.858), Jet Set (2000, 0.859), Billionaire Boys Club (2018, 0.944)
+  trec-dev-1072: re-ranker saw it but chose others: #3 of 50, picked Get Rich or Die Tryin' (2005, 0.836), Five (2016, 0.758), Mouchette (1967, 0.822)
+  trec-dev-513: re-ranker saw it but chose others: #4 of 50, picked Tunnel (2016, 0.863), Weird Science (1985, 0.911), Star Kid (1997, 0.873)
+  trec-dev-913: re-ranker saw it but chose others: #4 of 50, picked Sunrise: A Song of Two Humans (1927, 0.912), The Bow (2005, 0.887), Shipwrecked (1990, 0
+  trec-dev-346: re-ranker saw it but chose others: #12 of 50, picked Spanglish (2004, 0.873), Corrina, Corrina (1994, 0.854), Malicious (1973, 0.864)
+  trec-dev-309: re-ranker saw it but chose others: #34 of 50, picked The Black Hole (1979, 0.842), Fantastic Voyage (1966, 0.849), Downsizing (2017, 0.951)
+  trec-dev-868: re-ranker saw it but chose others: #11 of 50, picked The Black Demon (2023, 0.816), Open Water (2003, 0.791), The Requin (2022, 0.846)
+  trec-dev-299: re-ranker saw it but chose others: #20 of 50, picked Fantastic Planet (1973, 0.839), Rock & Rule (1983, 0.874), Heavy Metal 2000 (2000, 0.88
+  trec-dev-749: re-ranker saw it but chose others: #3 of 50, picked Three Ages (1923, 0.861), The Boat (1921, 0.889), Neighbors (1920, 0.752)
+  trec-dev-735: re-ranker saw it but chose others: #8 of 50, picked Last Night (2010, 0.851), Not Easily Broken (2009, 0.805), The Lovers (2017, 0.818)
+  trec-dev-442: re-ranker saw it but chose others: #2 of 50, picked Three Fugitives (1989, 0.921), SK1 (2015, 0.794), Caché (2005, 0.791)
+  trec-dev-926: re-ranker saw it but chose others: #4 of 50, picked Dark City (1998, 0.905), Color of Night (1994, 0.798), Memento (2000, 0.797)
+  trec-dev-271: re-ranker saw it but chose others: #6 of 50, picked Dawn of the Dead (1978, 1.006), Mall Girls (2009, 0.832), Mostly Martha (2001, 0.947)
+
+Expected film in the search pool: A 97  B 97  (newly found by B: 0)
+
+##### TUNE: A = new defaults, B = gate + cross-encoder top 10 + LLM
+A = results/stage_scores_2026-09-28_tune_v2_default.json
+B = results/stage_scores_2026-09-28_tune_e6_crossllm.json
+
+group        A pass   B pass
+OWN-TUNE      53/55    53/55 
+TREC-TUNE     23/60    14/60 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.87     0.87    0.38    0.38    0.62    0.62
+rerank_in         0.68     0.69    0.26    0.26    0.51    0.51
+rerank_out        0.54     0.38    0.49    0.35    0.54    0.38
+after_cutoff      0.80     0.80    0.57    0.49    0.69    0.66
+final             0.65     0.57    0.58    0.50    0.65    0.57
+
+Average ms          A        B
+plan_ms             1        1
+search_ms        1327     1517
+rerank_ms         252     5021
+total_ms         1480     4494
+rerank_chars    21169     4186   (re-ranker prompt size; ~4 chars per token)
+
+Gained (1): trec-dev-723
+Lost   (10): trec-dev-689, trec-dev-176, trec-dev-913, trec-dev-346, trec-dev-309, trec-dev-868, trec-dev-299, trec-dev-735, trec-dev-926, trec-dev-271
+  trec-dev-689: re-ranker saw it but chose others: #3 of 50, picked Jumping the Broom (2011, 1.037), Out of the Blue (2013, 0.860)
+  trec-dev-176: re-ranker saw it but chose others: #2 of 50, picked Billionaire Boys Club (2018, 0.944), Tower Heist (2011, 0.881)
+  trec-dev-913: re-ranker saw it but chose others: #4 of 50, picked Survival Island (2006, 0.904)
+  trec-dev-346: re-ranker saw it but chose others: #12 of 50, picked Imitation of Life (1934, 0.872)
+  trec-dev-309: re-ranker saw it but chose others: #34 of 50, picked Fantastic Voyage (1966, 0.849)
+  trec-dev-868: re-ranker saw it but chose others: #11 of 50, picked Black Water (2007, 0.753), Shock Waves (1977, 0.769)
+  trec-dev-299: re-ranker saw it but chose others: #20 of 50, picked Gwendoline (1984, 0.913), Nausicaä of the Valley of the Wind (1984, 0.879)
+  trec-dev-735: re-ranker saw it but chose others: #8 of 50, picked Don Jon (2013, 0.831), Love, Wedding, Marriage (2011, 0.800)
+  trec-dev-926: re-ranker saw it but chose others: #4 of 50, picked Vengeance Is Mine (1979, 0.764), Rage (2016, 0.710)
+  trec-dev-271: re-ranker saw it but chose others: #6 of 50, picked Mall (2014, 0.825), Chopping Mall (1986, 0.873)
+
+Expected film in the search pool: A 97  B 97  (newly found by B: 0)
+
+##### TUNE: A = new defaults, B = faster planner (PLAN_FAST)
+A = results/stage_scores_2026-09-28_tune_v2_default.json
+B = results/stage_scores_2026-09-28_tune_e6_planfast.json
+
+group        A pass   B pass
+OWN-TUNE      53/55    53/55 
+TREC-TUNE     23/60    21/60 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.87     0.86    0.38    0.36    0.62    0.62
+rerank_in         0.68     0.64    0.26    0.27    0.51    0.49
+rerank_out        0.54     0.51    0.49    0.49    0.54    0.51
+after_cutoff      0.80     0.81    0.57    0.59    0.69    0.67
+final             0.65     0.63    0.58    0.60    0.65    0.63
+
+Average ms          A        B
+plan_ms             1     4766
+search_ms        1327     1750
+rerank_ms         252    10845
+total_ms         1480    12828
+rerank_chars    21169    21114   (re-ranker prompt size; ~4 chars per token)
+
+Gained (3): u04, trec-dev-252, trec-dev-723
+Lost   (5): u12, trec-dev-665, trec-dev-346, trec-dev-299, trec-dev-735
+  u12: re-ranker saw it but chose others: #29 of 50, picked Short Circuit (1986, 0.802), Short Circuit 2 (1988, 0.810)
+  trec-dev-665: ranked too low to be sent: #17 after the cutoff, only 3 sent (or merged as a same-title version)
+  trec-dev-346: re-ranker saw it but chose others: #41 of 50, picked Houseboat (1958, 0.865), Malicious (1973, 0.864), Wolf Children (2012, 0.980)
+  trec-dev-299: ranked too low to be sent: #11 after the cutoff, only 3 sent (or merged as a same-title version)
+  trec-dev-735: ranked too low to be sent: #4 after the cutoff, only 3 sent (or merged as a same-title version)
+
+Expected film in the search pool: A 97  B 96  (newly found by B: 1)
+
+##### TUNE: A = new defaults, B = weighted fusion q=1,hyde=1,wq=0,kw=0,wkw=0.5;60
+A = results/stage_scores_2026-09-28_tune_v2_default.json
+B = results/stage_scores_2026-09-28_tune_e6_fusion.json
+
+group        A pass   B pass
+OWN-TUNE      53/55    53/55 
+TREC-TUNE     23/60    19/60 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.87     0.86    0.38    0.45    0.62    0.62
+rerank_in         0.68     0.67    0.26    0.30    0.51    0.52
+rerank_out        0.54     0.49    0.49    0.48    0.54    0.49
+after_cutoff      0.80     0.82    0.57    0.56    0.69    0.66
+final             0.65     0.62    0.58    0.57    0.65    0.62
+
+Average ms          A        B
+plan_ms             1        1
+search_ms        1327     1515
+rerank_ms         252    11402
+total_ms         1480     8764
+rerank_chars    21169    20889   (re-ranker prompt size; ~4 chars per token)
+
+Gained (2): u04, trec-dev-723
+Lost   (6): u12, trec-dev-665, trec-dev-346, trec-dev-299, trec-dev-749, trec-dev-735
+  u12: re-ranker saw it but chose others: #24 of 50, picked Chappie (2015, 0.840), Short Circuit (1986, 0.802)
+  trec-dev-665: re-ranker saw it but chose others: #19 of 50, picked Night of the Demons (1988, 0.779), Demons (1985, 0.742)
+  trec-dev-346: in the pool but beyond what the re-ranker sees: pool #64, re-ranker shown the top 50
+  trec-dev-299: re-ranker saw it but chose others: #5 of 50, picked Nausicaä of the Valley of the Wind (1984, 0.879), Quest for Fire (1981, 0.910), On the S
+  trec-dev-749: ranked too low to be sent: #5 after the cutoff, only 3 sent (or merged as a same-title version)
+  trec-dev-735: re-ranker saw it but chose others: #31 of 100, picked Little Children (2006, 0.816), Men in Hope (2011, 0.858)
+
+Expected film in the search pool: A 97  B 96  (newly found by B: 2)
+
+##### CHECK: A = new defaults (LLM re-ranker, gate), B = cross-encoder on every description
+A = results/stage_scores_2026-09-28_check_v2_default.json
+B = results/stage_scores_2026-09-28_check_e6_cross.json
+
+group        A pass   B pass
+OWN-CHECK      8/9      7/9  
+TREC-CHECK    10/24     3/24 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.85     0.85    0.21    0.21    0.52    0.52
+rerank_in         0.72     0.71    0.12    0.16    0.48    0.48
+rerank_out        0.56     0.16    0.48    0.13    0.56    0.16
+after_cutoff      0.79     0.79    0.48    0.18    0.64    0.55
+final             0.55     0.30    0.45    0.18    0.55    0.30
+
+Average ms          A        B
+plan_ms             1        1
+search_ms        1555     1901
+rerank_ms         276     1136
+total_ms         1784     2993
+rerank_chars    21011        0   (re-ranker prompt size; ~4 chars per token)
+
+Gained (0): -
+Lost   (8): q07, trec-dev-693, trec-dev-512, trec-dev-169, trec-dev-458, trec-dev-552, trec-dev-157, trec-dev-521
+  q07: re-ranker saw it but chose others: #3 of 50, picked Poor but Rich (2016, 0.756), Big Business (1988, 0.895), Theorem (1968, 0.867)
+  trec-dev-693: re-ranker saw it but chose others: #19 of 50, picked Living in Oblivion (1995, 0.869), The Creeping Terror (1964, 0.908), Tetsuo: The Iron M
+  trec-dev-512: re-ranker saw it but chose others: #22 of 50, picked Ironclad (2011, 0.798), Outcast (2014, 0.794), In the Name of the King 2: Two Worlds (2
+  trec-dev-169: re-ranker saw it but chose others: #7 of 50, picked Aladdin (1992, 0.861), Aladdin (1986, 0.848), Double Dragon (1994, 0.836)
+  trec-dev-458: re-ranker saw it but chose others: #6 of 50, picked The Boys Next Door (1986, 0.862), World's Greatest Dad (2009, 0.965), Flodder (1986, 0.8
+  trec-dev-552: re-ranker saw it but chose others: #47 of 50, picked Strait-Jacket (1964, 0.831), The Boogey Man (1980, 0.826), Sucker Punch (2011, 0.794)
+  trec-dev-157: re-ranker saw it but chose others: #6 of 50, picked Inferno (1999, 0.806), Dragon Eyes (2012, 0.859), Eden (2012, 0.849)
+  trec-dev-521: re-ranker saw it but chose others: #4 of 50, picked Spookies (1986, 0.866), Lost Soul (1977, 0.873), The Uninvited Guest (2004, 0.965)
+
+Expected film in the search pool: A 28  B 28  (newly found by B: 0)
+
+##### CHECK: A = LLM re-ranker always (f_wiki50), B = cross-encoder always
+A = results/stage_scores_2026-09-28_check_f_wiki50.json
+B = results/stage_scores_2026-09-28_check_e6_cross.json
+
+group        A pass   B pass
+OWN-CHECK      8/9      7/9  
+TREC-CHECK    10/24     3/24 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.85     0.85    0.21    0.21    0.52    0.52
+rerank_in         0.71     0.71    0.16    0.16    0.48    0.48
+rerank_out        0.55     0.16    0.48    0.13    0.55    0.16
+after_cutoff      0.79     0.79    0.52    0.18    0.67    0.55
+final             0.55     0.30    0.48    0.18    0.55    0.30
+
+Average ms          A        B
+plan_ms             1        1
+search_ms        2066     1901
+rerank_ms       10693     1136
+total_ms        12142     2993
+rerank_chars    21046        0   (re-ranker prompt size; ~4 chars per token)
+
+Gained (1): trec-dev-492
+Lost   (9): q07, trec-dev-693, trec-dev-512, trec-dev-169, trec-dev-458, trec-dev-906, trec-dev-552, trec-dev-157, trec-dev-521
+  q07: re-ranker saw it but chose others: #3 of 50, picked Poor but Rich (2016, 0.756), Big Business (1988, 0.895), Theorem (1968, 0.867)
+  trec-dev-693: re-ranker saw it but chose others: #19 of 50, picked Living in Oblivion (1995, 0.869), The Creeping Terror (1964, 0.908), Tetsuo: The Iron M
+  trec-dev-512: re-ranker saw it but chose others: #22 of 50, picked Ironclad (2011, 0.798), Outcast (2014, 0.794), In the Name of the King 2: Two Worlds (2
+  trec-dev-169: re-ranker saw it but chose others: #7 of 50, picked Aladdin (1992, 0.861), Aladdin (1986, 0.848), Double Dragon (1994, 0.836)
+  trec-dev-458: re-ranker saw it but chose others: #6 of 50, picked The Boys Next Door (1986, 0.862), World's Greatest Dad (2009, 0.965), Flodder (1986, 0.8
+  trec-dev-906: re-ranker saw it but chose others: #13 of 50, picked The Invisible Woman (2013, 0.916), The Notebook (2004, 0.896), Onegin (1999, 0.943)
+  trec-dev-552: re-ranker saw it but chose others: #47 of 50, picked Strait-Jacket (1964, 0.831), The Boogey Man (1980, 0.826), Sucker Punch (2011, 0.794)
+  trec-dev-157: re-ranker saw it but chose others: #6 of 50, picked Inferno (1999, 0.806), Dragon Eyes (2012, 0.859), Eden (2012, 0.849)
+  trec-dev-521: re-ranker saw it but chose others: #4 of 50, picked Spookies (1986, 0.866), Lost Soul (1977, 0.873), The Uninvited Guest (2004, 0.965)
+
+Expected film in the search pool: A 28  B 28  (newly found by B: 0)
+
+##### CHECK: A = new defaults, B = gate + cross-encoder top 10 + LLM
+A = results/stage_scores_2026-09-28_check_v2_default.json
+B = results/stage_scores_2026-09-28_check_e6_crossllm.json
+
+group        A pass   B pass
+OWN-CHECK      8/9      8/9  
+TREC-CHECK    10/24     8/24 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.85     0.85    0.21    0.21    0.52    0.52
+rerank_in         0.72     0.72    0.12    0.12    0.48    0.48
+rerank_out        0.56     0.48    0.48    0.48    0.56    0.48
+after_cutoff      0.79     0.82    0.48    0.48    0.64    0.64
+final             0.55     0.48    0.45    0.45    0.55    0.48
+
+Average ms          A        B
+plan_ms             1        2
+search_ms        1555     1871
+rerank_ms         276    10177
+total_ms         1784     9610
+rerank_chars    21011     4158   (re-ranker prompt size; ~4 chars per token)
+
+Gained (3): trec-dev-898, trec-dev-281, trec-dev-568
+Lost   (5): trec-dev-693, trec-dev-512, trec-dev-169, trec-dev-458, trec-dev-157
+  trec-dev-693: re-ranker saw it but chose others: #19 of 50, picked The Creeping Terror (1964, 0.908), Tetsuo: The Iron Man (1989, 0.795)
+  trec-dev-512: re-ranker saw it but chose others: #22 of 50, picked Viking (2016, 0.782), In the Name of the King 2: Two Worlds (2011, 0.855)
+  trec-dev-169: re-ranker saw it but chose others: #7 of 50, picked The Golden Child (1986, 0.858), The Gate (1987, 0.867)
+  trec-dev-458: re-ranker saw it but chose others: #6 of 50, picked Father of the Year (2018, 0.925), Neighbors (1981, 0.888)
+  trec-dev-157: re-ranker saw it but chose others: #6 of 50, picked Pound of Flesh (2015, 0.845), Swelter (2014, 0.819)
+
+Expected film in the search pool: A 28  B 28  (newly found by B: 0)
+
+##### CHECK: A = new defaults, B = faster planner (PLAN_FAST)
+A = results/stage_scores_2026-09-28_check_v2_default.json
+B = results/stage_scores_2026-09-28_check_e6_planfast.json
+
+group        A pass   B pass
+OWN-CHECK      8/9      8/9  
+TREC-CHECK    10/24    10/24 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.85     0.79    0.21    0.27    0.52    0.52
+rerank_in         0.72     0.75    0.12    0.12    0.48    0.50
+rerank_out        0.56     0.54    0.48    0.50    0.56    0.54
+after_cutoff      0.79     0.76    0.48    0.48    0.64    0.64
+final             0.55     0.55    0.45    0.45    0.55    0.55
+
+Average ms          A        B
+plan_ms             1     5171
+search_ms        1555     1902
+rerank_ms         276    10947
+total_ms         1784    15062
+rerank_chars    21011    20966   (re-ranker prompt size; ~4 chars per token)
+
+Gained (2): trec-dev-898, trec-dev-906
+Lost   (2): trec-dev-492, trec-dev-552
+  trec-dev-492: re-ranker saw it but chose others: #2 of 50, picked Attack the Block (2011, 0.868), The City of Lost Children (1995, 0.809)
+  trec-dev-552: in the pool but beyond what the re-ranker sees: pool #89, re-ranker shown the top 50
+
+Expected film in the search pool: A 28  B 26  (newly found by B: 0)
+
+##### CHECK: A = new defaults, B = weighted fusion q=1,hyde=1,wq=0,kw=0,wkw=0.5;60
+A = results/stage_scores_2026-09-28_check_v2_default.json
+B = results/stage_scores_2026-09-28_check_e6_fusion.json
+
+group        A pass   B pass
+OWN-CHECK      8/9      8/9  
+TREC-CHECK    10/24     9/24 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.85     0.88    0.21    0.27    0.52    0.52
+rerank_in         0.72     0.62    0.12    0.12    0.48    0.42
+rerank_out        0.56     0.50    0.48    0.38    0.56    0.50
+after_cutoff      0.79     0.79    0.48    0.42    0.64    0.64
+final             0.55     0.52    0.45    0.39    0.55    0.52
+
+Average ms          A        B
+plan_ms             1        1
+search_ms        1555     1717
+rerank_ms         276    11082
+total_ms         1784    10476
+rerank_chars    21011    20837   (re-ranker prompt size; ~4 chars per token)
+
+Gained (1): trec-dev-898
+Lost   (2): trec-dev-492, trec-dev-157
+  trec-dev-492: in the pool but beyond what the re-ranker sees: pool #126, re-ranker shown the top 50
+  trec-dev-157: re-ranker saw it but chose others: #3 of 50, picked Enemies Closer (2013, 0.841), Dragon Eyes (2012, 0.859), Swelter (2014, 0.819)
+
+Expected film in the search pool: A 28  B 29  (newly found by B: 1)
+
+##### SPEED (no cache, 20 TREC): A = new defaults, B = cross-encoder
+A = results/stage_scores_2026-09-28_tune_only_time_v2_trec.json
+B = results/stage_scores_2026-09-28_tune_only_time_e6_cross.json
+
+group        A pass   B pass
+TREC-TUNE      7/20     3/20 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.75     0.75    0.10    0.10    0.30    0.30
+rerank_in         0.65     0.55    0.00    0.00    0.35    0.30
+rerank_out        0.41     0.15    0.41    0.05    0.41    0.15
+after_cutoff      0.70     0.70    0.35    0.05    0.45    0.45
+final             0.35     0.15    0.35    0.05    0.35    0.15
+
+Average ms          A        B
+plan_ms          8174     7762
+search_ms        2437     1777
+rerank_ms       10902     1061
+total_ms        20042    10739
+rerank_chars    20908        0   (re-ranker prompt size; ~4 chars per token)
+
+Gained (0): -
+Lost   (4): trec-dev-714, trec-dev-689, trec-dev-176, trec-dev-1072
+  trec-dev-714: re-ranker saw it but chose others: #3 of 50, picked The Sex Trip (2017, 0.761), A Bad Idea Gone Wrong (2017, 0.806), Two Girls and a Guy (19
+  trec-dev-689: re-ranker saw it but chose others: #3 of 50, picked The Band of Honest Men (1956, 0.834), Out of the Blue (2013, 0.860), The Swindle (1955, 
+  trec-dev-176: re-ranker saw it but chose others: #2 of 50, picked Jet Set (2000, 0.859), Billionaire Boys Club (2018, 0.944), Lottery Ticket (2010, 0.869)
+  trec-dev-1072: re-ranker saw it but chose others: #4 of 50, picked Get Rich or Die Tryin' (2005, 0.836), Albakiara (2008, 0.767), Five (2016, 0.758)
+
+Expected film in the search pool: A 15  B 15  (newly found by B: 0)
+
+##### SPEED (no cache, 20 TREC): A = new defaults, B = cross-encoder + LLM
+A = results/stage_scores_2026-09-28_tune_only_time_v2_trec.json
+B = results/stage_scores_2026-09-28_tune_only_time_e6_crossllm.json
+
+group        A pass   B pass
+TREC-TUNE      7/20     4/20 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.75     0.75    0.10    0.10    0.30    0.30
+rerank_in         0.65     0.61    0.00    0.00    0.35    0.33
+rerank_out        0.41     0.17    0.41    0.17    0.41    0.17
+after_cutoff      0.70     0.70    0.35    0.20    0.45    0.40
+final             0.35     0.20    0.35    0.20    0.35    0.20
+
+Average ms          A        B
+plan_ms          8174     8062
+search_ms        2437     1830
+rerank_ms       10902     5411
+total_ms        20042    14901
+rerank_chars    20908     4054   (re-ranker prompt size; ~4 chars per token)
+
+Gained (0): -
+Lost   (3): trec-dev-665, trec-dev-689, trec-dev-176
+  trec-dev-665: re-ranker saw it but chose others: #12 of 50, picked Don't Be Afraid of the Dark (1973, 0.769), The Vault of Horror (1973, 0.864)
+  trec-dev-689: re-ranker saw it but chose others: #3 of 50, picked Jumping the Broom (2011, 1.037), Out of the Blue (2013, 0.860)
+  trec-dev-176: re-ranker saw it but chose others: #2 of 50, picked Dawn of the Dead (2004, 0.854), Clerks II (2006, 0.868)
+
+Expected film in the search pool: A 15  B 15  (newly found by B: 0)
+
+##### SPEED (no cache, 20 TREC): A = new defaults, B = faster planner
+A = results/stage_scores_2026-09-28_tune_only_time_v2_trec.json
+B = results/stage_scores_2026-09-28_tune_only_time_e6_planfast.json
+
+group        A pass   B pass
+TREC-TUNE      7/20     6/20 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.75     0.75    0.10    0.10    0.30    0.30
+rerank_in         0.65     0.56    0.00    0.00    0.35    0.38
+rerank_out        0.41     0.38    0.41    0.38    0.41    0.38
+after_cutoff      0.70     0.70    0.35    0.30    0.45    0.40
+final             0.35     0.30    0.35    0.30    0.35    0.30
+
+Average ms          A        B
+plan_ms          8174     5252
+search_ms        2437     2046
+rerank_ms       10902    11008
+total_ms        20042    16269
+rerank_chars    20908    20899   (re-ranker prompt size; ~4 chars per token)
+
+Gained (0): -
+Lost   (1): trec-dev-665
+  trec-dev-665: ranked too low to be sent: #18 after the cutoff, only 3 sent (or merged as a same-title version)
+
+Expected film in the search pool: A 15  B 15  (newly found by B: 0)
+
+##### CROSS-ENCODER health (errors mean it fell back to the LLM re-ranker)
+results/stage_scores_2026-09-28_tune_e6_cross.json: cross ran 96x, mean 492 ms; errors 0 []
+results/stage_scores_2026-09-28_tune_only_time_e6_cross.json: cross ran 20x, mean 811 ms; errors 0 []
+
+##### PLANNER: questions where the plan failed and the regex path was used
+results/stage_scores_2026-09-28_tune_v2_default.json: {'plan:named_film': 17, 'plan:identify': 96, 'plan:other': 1, 'regex': 1}
+results/stage_scores_2026-09-28_tune_e6_planfast.json: {'plan:named_film': 17, 'plan:identify': 97, 'plan:other': 1}
+results/stage_scores_2026-09-28_check_v2_default.json: {'plan:identify': 31, 'plan:named_film': 2}
+results/stage_scores_2026-09-28_check_e6_planfast.json: {'plan:identify': 31, 'plan:named_film': 2}
+
+##### FUSION WEIGHTS (fusion_sim.py on f_wiki50)
+description questions with the film in the pool: tune 81, check 26
+plain RRF (all 1, k=60): tune top1/top3/top10 (29, 44, 57), check (5, 13, 17)
+
+weights                                  k |  tune 1/3/10 | check 1/3/10
+q=1,hyde=1,wq=0,kw=0,wkw=0.5            60 |     36/50/53 |      7/13/15
+q=2,hyde=2,wq=0,kw=0,wkw=1              60 |     36/50/53 |      7/13/15
+q=2,hyde=2,wq=0.5,kw=0.5,wkw=1          60 |     35/50/54 |      7/13/15
+q=1,hyde=1,wq=0,kw=0,wkw=0.5            20 |     34/50/55 |      8/11/15
+q=2,hyde=2,wq=0,kw=0,wkw=1              20 |     34/50/55 |      8/11/15
+q=1,hyde=2,wq=0.5,kw=0.5,wkw=2          60 |     34/50/54 |      8/13/18
+q=2,hyde=2,wq=0.5,kw=0,wkw=2            60 |     34/50/54 |      8/13/16
+q=0.5,hyde=1,wq=0,kw=0,wkw=0.5          60 |     36/49/55 |      8/12/15
+q=1,hyde=2,wq=0,kw=0,wkw=1              60 |     36/49/55 |      8/12/15
+q=0.5,hyde=1,wq=0.5,kw=0.5,wkw=1        20 |     36/49/53 |     10/13/17
+q=1,hyde=2,wq=1,kw=0.5,wkw=2            20 |     36/49/53 |      9/13/17
+q=1,hyde=2,wq=1,kw=1,wkw=2              20 |     36/49/53 |     10/13/17
+q=1,hyde=1,wq=0.5,kw=0.5,wkw=1          20 |     35/49/55 |      9/14/16
+q=2,hyde=2,wq=1,kw=1,wkw=2              20 |     35/49/55 |      9/14/16
+q=0.5,hyde=0.5,wq=0,kw=0,wkw=0.5        60 |     35/49/54 |      8/13/16
+
+Recommended (best on tune, check no worse than plain RRF): RRF_WEIGHTS=q=1,hyde=1,wq=0,kw=0,wkw=0.5 RRF_K=60
+  tune (36, 50, 53) vs (29, 44, 57), check (7, 13, 15) vs (5, 13, 17)

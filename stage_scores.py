@@ -15,6 +15,7 @@ retrieve() and, when it goes missing, which stage lost it.
     python stage_scores.py --report results/<file>.json   # re-read a saved run
     python stage_scores.py --questions sets/tune.json --tag <name>   # after split_sets.py
     python stage_scores.py ... --no-cache   # don't replay model calls (for timing)
+    python stage_scores.py ... --group TREC --limit 20   # only TREC questions
 
 Stages, in pipeline order:
   pool          vector search (full record + plot-only), closest first.
@@ -348,6 +349,9 @@ def main():
         todo = T.cases(fresh_only)
     if only:
         todo = [c for c in todo if c[1] in only]
+    group_filter = args[args.index("--group") + 1] if "--group" in args else None
+    if group_filter:                # e.g. --group TREC: only questions whose group contains it
+        todo = [c for c in todo if group_filter.upper() in c[0].upper()]
     if limit:
         todo = todo[:limit]
     print(f"{len(todo)} questions, {'old regex path' if old else 'LLM plan'}.\n")
@@ -377,7 +381,7 @@ def main():
     out = (f"results/stage_scores_{datetime.date.today()}{'_old' if old else ''}"
            f"{'_' + os.path.splitext(os.path.basename(qfile))[0] if qfile else ''}"
            f"{'_' + split if split else ''}"
-           f"{'_only' if only or limit else ''}{'_' + tag if tag else ''}.json")
+           f"{'_only' if only or limit or group_filter else ''}{'_' + tag if tag else ''}.json")
     with open(out, "w") as f:
         json.dump({"summary": summary, "path": "old" if old else "llm_plan",
                    "switches": getattr(R, "SWITCHES", {}), "cache": cache, "rows": rows},

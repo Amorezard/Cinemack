@@ -42,7 +42,16 @@ import unicodedata
 import ollama
 import sqlite_vec
 
-EMBED_MODEL = "mxbai-embed-large"
+# config.yaml (mbconfig.py): fills in any setting the shell did not set. A variable set in the
+# shell always wins, so the run_eN.sh scripts behave exactly as before. MB_CONFIG=none skips it.
+try:
+    import mbconfig as _mbconfig
+    _mbconfig.apply()
+except ImportError:
+    pass
+
+import os as _os_m
+EMBED_MODEL = _os_m.environ.get("EMBED_MODEL", "mxbai-embed-large")
 QUERY_PREFIX = "Represent this sentence for searching relevant passages: "
 
 # Read off the baseline run: real matches came back well under this, while
@@ -178,12 +187,352 @@ def embed_query(text):
     return result["embeddings"][0]
 
 
+class _Conn(sqlite3.Connection):
+    """A plain connection that can also remember whether wiki.db is attached."""
+
+
+# v2 E9: VEC_MEM=1 (default since 30 Sep) searches in-memory copies of the vector tables
+# (vecmem.py; build them with `python mb.py build-cache` or `python vecmem.py build`) instead of
+# sqlite-vec. Same exact search - every vector is compared, same distances - in one numpy product
+# per list. E9: identical passes and pools on tune and check, search 1.42 -> 0.19 s per question.
+# Falls back to sqlite-vec (one warning) if the copies are missing or older than movies.db /
+# wiki.db, so a fresh setup works before the cache is built, just slower. 0 = sqlite-vec only.
+import os as _os_v
+VEC_MEM = _os_v.environ.get("VEC_MEM", "1") == "1"
+_VEC = {"store": None, "tried": False, "db": None}
+
+
+def _vec_store():
+    """The vecmem.Store, or None (VEC_MEM off, or the cache is unusable)."""
+    if not VEC_MEM:
+        return None
+    if not _VEC["tried"]:
+        _VEC["tried"] = True
+        try:
+            import vecmem
+            _VEC["store"] = vecmem.Store(_VEC["db"] or "movies.db")
+        except Exception as e:  # noqa: BLE001
+            import sys as _sys_v
+            _VEC["error"] = str(e)
+            print(f"[retrieve] vector cache not used ({e}); searching with sqlite-vec instead "
+                  f"(same results, slower). Build it with: python mb.py build-cache", file=_sys_v.stderr)
+    return _VEC["store"]
+
+
+def vec_status():
+    """'numpy' when the in-memory cache is in use, else 'sqlite-vec (<why>)'. Loads it if needed."""
+    if not VEC_MEM:
+        return "sqlite-vec (VEC_MEM=0)"
+    return "numpy" if _vec_store() is not None else f"sqlite-vec ({_VEC.get('error', 'cache unusable')})"
+
+
+def _as_list(q_vec):
+    """q_vec when it is a plain vector (not a serialized blob / JSON text)."""
+    return None if isinstance(q_vec, (bytes, str)) else q_vec
+
+
 def open_db(db_path):
-    conn = sqlite3.connect(db_path)
+    if _VEC["db"] is None:
+        _VEC["db"] = db_path
+    conn = sqlite3.connect(db_path, factory=_Conn)
     conn.enable_load_extension(True)
     sqlite_vec.load(conn)
     conn.enable_load_extension(False)
+    _attach_wiki(conn, db_path)
     return conn
+
+
+# ------------------------------------------------ v2: Wikipedia passages (28 Sep 2026)
+# WIKI=1 (default): the Wikipedia lead + plot passages in wiki.db (built by
+# wiki_link.py, wiki_chunks.py, wiki_embed.py) are searched alongside the TMDB
+# record and plot-only vectors. A film's distance is its best passage, so a
+# description that matches one scene of a long Wikipedia plot can find the film
+# even when the 2-3 sentence TMDB overview never mentions that scene.
+# vec_chunks stores cosine distance; it is converted to the L2 scale used
+# everywhere else here (unit vectors: l2 = sqrt(2 * cosine distance)), so
+# MAX_DISTANCE and GUESS_MAX_DISTANCE keep their meaning.
+# WIKI_KW=1: keyword search over the Wikipedia text (wiki_fts.py) joins the
+# fused lists for descriptions. WIKI=0 restores v1 exactly, for A/B runs.
+import os as _os_w
+import hashlib as _hashlib_w
+import math as _math_w
+WIKI = _os_w.environ.get("WIKI", "1") != "0"
+WIKI_KW = _os_w.environ.get("WIKI_KW", "1") != "0"
+WIKI_DB = _os_w.environ.get("WIKI_DB", "")          # default: wiki.db next to movies.db
+WIKI_KINDS = tuple(k for k in _os_w.environ.get("WIKI_KINDS", "plot,lead").split(",") if k)
+# Generated descriptions (wiki_enrich.py, kind 'question'). They read like the user's
+# own question, so they also match on STYLE ("I saw this years ago... snowy town"),
+# not only content. Merged into each film's best distance they flooded the pool with
+# look-alikes (28 Sep). WIKI_Q=rrf (default): they form their own ranked list, one
+# vote in the RRF fusion for descriptions. merge = best-distance merge (the old way,
+# for comparison). off = not used. WIKI_QSTYLES: which styles are searched
+# (short, scene, fuzzy, childhood); "fuzzy" is the most formulaic.
+WIKI_Q = _os_w.environ.get("WIKI_Q", "rrf")
+WIKI_QSTYLES = tuple(x for x in _os_w.environ.get("WIKI_QSTYLES", "short,scene,fuzzy,childhood").split(",") if x)
+if WIKI_Q == "merge" and "question" not in WIKI_KINDS:
+    WIKI_KINDS = WIKI_KINDS + ("question",)
+TEXT_KINDS = ("plot", "lead")   # real Wikipedia text (shown to models); "question" = generated
+# RERANK_TEXT: what the re-ranker reads for each candidate. tmdb = the TMDB overview
+# (v1); wiki = the Wikipedia passage closest to the question; both = the first 200
+# characters of the overview, then that passage. RERANK_WIKI_CHARS caps the passage.
+RERANK_TEXT = _os_w.environ.get("RERANK_TEXT", "wiki")   # E4: +6 TREC tune vs tmdb
+RERANK_WIKI_CHARS = int(_os_w.environ.get("RERANK_WIKI_CHARS", "400"))
+RERANK_MAX_CHARS = int(_os_w.environ.get("RERANK_MAX_CHARS", "26000"))   # ~6.5k of 8k tokens
+# RERANK=auto: skip the LLM re-ranker when the fused search's #1 film is also in the top 3
+# of at least RERANK_AGREE search channels (and, if RERANK_GAP is set, leads #2 by that
+# much distance). Chosen with gate_sim.py against the Wikipedia re-ranker (E4 f_wiki50),
+# 28 Sep: agree >= 1 and gap >= 0.05 skipped 29% of tune / 19% of check re-ranks with no
+# lost question on either. (agree >= 1 with no gap, calibrated on the weaker TMDB
+# re-ranker, lost 5 tune questions in E4.) RERANK_GAP=none turns the gap test off.
+# RERANK_ENGINE: which re-ranker runs when one does.
+#   llm       movie-buff reads the candidates (default; ~10 s for 50 films)
+#   cross     a cross-encoder (sentence-transformers) scores question + passage pairs;
+#             no text generation, well under a second on the GPU
+#   cross_llm the cross-encoder keeps its top RERANK_CROSS_KEEP, then the LLM picks from those
+RERANK_ENGINE = _os_w.environ.get("RERANK_ENGINE", "llm")
+RERANK_CROSS_MODEL = _os_w.environ.get("RERANK_CROSS_MODEL", "BAAI/bge-reranker-v2-m3")
+RERANK_CROSS_KEEP = int(_os_w.environ.get("RERANK_CROSS_KEEP", "10"))
+RERANK_CROSS_CHARS = int(_os_w.environ.get("RERANK_CROSS_CHARS", "900"))
+RERANK_CROSS_DEVICE = _os_w.environ.get("RERANK_CROSS_DEVICE", "")      # "" = cuda if available
+# E9: for Qwen3-Reranker models (e.g. RERANK_CROSS_MODEL=tomaarsen/Qwen3-Reranker-0.6B-seq-cls)
+RERANK_CROSS_INSTRUCT = _os_w.environ.get(
+    "RERANK_CROSS_INSTRUCT",
+    "Given someone's vague, possibly misremembered description of a film, judge whether this "
+    "film's plot summary is the film they mean")
+# RRF_WEIGHTS: weight of each search list in the fusion, e.g. "q=1,hyde=1,wq=0.5,kw=1,wkw=2"
+# (q = question vectors incl. Wikipedia passages, hyde = guessed plot, wq = generated
+# descriptions, kw = TMDB keywords, wkw = Wikipedia keywords). Unset = all 1 (plain RRF).
+RRF_WEIGHTS = {k: float(v) for k, v in (x.split("=") for x in
+               _os_w.environ.get("RRF_WEIGHTS", "").split(",") if "=" in x)}
+RRF_K_ENV = int(_os_w.environ.get("RRF_K", "60"))
+RERANK_AGREE = int(_os_w.environ.get("RERANK_AGREE", "1"))
+# 29 Sep (gate re-sim on the current defaults): gap 0.03 keeps every pass (tune 74/115,
+# check 18/33) and skips the re-ranker on 35/97 tune and 10/31 check questions (0.05: 30, 7).
+RERANK_GAP = float(_os_w.environ.get("RERANK_GAP", "0.03")) if _os_w.environ.get("RERANK_GAP", "0.03") != "none" else None
+WIKI_PER_FILM = 4        # passages fetched per film wanted: k = pool * this, per kind
+_WIKI_STATE = {}         # path -> {"vec": bool, "fts": bool}
+_WIKI_CACHE = {}         # one question's wiki KNN results, cleared per retrieve() call
+
+
+def _attach_wiki(conn, db_path):
+    if not WIKI:
+        return
+    path = WIKI_DB or _os_w.path.join(_os_w.path.dirname(_os_w.path.abspath(db_path)), "wiki.db")
+    if not _os_w.path.exists(path):
+        return
+    try:
+        conn.execute("ATTACH DATABASE ? AS wiki", (path,))
+    except sqlite3.OperationalError:
+        return
+    if path not in _WIKI_STATE:
+        names = {r[0] for r in conn.execute("SELECT name FROM wiki.sqlite_master")}
+        _WIKI_STATE[path] = {"vec": {"vec_chunks", "chunks"} <= names, "fts": "wiki_fts" in names}
+    conn._wiki = _WIKI_STATE[path]
+
+
+def _wiki_has(conn, what):
+    state = getattr(conn, "_wiki", None) if WIKI else None
+    return bool(state and state.get(what))
+
+
+def _vec_arg(q_vec):
+    """sqlite-vec accepts a float32 blob or JSON text."""
+    if isinstance(q_vec, (bytes, str)):
+        return q_vec
+    return sqlite_vec.serialize_float32([float(x) for x in q_vec])
+
+
+def wiki_knn(conn, q_vec, pool):
+    """[(film_id, l2 distance)] by best Wikipedia passage, closest first.
+    [] when wiki.db is missing or WIKI=0."""
+    if not _wiki_has(conn, "vec"):
+        return []
+    arg = _vec_arg(q_vec)
+    key = _hashlib_w.sha1(arg if isinstance(arg, bytes) else arg.encode()).hexdigest()
+    k = min(4096, max(50, pool * WIKI_PER_FILM))
+    hit = _WIKI_CACHE.get(key)
+    if hit and hit[0] >= k:
+        best = hit[1]
+    else:
+        best = {}
+        kbest, kmax = {}, {}     # per kind: film -> (l2, chunk_id) of its closest chunk; k-th distance
+        for kind in WIKI_KINDS:
+            vs = _vec_store()
+            if vs is not None and vs.chunks is not None and _as_list(q_vec) is not None:
+                rows = vs.knn_cos(kind, q_vec, k)
+            else:
+                rows = conn.execute("SELECT chunk_id, film_id, distance FROM wiki.vec_chunks "
+                                    "WHERE embedding MATCH ? AND k = ? AND kind = ?",
+                                    (arg, k, kind)).fetchall()
+            kb = kbest[kind] = {}
+            last = None
+            for cid, fid, d in rows:
+                l2 = _math_w.sqrt(2.0 * max(d, 0.0))
+                last = l2
+                if fid not in best or l2 < best[fid]:
+                    best[fid] = l2
+                if fid not in kb or l2 < kb[fid][0]:
+                    kb[fid] = (l2, cid)
+            # fewer than k rows = every chunk of this kind was returned
+            kmax[kind] = last if len(rows) >= k else float("inf")
+        _WIKI_CACHE[key] = (k, best, kbest, kmax)
+    return sorted(best.items(), key=lambda x: x[1])[:pool]
+
+
+def _film_best_chunk(conn, movie_id, arg, kinds, q_vec=None):
+    """(l2 distance, chunk_id) of the film's closest chunk among `kinds`, or None."""
+    best = None
+    ids = [r[0] for r in conn.execute("SELECT chunk_id FROM wiki.chunks WHERE film_id = ? AND kind IN (%s)"
+                                      % ",".join("?" * len(kinds)), (movie_id, *kinds))]
+    vs = _vec_store() if q_vec is not None and _as_list(q_vec) is not None else None
+    for cid in ids:       # point lookups; vec0 has no fast IN (...)
+        if vs is not None and vs.chunks is not None:
+            d = vs.dist_cos(cid, q_vec)
+            row = (d,)
+        else:
+            row = conn.execute("SELECT vec_distance_cosine(embedding, ?) FROM wiki.vec_chunks "
+                               "WHERE chunk_id = ?", (arg, cid)).fetchone()
+        if row and row[0] is not None:
+            l2 = _math_w.sqrt(2.0 * max(row[0], 0.0))
+            if best is None or l2 < best[0]:
+                best = (l2, cid)
+    return best
+
+
+# WIKI_EXACT=0 (default): a film's Wikipedia distance comes from the passage search
+# already run for this question (wiki_knn's cache); a film with no passage among the
+# top k there is treated as having no close passage (its TMDB distance is used).
+# WIKI_EXACT=1 looks up every passage of every film (one query per passage) - about
+# 3 s per TREC question with ~200 fused candidates, for a near-identical answer.
+WIKI_EXACT = _os_w.environ.get("WIKI_EXACT", "0") == "1"
+
+
+def wiki_distance(conn, movie_id, q_vec):
+    """Best Wikipedia-passage distance (L2 scale) for one film, or None."""
+    if not _wiki_has(conn, "vec"):
+        return None
+    arg = _vec_arg(q_vec)
+    if not WIKI_EXACT:
+        key = _hashlib_w.sha1(arg if isinstance(arg, bytes) else arg.encode()).hexdigest()
+        hit = _WIKI_CACHE.get(key)
+        if hit is not None:
+            return hit[1].get(movie_id)
+    b = _film_best_chunk(conn, movie_id, arg, WIKI_KINDS, q_vec)
+    return b[0] if b else None
+
+
+# v2 E8: WIKI_PASSAGE_FAST=1 (default). Picking each candidate's closest passage took one
+# vector lookup per passage (_film_best_chunk): ~200 lookups for the re-ranker's 50 films,
+# and the re-rank step still took 2.6-3.4 s per question with every model call cached
+# (29 Sep gate runs). The search already fetched each kind's k closest passages
+# (wiki_knn). If a film has a passage of a kind among them, its closest passage of that
+# kind is among them too (anything closer would also be in the top k); a kind with none
+# of its passages there is at least the k-th distance away. So when the closest found
+# passage beats those bounds it is exactly the passage the lookups would pick - same
+# result, no lookups. Otherwise it falls back to the lookups. 0 = always look up.
+WIKI_PASSAGE_FAST = _os_w.environ.get("WIKI_PASSAGE_FAST", "1") != "0"
+_PASSAGE_STATS = {"fast": 0, "lookup": 0, "ms": 0.0}
+
+
+def _best_chunk_from_search(movie_id, arg):
+    """(l2, chunk_id) of the film's closest TEXT_KINDS passage, from wiki_knn's results,
+    when it is provably the closest; else None."""
+    key = _hashlib_w.sha1(arg if isinstance(arg, bytes) else arg.encode()).hexdigest()
+    hit = _WIKI_CACHE.get(key)
+    if not hit or len(hit) < 4:
+        return None
+    kbest, kmax = hit[2], hit[3]
+    if not all(k in kbest for k in TEXT_KINDS):
+        return None
+    found = [kbest[k][movie_id] for k in TEXT_KINDS if movie_id in kbest[k]]
+    if not found:
+        return None
+    b = min(found)
+    bound = min((kmax[k] for k in TEXT_KINDS if movie_id not in kbest[k]), default=float("inf"))
+    return b if b[0] <= bound else None
+
+
+def wiki_passage(conn, movie_id, q_vec):
+    """The film's real Wikipedia passage (intro or plot) closest to the question:
+    (l2 distance, text, section, position, n_parts), or None."""
+    if not _wiki_has(conn, "vec"):
+        return None
+    import time as _tp
+    t0 = _tp.perf_counter()
+    arg = _vec_arg(q_vec)
+    b = _best_chunk_from_search(movie_id, arg) if WIKI_PASSAGE_FAST else None
+    if b is not None:
+        _PASSAGE_STATS["fast"] += 1
+    else:
+        _PASSAGE_STATS["lookup"] += 1
+        b = _film_best_chunk(conn, movie_id, arg, TEXT_KINDS, q_vec)
+    _PASSAGE_STATS["ms"] += (_tp.perf_counter() - t0) * 1000
+    if not b:
+        return None
+    row = conn.execute("SELECT text, section, position, n_parts FROM wiki.chunks WHERE chunk_id = ?",
+                       (b[1],)).fetchone()
+    return (b[0],) + tuple(row) if row else None
+
+
+def wiki_intro(conn, movie_id):
+    """First part of the film's Wikipedia intro, or ""."""
+    if not _wiki_has(conn, "vec"):
+        return ""
+    row = conn.execute("SELECT text FROM wiki.chunks WHERE film_id = ? AND kind = 'lead' "
+                       "ORDER BY position LIMIT 1", (movie_id,)).fetchone()
+    return row[0] if row else ""
+
+
+def _clip(text, n):
+    """At most n characters, cut at a word boundary."""
+    text = text or ""
+    if len(text) <= n:
+        return text
+    return text[:n].rsplit(" ", 1)[0] + " ..."
+
+
+def wiki_question_ranking(conn, q_vec, n=100):
+    """Film ids by their closest generated description (WIKI_Q=rrf), best first,
+    only the styles in WIKI_QSTYLES. [] when there are none or WIKI_Q is not rrf."""
+    if WIKI_Q != "rrf" or not _wiki_has(conn, "vec"):
+        return []
+    k = min(4096, max(50, n * 4))
+    vs = _vec_store()
+    if vs is not None and vs.chunks is not None and _as_list(q_vec) is not None:
+        rows = vs.knn_cos("question", q_vec, k)
+    else:
+        rows = conn.execute("SELECT chunk_id, film_id, distance FROM wiki.vec_chunks "
+                            "WHERE embedding MATCH ? AND k = ? AND kind = 'question'",
+                            (_vec_arg(q_vec), k)).fetchall()
+    if not rows:
+        return []
+    ids = [r[0] for r in rows]
+    style = dict(conn.execute("SELECT chunk_id, section FROM wiki.chunks WHERE chunk_id IN (%s)"
+                              % ",".join("?" * len(ids)), ids).fetchall())
+    out, seen = [], set()
+    for cid, fid, _d in rows:                       # already closest first
+        if fid in seen or style.get(cid) not in WIKI_QSTYLES:
+            continue
+        seen.add(fid)
+        out.append(fid)
+        if len(out) >= n:
+            break
+    return out
+
+
+def wiki_keyword_ranking(conn, text, n=100):
+    """Film ids by FTS5 keyword match over Wikipedia lead + plot, best first."""
+    if not (WIKI_KW and _wiki_has(conn, "fts")):
+        return []
+    match = _fts_query(text)
+    if not match:
+        return []
+    try:
+        return [r[0] for r in conn.execute(
+            "SELECT rowid FROM wiki.wiki_fts WHERE wiki_fts MATCH ? "
+            "ORDER BY bm25(wiki_fts, 3.0, 1.0) LIMIT ?", (match, n))]
+    except sqlite3.OperationalError:
+        return []
 
 
 def is_recommendation(question):
@@ -322,6 +671,9 @@ def titles_in(question, conn, min_len=4):
 def knn(conn, q_vec, pool):
     """Nearest neighbours by vector distance. Split out so it can be stubbed
     in tests without a live sqlite-vec extension."""
+    vs = _vec_store()
+    if vs is not None and vs.has("movie_vectors") and _as_list(q_vec) is not None:
+        return vs.knn_l2("movie_vectors", q_vec, pool)
     return conn.execute("""
         SELECT movie_id, distance
         FROM movie_vectors
@@ -489,7 +841,7 @@ DESCRIBES_A_FILM = _re.compile(
 # "the 1987 film The Cobalt Hour": the user already named a film. If it is not
 # in the database, that is the honesty test's job, not something to guess past.
 NAMES_A_FILM = _re.compile(r"\b(?:film|movie)\s+(?:The |A |An )?[A-Z][\w'’:-]*")
-GUESS_MODEL = "movie-buff"
+GUESS_MODEL = _os_m.environ.get("ANSWER_MODEL", "movie-buff")   # guesses + the LLM re-ranker
 GUESS_MAX_DISTANCE = 0.87   # 0.90 let a wrong guess (The Parent Trap, 0.893) through
 
 
@@ -499,7 +851,7 @@ def guess_titles(question, n=3):
         import ollama
         r = ollama.chat(
             model=GUESS_MODEL, think=False,
-            options={"num_predict": 60, "temperature": 0},
+            options=llm_options({"num_predict": 60, "temperature": 0}),
             messages=[
                 {"role": "system", "content":
                     f"You identify films from descriptions. List the {n} most likely "
@@ -535,11 +887,19 @@ def lookup_guess(conn, guess):
 
 def distance_to(conn, movie_id, q_vec):
     """The same L2 distance the KNN search reports, for one specific film."""
-    v = q_vec if isinstance(q_vec, (bytes, str)) else _json.dumps([float(x) for x in q_vec])
-    row = conn.execute(
-        "SELECT vec_distance_l2(embedding, ?) FROM movie_vectors WHERE movie_id = ?",
-        (v, movie_id)).fetchone()
-    return row[0] if row else None
+    vs = _vec_store()
+    if vs is not None and vs.has("movie_vectors") and _as_list(q_vec) is not None:
+        d = vs.dist_l2("movie_vectors", movie_id, q_vec)
+    else:
+        v = q_vec if isinstance(q_vec, (bytes, str)) else _json.dumps([float(x) for x in q_vec])
+        row = conn.execute(
+            "SELECT vec_distance_l2(embedding, ?) FROM movie_vectors WHERE movie_id = ?",
+            (v, movie_id)).fetchone()
+        d = row[0] if row else None
+    w = wiki_distance(conn, movie_id, q_vec)      # v2: best Wikipedia passage
+    if w is not None and (d is None or w < d):
+        d = w
+    return d
 
 
 EXTRA_VECTOR_TABLES = ("movie_plot_vectors",)
@@ -550,15 +910,22 @@ def knn_multi(conn, q_vec, pool):
     and keywords dilute the full record (Jaws: 0.785 full, 0.734 plot-only)."""
     best = dict(knn(conn, q_vec, pool))
     v = q_vec if isinstance(q_vec, (bytes, str)) else _json.dumps([float(x) for x in q_vec])
+    vs = _vec_store()
     for table in EXTRA_VECTOR_TABLES:
         try:
-            rows = conn.execute(f"SELECT movie_id, distance FROM {table} "
-                                "WHERE embedding MATCH ? AND k = ?", (v, pool)).fetchall()
+            if vs is not None and vs.has(table) and _as_list(q_vec) is not None:
+                rows = vs.knn_l2(table, q_vec, pool)
+            else:
+                rows = conn.execute(f"SELECT movie_id, distance FROM {table} "
+                                    "WHERE embedding MATCH ? AND k = ?", (v, pool)).fetchall()
         except Exception:
             continue   # index not built yet
         for mid, dist in rows:
             if mid not in best or dist < best[mid]:
                 best[mid] = dist
+    for mid, dist in wiki_knn(conn, q_vec, pool):    # v2: Wikipedia passages
+        if mid not in best or dist < best[mid]:
+            best[mid] = dist
     return sorted(best.items(), key=lambda x: x[1])[:pool]
 
 
@@ -630,12 +997,70 @@ RERANK_N = int(_os_r.environ.get("RERANK_N", "50"))
 # question is over GUESS_MAX_DISTANCE; the re-ranker reads its plot and decides.
 RERANK_CHARS = int(_os_r.environ.get("RERANK_CHARS", "400"))
 GUESS_WIDE = _os_r.environ.get("GUESS_WIDE", "1") != "0"
-DESCRIBE_POOL = 100          # vector pool per list for descriptions when HYDE/HYBRID
+# v2 E7: RERANK_SECOND=0 stops the second re-rank call (the next 50 films down the
+# list) when the first call picks nothing. Each call reads ~6k tokens, so on hard
+# descriptions the second look can double the re-rank time.
+# E8 (29 Sep): 0 = default. Tune and check passes identical with and without it; it only
+# ever doubled the re-rank time (~10 s) on the rare question where the first call picked nothing.
+RERANK_SECOND = _os_r.environ.get("RERANK_SECOND", "0") != "0"
+# v2 E8: NUM_BATCH = how many prompt tokens Ollama reads per step (Ollama's default is 512).
+# A bigger batch reads long prompts (the re-ranker's ~6k tokens, the planner's ~1.5k)
+# faster on the GPU; what the model writes should not change. Every movie-buff call must
+# use the SAME value - Ollama reloads the model whenever num_batch changes between calls -
+# so chat.py and web/pipeline.py take their options from llm_options() too.
+# 0 (default) = Ollama's default.
+NUM_BATCH = int(_os_r.environ.get("NUM_BATCH", "0"))
+
+
+def llm_options(opts=None):
+    """Ollama options for a chat call, plus num_batch when NUM_BATCH is set."""
+    out = dict(opts or {})
+    if NUM_BATCH:
+        out["num_batch"] = NUM_BATCH
+    return out
+
+
+# v2 E8: where each model call's time goes, from Ollama's own counters (prompt reading
+# vs. writing, in ms and tokens), plus the re-ranker's listing build (Wikipedia passage
+# lookups for ~50 films). Summed per retrieve() call and copied into trace["llm"].
+# Replayed (cached) calls carry no counters, so only --no-cache runs fill it.
+_LLM_STATS = {}
+
+
+def _note_llm(name, r=None, build_ms=None):
+    try:
+        st = _LLM_STATS.setdefault(name, {"calls": 0})
+        if build_ms is not None:
+            st["build_ms"] = st.get("build_ms", 0) + round(build_ms)
+            return
+        get = r.get if hasattr(r, "get") else (lambda k, d=None: getattr(r, k, d))
+        vals = {"prompt_tokens": get("prompt_eval_count"), "prompt_ms": get("prompt_eval_duration"),
+                "out_tokens": get("eval_count"), "out_ms": get("eval_duration"),
+                "load_ms": get("load_duration")}
+        if all(v is None for v in vals.values()):
+            return
+        st["calls"] += 1
+        for k, v in vals.items():
+            if v is not None:
+                v = v / 1e6 if k.endswith("_ms") else v      # Ollama reports nanoseconds
+                st[k] = round(st.get(k, 0) + v)
+    except Exception:       # timing must never break a search
+        pass
+
+
+DESCRIBE_POOL = 100         # vector pool per list for descriptions when HYDE/HYBRID
 RRF_K = 60
 SWITCHES = {"RERANK_CAP": RERANK_CAP, "SOFT_FILTERS": SOFT_FILTERS,
             "SOFT_FIT_SLOTS": SOFT_FIT_SLOTS, "UNKNOWN_FILM": UNKNOWN_FILM,
             "MULTI_FILM": MULTI_FILM, "HYDE": HYDE, "HYBRID": HYBRID, "RERANK_N": RERANK_N,
-            "RERANK_CHARS": RERANK_CHARS, "GUESS_WIDE": GUESS_WIDE}
+            "RERANK_CHARS": RERANK_CHARS, "GUESS_WIDE": GUESS_WIDE,
+            "WIKI": WIKI, "WIKI_KW": WIKI_KW, "WIKI_KINDS": ",".join(WIKI_KINDS),
+            "WIKI_Q": WIKI_Q, "WIKI_QSTYLES": ",".join(WIKI_QSTYLES), "WIKI_EXACT": WIKI_EXACT, "RERANK": _os_w.environ.get("RERANK", "auto"),
+            "RERANK_AGREE": RERANK_AGREE, "RERANK_GAP": RERANK_GAP, "RERANK_ENGINE": RERANK_ENGINE,
+            "RRF_WEIGHTS": RRF_WEIGHTS, "RRF_K": RRF_K_ENV,
+            "RERANK_TEXT": RERANK_TEXT, "RERANK_WIKI_CHARS": RERANK_WIKI_CHARS,
+            "RERANK_SECOND": RERANK_SECOND, "NUM_BATCH": NUM_BATCH,
+            "WIKI_PASSAGE_FAST": WIKI_PASSAGE_FAST, "VEC_MEM": VEC_MEM}
 
 _STOP = set("""a about above after again against all am an and any are as at be because been
 before being below between both but by can could did do does doing down during each few for
@@ -650,6 +1075,15 @@ also maybe probably pretty get got know dont didnt cant think believe years year
 _FTS_OK = None
 
 
+def _fts_query(text):
+    """The question's content words as an FTS5 OR query ("" if none)."""
+    words = []
+    for w in _re.findall(r"[a-z0-9]+", normalize(text)):
+        if len(w) >= 3 and w not in _STOP and w not in words:
+            words.append(w)
+    return " OR ".join(f'"{w}"' for w in words[:40])
+
+
 def keyword_ranking(conn, text, n=100):
     """Film ids by SQLite FTS5 keyword match (bm25), best first. [] if the
     movies_fts index hasn't been built (python build_fts.py)."""
@@ -659,13 +1093,9 @@ def keyword_ranking(conn, text, n=100):
             "SELECT 1 FROM sqlite_master WHERE name = 'movies_fts'").fetchone())
     if not _FTS_OK:
         return []
-    words = []
-    for w in _re.findall(r"[a-z0-9]+", normalize(text)):
-        if len(w) >= 3 and w not in _STOP and w not in words:
-            words.append(w)
-    if not words:
+    match = _fts_query(text)
+    if not match:
         return []
-    match = " OR ".join(f'"{w}"' for w in words[:40])
     try:
         return [r[0] for r in conn.execute(
             "SELECT rowid FROM movies_fts WHERE movies_fts MATCH ? "
@@ -678,6 +1108,61 @@ def embed_document(text):
     """A guessed plot is embedded like a film record (no query prefix)."""
     import ollama
     return ollama.embed(model=EMBED_MODEL, input=[text])["embeddings"][0]
+
+
+_CROSS = None
+
+
+def cross_scores(question, docs):
+    """Cross-encoder relevance scores for (question, doc) pairs; higher = better.
+    Loaded once per process. Falls back to CPU if the GPU is out of memory."""
+    global _CROSS
+    import torch
+    if _CROSS is None:
+        from sentence_transformers import CrossEncoder
+        dev = RERANK_CROSS_DEVICE or ("cuda" if torch.cuda.is_available() else "cpu")
+        try:
+            _CROSS = CrossEncoder(RERANK_CROSS_MODEL, max_length=1024, device=dev)
+            if dev == "cuda":
+                _CROSS.model.half()
+        except RuntimeError as e:      # GPU full (movie-buff is ~19 GB of 23): use the CPU
+            if "out of memory" not in str(e).lower():
+                raise
+            torch.cuda.empty_cache()
+            _CROSS = CrossEncoder(RERANK_CROSS_MODEL, max_length=1024, device="cpu")
+    pairs = [(question, d) for d in docs]
+    if "qwen3-reranker" in RERANK_CROSS_MODEL.lower():
+        # Qwen3-Reranker is an instruction-following yes/no judge; it expects its chat
+        # template around the query and the document (as on the model card).
+        pre = ("<|im_start|>system\nJudge whether the Document meets the requirements based on the "
+               "Query and the Instruct provided. Note that the answer can only be \"yes\" or \"no\"."
+               "<|im_end|>\n<|im_start|>user\n")
+        suf = "<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"
+        pairs = [(f"{pre}<Instruct>: {RERANK_CROSS_INSTRUCT}\n<Query>: {question}\n",
+                  f"<Document>: {d}{suf}") for d in docs]
+    try:
+        out = _CROSS.predict(pairs, batch_size=8, show_progress_bar=False)
+    except RuntimeError as e:          # CUDA out of memory with movie-buff loaded: use the CPU
+        if "out of memory" not in str(e).lower():
+            raise
+        from sentence_transformers import CrossEncoder
+        del _CROSS
+        torch.cuda.empty_cache()
+        _CROSS = CrossEncoder(RERANK_CROSS_MODEL, max_length=1024, device="cpu")
+        out = _CROSS.predict(pairs, batch_size=8, show_progress_bar=False)
+    return [float(x) for x in out]
+
+
+def rrf_named(named):
+    """Weighted reciprocal rank fusion over [(name, ranking)] (RRF_WEIGHTS, RRF_K)."""
+    score = {}
+    for name, ranking in named:
+        w = RRF_WEIGHTS.get(name, 1.0)
+        if not w:
+            continue
+        for rank, mid in enumerate(ranking, 1):
+            score[mid] = score.get(mid, 0.0) + w / (RRF_K_ENV + rank)
+    return sorted(score, key=lambda m: -score[m])
 
 
 def rrf(*rankings):
@@ -701,6 +1186,8 @@ def rerank(question, conn, q_vec, current_hits, trace=None, keep_ids=(), filters
     ranked: current_hits are already in the order to use (fused ranking), not
     to be re-sorted by distance. exclude_ids: films shown in a first look.
     Returns (hits, picked titles). Hits are unchanged if the model picks nothing."""
+    import time as _tb
+    _t_build = _tb.perf_counter()
     n_show = RERANK_N if RERANK_CAP else RERANK_POOL
     near = [(m, d) for m, d in knn_multi(conn, q_vec, n_show) if d <= MAX_DISTANCE]
     exclude = set(exclude_ids)
@@ -760,13 +1247,80 @@ def rerank(question, conn, q_vec, current_hits, trace=None, keep_ids=(), filters
         trace["rerank_in"] = [(mid, row[0], row[1], d) for mid, d, row in cands]
     if len(cands) < 2:
         return current_hits, []
-    listing = "\n".join(f"{i}. {t} ({(y or '')[:4]}, {v or 0:,} votes): {o[:RERANK_CHARS if RERANK_CAP else RERANK_PLOT_CHARS]}"
-                        for i, (_, _, (t, y, o, v)) in enumerate(cands, 1))
+    lim = RERANK_CHARS if RERANK_CAP else RERANK_PLOT_CHARS
+
+    def shown(mid, overview):
+        # v2 RERANK_TEXT: the Wikipedia passage that matched, so the re-ranker can
+        # see the scene the description remembers (TMDB overviews rarely have it).
+        if RERANK_TEXT == "tmdb" or not _wiki_has(conn, "vec"):
+            return overview[:lim]
+        wp = wiki_passage(conn, mid, q_vec)
+        if not wp:
+            return overview[:lim]
+        passage = _clip(wp[1], RERANK_WIKI_CHARS)
+        return passage if RERANK_TEXT == "wiki" else f"{_clip(overview, 200)} | Wikipedia: {passage}"
+
+    texts = [shown(mid, o) for mid, _, (_t, _y, o, _v) in cands]
+
+    if RERANK_ENGINE in ("cross", "cross_llm"):
+        # v2: cross-encoder over title + TMDB overview + the Wikipedia passage closest
+        # to the question. "cross": its top 3 are the picks. "cross_llm": its top
+        # RERANK_CROSS_KEEP go on to the LLM re-ranker below (a much shorter prompt).
+        import time as _tc
+        t0 = _tc.perf_counter()
+        docs = []
+        for mid, _d, (t, y, o, _v) in cands:
+            wp = wiki_passage(conn, mid, q_vec) if _wiki_has(conn, "vec") else None
+            body = f"{_clip(o, 300)} {wp[1] if wp else ''}"
+            docs.append(_clip(f"{t} ({(y or '')[:4]}). {body}", RERANK_CROSS_CHARS))
+        try:
+            sc = cross_scores(question, docs)
+        except Exception as e:  # noqa: BLE001  (package missing, download failed...)
+            sc = None
+            if trace is not None:
+                trace["cross_error"] = str(e)[:200]
+        if sc is not None:
+            order_i = sorted(range(len(cands)), key=lambda i: -sc[i])
+            if trace is not None:
+                trace["cross_ms"] = round((_tc.perf_counter() - t0) * 1000)
+            if RERANK_ENGINE == "cross":
+                picked = [cands[i] for i in order_i[:3]]
+                ids = {c[0] for c in picked}
+                if trace is not None:
+                    trace["rerank_out"] = [(mid, row[0], row[1], d) for mid, d, row in picked]
+                front = hydrate(conn, [(mid, d) for mid, d, _ in picked])
+                for h in front:
+                    h["_picked"] = True
+                return front + [h for h in current_hits if h["id"] not in ids], [c[2][0] for c in picked]
+            keep = order_i[:RERANK_CROSS_KEEP]
+            cands = [cands[i] for i in keep]
+            texts = [texts[i] for i in keep]
+
+    def make_listing(n):
+        return "\n".join(f"{i}. {t} ({(y or '')[:4]}, {v or 0:,} votes): {texts[i - 1]}"
+                          for i, (_mid, _, (t, y, o, v)) in enumerate(cands[:n], 1))
+    # v2: stay inside the model's context (movie-buff num_ctx 8192 tokens, ~4 chars
+    # each). Past RERANK_MAX_CHARS, Ollama would silently cut the START of the
+    # prompt - the instructions and the description - so drop the lowest-ranked
+    # candidates instead.
+    n_keep = len(cands)
+    listing = make_listing(n_keep)
+    while n_keep > 2 and len(listing) + len(question) > RERANK_MAX_CHARS:
+        n_keep -= 1
+        listing = make_listing(n_keep)
+    if n_keep < len(cands):
+        cands = cands[:n_keep]
+        if trace is not None:
+            trace["rerank_in"] = trace.get("rerank_in", [])[:n_keep]
+            trace["rerank_trimmed"] = True
+    if trace is not None:
+        trace["rerank_chars"] = len(listing)
+    _note_llm("rerank", build_ms=(_tb.perf_counter() - _t_build) * 1000)
     try:
         import ollama
         r = ollama.chat(
             model=GUESS_MODEL, think=False,
-            options={"num_predict": 16, "temperature": 0},
+            options=llm_options({"num_predict": 16, "temperature": 0}),
             messages=[
                 {"role": "system", "content":
                     "You match film descriptions to plot summaries. Read the numbered films "
@@ -775,6 +1329,7 @@ def rerank(question, conn, q_vec, current_hits, trace=None, keep_ids=(), filters
                     "NONE. No other text. When several fit about equally, prefer the better-known film (more votes) - people describing a film usually mean the famous one."},
                 {"role": "user", "content": f"Description: {question}\n\nFilms:\n{listing}"},
             ])
+        _note_llm("rerank", r)
         text = (r["message"]["content"] or "").strip()
     except Exception:
         return current_hits, []
@@ -879,25 +1434,74 @@ Recent films: (none)
 Question: something like Inception but lighter
 {"intent":"recommend","films":[{"title":"Inception","year":2010}],"guesses":[],"search_query":"lighter films similar to Inception (2010)","guessed_plot":""}"""
 
+# v2 PLAN_FAST=1: for descriptions ("identify") the planner no longer copies the whole
+# question into search_query (it is never used - the search uses the question itself),
+# and the guessed plot is 1-2 short sentences. Long TREC questions made the plan run
+# past num_predict (400 tokens), so its JSON was cut off and the regex path took over.
+# E6 (28 Sep): planner 8.2 -> 5.3 s on TREC questions; tune TREC 23 -> 21/60 (within the
+# 1-2 question noise band), check and own questions unchanged. Default on; PLAN_FAST=0 = old prompt.
+PLAN_FAST = _os_q.environ.get("PLAN_FAST", "1") == "1"
+SWITCHES["PLAN_FAST"] = PLAN_FAST
+SWITCHES["QUERY_MODEL"] = QUERY_MODEL
+if PLAN_FAST:
+    _ID_Q = "a kid at a boarding school spends one night trapped in the library with a ghost"
+    _SQ_OLD = ("search_query: the question rewritten so it makes sense on its own, with any "
+               "reference replaced by the film's title and year.")
+    _SQ_NEW = _SQ_OLD + (' For "identify", reply "" - the search uses the question itself.')
+    for _name in ("PLAN_SYSTEM", "PLAN_SYSTEM_HYDE"):
+        _p = globals()[_name].replace(_SQ_OLD, _SQ_NEW)
+        _p = _p.replace(f'"guesses":[],"search_query":"{_ID_Q}"', '"guesses":[],"search_query":""')
+        _p = _p.replace("only for \"identify\" - 2-3 sentences", "only for \"identify\" - 1-2 short sentences (under 40 words)")
+        _p = _p.replace("A lonely boy at a strict boarding school is locked in the old library overnight. "
+                        "There he meets the ghost of a former student who needs his help to uncover "
+                        "what happened to her decades ago.",
+                        "A lonely boy locked in his boarding school's library overnight meets the ghost "
+                        "of a former student who needs his help.")
+        globals()[_name] = _p
+
 _ARTICLES = {"the", "a", "an", "of", "and"}
 _NORM_TITLES = None
 
 
+# v2 E9: PLAN_ROUTE=1 - a two-step planner. ROUTE_MODEL (llama3.2, ~1.3 s) reads every question
+# first; its plan is used as-is unless it says "identify" (a plot description), and only then
+# does QUERY_MODEL (movie-buff, ~5 s) write the plan with the guessed plot. E8: llama3.2 as the
+# only planner cut the planner 5.0 -> 1.3 s but lost 4 tune / 4 check questions, all
+# descriptions; named-film and recommendation questions lost nothing. Both calls use the same
+# prompt as before, so an evaluation replays them from the call cache. 0 = one planner.
+PLAN_ROUTE = _os_q.environ.get("PLAN_ROUTE", "0") == "1"
+ROUTE_MODEL = _os_q.environ.get("ROUTE_MODEL", "llama3.2")
+SWITCHES["PLAN_ROUTE"] = PLAN_ROUTE
+
+
 def understand(question, recent_titles=None):
     """The model's reading of the question, or None (-> old regex path)."""
+    if PLAN_ROUTE and ROUTE_MODEL != QUERY_MODEL:
+        first = _understand_with(question, recent_titles, ROUTE_MODEL, "route")
+        if first is not None and first["intent"] != "identify":
+            first["_planner"] = ROUTE_MODEL
+            return first
+    plan = _understand_with(question, recent_titles, QUERY_MODEL, "plan")
+    if plan is not None:
+        plan["_planner"] = QUERY_MODEL
+    return plan
+
+
+def _understand_with(question, recent_titles, model, stat):
     recent = "  ".join(f"{i}. {t}" for i, t in enumerate(recent_titles or [], 1)) or "(none)"
     user = f"Recent films: {recent}\nQuestion: {question}"
     try:
         import ollama
         hyde = globals().get("HYDE", False)
-        kw = dict(model=QUERY_MODEL, think=False,
-                  options={"num_predict": 400 if hyde else 220, "temperature": 0},
+        kw = dict(model=model, think=False,
+                  options=llm_options({"num_predict": 400 if hyde else 220, "temperature": 0}),
                   messages=[{"role": "system", "content": PLAN_SYSTEM_HYDE if hyde else PLAN_SYSTEM},
                             {"role": "user", "content": user}])
         try:
             r = ollama.chat(format=PLAN_SCHEMA_HYDE if hyde else PLAN_SCHEMA, **kw)
         except TypeError:          # older ollama client: no schema support
             r = ollama.chat(format="json", **kw)
+        _note_llm(stat, r)
         raw = _json.loads(r["message"]["content"])
     except Exception:
         return None
@@ -976,12 +1580,17 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
     timings. Used by stage_scores.py; None (the default) changes nothing."""
     import time as _tt
     _t_start = _tt.perf_counter()
+    _WIKI_CACHE.clear()
+    _LLM_STATS.clear()
+    _PASSAGE_STATS.update(fast=0, lookup=0, ms=0.0)
     conn = open_db(db_path)
     try:
         plan = understand(question, recent_titles) if USE_QUERY_LLM else None
         if trace is not None:
             trace["plan_ms"] = round((_tt.perf_counter() - _t_start) * 1000)
             trace["path"] = f"plan:{plan['intent']}" if plan else "regex"
+            if plan:
+                trace["planner"] = plan.get("_planner")
         if plan:
             # The model read the question (and what the last answer was about).
             # A plot description never gets a subject from its words - that is
@@ -1033,6 +1642,7 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
         _t_search = _tt.perf_counter()
         q_vec = embed_query(search_text)
         fused = bool(describing and not recommending and (HYDE or HYBRID))
+        gate_confident = False       # set by the fused search below (RERANK=auto)
         if fused:
             # Changes 10 + 11: the question's vector list, the guessed plot's
             # vector list and the keyword list, merged by reciprocal rank fusion.
@@ -1041,29 +1651,59 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
             q_list = knn_multi(conn, q_vec, pool)
             dist = dict(q_list)
             lists = [[m for m, _ in q_list]]
+            names = ["q"]
             gp = (plan or {}).get("guessed_plot") if HYDE else ""
             if gp:
                 h_list = knn_multi(conn, embed_document(gp), pool)
-                lists.append([m for m, _ in h_list])
+                lists.append([m for m, _ in h_list]); names.append("hyde")
                 if trace is not None:
                     trace["guessed_plot"] = gp
                     trace["pool_hyde"] = [m for m, _ in h_list[:50]]
+            wq_list = wiki_question_ranking(conn, q_vec, pool)    # v2: generated descriptions
+            if wq_list:
+                lists.append(wq_list); names.append("wq")
+                if trace is not None:
+                    trace["pool_wiki_q"] = wq_list[:50]
             if HYBRID:
                 k_list = keyword_ranking(conn, question, pool)
-                lists.append(k_list)
+                lists.append(k_list); names.append("kw")
                 if trace is not None:
                     trace["pool_keyword"] = k_list[:50]
-            order = rrf(*lists)[:pool * 2]
+                wk_list = wiki_keyword_ranking(conn, question, pool)   # v2
+                if wk_list:
+                    lists.append(wk_list); names.append("wkw")
+                    if trace is not None:
+                        trace["pool_wiki_keyword"] = wk_list[:50]
+            order = (rrf_named(list(zip(names, lists))) if (RRF_WEIGHTS or RRF_K_ENV != RRF_K)
+                     else rrf(*lists))[:pool * 2]
             for m in order:
                 if m not in dist:
                     dist[m] = distance_to(conn, m, q_vec)
             hits = hydrate(conn, [(m, dist[m]) for m in order])
             if trace is not None:
                 trace["pool_q"] = [m for m, _ in q_list[:50]]
+            # v2 confidence gate (RERANK=auto): is the fused #1 film also near the top of
+            # the individual search channels? Same features gate_sim.py simulated.
+            if hits:
+                chans = [[m for m, _ in q_list]]
+                if gp:
+                    chans.append([m for m, _ in h_list])
+                chans += [wq_list, (k_list if HYBRID else []), (wk_list if HYBRID else []),
+                          [m for m, _ in wiki_knn(conn, q_vec, pool)]]
+                top = hits[0]["id"]
+                agree = sum(1 for c in chans if top in c[:3])
+                d1 = hits[0]["distance"]
+                d2 = hits[1]["distance"] if len(hits) > 1 else None
+                gap = (d2 - d1) if (d1 is not None and d2 is not None) else 0.0
+                gate_confident = agree >= RERANK_AGREE and (RERANK_GAP is None or gap >= RERANK_GAP)
+                if trace is not None:
+                    trace["gate"] = {"agree": agree, "gap": round(gap, 4), "confident": gate_confident}
         else:
             hits = hydrate(conn, knn_multi(conn, q_vec, pool))
         if trace is not None:   # stage 1: the vector pool, closest first
             trace["search_ms"] = round((_tt.perf_counter() - _t_search) * 1000)
+            if _wiki_has(conn, "vec"):   # v2: which films the Wikipedia passages found (cached)
+                trace["pool_wiki"] = [m for m, _ in wiki_knn(conn, q_vec, pool)[:50]]
             trace["pool_size"] = pool
             trace["pool"] = _snap(hits)
         notes = {"pool": len(hits), "filters": filters,
@@ -1147,7 +1787,12 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
         # Re-rank tip-of-the-tongue questions: the chat model reads ~30 candidate
         # plots and chooses. RERANK=0 switches it off for A/B evals.
         import os as _os
-        if (_os.environ.get("RERANK", "1") != "0"
+        rr_mode = _os.environ.get("RERANK", "auto")     # 1 = always, 0 = never, auto = gate (default)
+        if rr_mode == "auto" and gate_confident and describing:
+            notes["rerank_skipped"] = "search confident"
+            if trace is not None:
+                trace["rerank_skipped"] = True
+        if (rr_mode != "0" and not (rr_mode == "auto" and gate_confident)
                 and subject is None and not recommending and not resolved_from
                 and describing):
             import time as _time
@@ -1158,7 +1803,7 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
                          prefer=filters if soft else None, ranked=fused)
             first_look = {}
             hits, picked = rerank(question, conn, q_vec, hits, trace=first_look, **rr_kw)
-            if not picked and HYDE and fused:
+            if not picked and HYDE and fused and RERANK_SECOND:
                 # Change 10: a second look at the next candidates down the list.
                 shown = [c[0] for c in first_look.get("rerank_in", [])]
                 second = {}
@@ -1296,9 +1941,24 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
 
         hits = hits[:want]
         notes["returned"] = len(hits)
+        if _wiki_has(conn, "vec"):
+            # v2: Wikipedia intro + the passage closest to the question, for the
+            # answer (chat.py ANSWER_WIKI). Top 3 only; point lookups, a few ms.
+            for h in hits[:3]:
+                h["wiki_intro"] = wiki_intro(conn, h["id"])
+                wp = wiki_passage(conn, h["id"], q_vec)
+                if wp:
+                    h["wiki_passage"], h["wiki_section"] = wp[1], wp[2]
+                row = conn.execute("SELECT url FROM wiki.chunks WHERE film_id = ? LIMIT 1",
+                                   (h["id"],)).fetchone()
+                if row:
+                    h["wiki_url"] = row[0]
         if trace is not None:   # stage 6: what the answer model receives
             trace["final"] = _snap(hits)
             trace["final_distance"] = [h["distance"] for h in hits]
+            trace["llm"] = {k: dict(v) for k, v in _LLM_STATS.items()}
+            trace["passages"] = {"fast": _PASSAGE_STATS["fast"], "lookup": _PASSAGE_STATS["lookup"],
+                                 "ms": round(_PASSAGE_STATS["ms"])}
             trace["total_ms"] = round((_tt.perf_counter() - _t_start) * 1000)
         if explain:
             for h in hits:

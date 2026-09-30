@@ -1,0 +1,81 @@
+E1 summary  Sun Sep 27 11:19:40 PM EDT 2026
+
+##### TUNE: A = v1 (WIKI=0), B = Wikipedia passages (WIKI=1)
+A = results/stage_scores_2026-09-27_tune_v1base.json
+B = results/stage_scores_2026-09-27_tune_wiki.json
+
+group        A pass   B pass
+OWN-TUNE      52/55    52/55 
+TREC-TUNE     15/60    18/60 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.78     0.85    0.35    0.43    0.56    0.59
+rerank_in         0.57     0.68    0.35    0.36    0.51    0.55
+rerank_out        0.50     0.52    0.50    0.49    0.50    0.52
+after_cutoff      0.75     0.79    0.54    0.54    0.58    0.62
+final             0.57     0.60    0.56    0.55    0.57    0.60
+
+Average ms          A        B
+plan_ms             0        2
+search_ms         520     1986
+rerank_ms         147     6665
+total_ms          654     7545
+
+Gained (5): trec-dev-832, trec-dev-1072, trec-dev-868, trec-dev-735, trec-dev-271
+Lost   (2): trec-dev-1095, trec-dev-676
+  trec-dev-1095: re-ranker saw it but chose others: #39 of 50, picked Electric Dreams (1984, 0.861), Ex Machina (2015, 0.853), Primer (2004, 0.813)
+  trec-dev-676: re-ranker saw it but chose others: #9 of 50, picked The Green Slime (1968, 0.805), Them! (1954, 0.804), The Deadly Spawn (1983, 0.793)
+
+Expected film in the search pool: A 87  B 95  (newly found by B: 9)
+
+##### CHECK
+A = results/stage_scores_2026-09-27_check_v1base.json
+B = results/stage_scores_2026-09-27_check_wiki.json
+
+group        A pass   B pass
+OWN-CHECK      8/9      8/9  
+TREC-CHECK    11/24    10/24 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.76     0.85    0.18    0.30    0.48    0.52
+rerank_in         0.61     0.71    0.16    0.16    0.39    0.45
+rerank_out        0.52     0.48    0.39    0.39    0.52    0.48
+after_cutoff      0.70     0.79    0.42    0.42    0.61    0.58
+final             0.58     0.55    0.42    0.42    0.58    0.55
+
+Average ms          A        B
+plan_ms          1256        2
+search_ms         590     2281
+rerank_ms         994     8113
+total_ms         2791     9923
+
+Gained (0): -
+Lost   (1): trec-dev-512
+  trec-dev-512: re-ranker saw it but chose others: #30 of 50, picked Ironclad (2011, 0.798), Kingdom of Heaven (2005, 0.839), Robin Hood (2010, 0.870)
+
+Expected film in the search pool: A 25  B 28  (newly found by B: 4)
+
+##### SPEED (no cache, 20 tune questions)
+A = results/stage_scores_2026-09-27_tune_only_time_v1.json
+B = results/stage_scores_2026-09-27_tune_only_time_wiki.json
+
+group        A pass   B pass
+OWN-TUNE      20/20    20/20 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              1.00     1.00    0.67    0.78    1.00    1.00
+rerank_in         1.00     1.00    1.00    1.00    1.00    1.00
+rerank_out        1.00     0.90    1.00    0.90    1.00    0.90
+after_cutoff      1.00     1.00    0.89    0.89    1.00    1.00
+final             1.00     1.00    1.00    0.94    1.00    1.00
+
+Average ms          A        B
+plan_ms          7435     7216
+search_ms         603     1610
+rerank_ms        6262     4947
+total_ms        11156    11240
+
+Gained (0): -
+Lost   (0): -
+
+Expected film in the search pool: A 18  B 18  (newly found by B: 0)

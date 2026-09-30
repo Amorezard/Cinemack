@@ -19,6 +19,8 @@ from pathlib import Path
 
 MOCK = os.environ.get("MOVIE_BUFF_MOCK") == "1"
 
+import site_cache   # results/site_cache.sqlite: reused searches and answers (web only)
+
 # This file lives in ~/movie-buff/rag/web/. chat.py, retrieve.py and movies.db
 # live one level up, and retrieve() opens "movies.db" by relative path, so the
 # working directory has to be the rag folder.
@@ -56,15 +58,28 @@ else:
     MODEL = "movie-buff (mock)"
 
 
+def _opts(extra=None):
+    """Ollama options for movie-buff: the same num_batch (NUM_BATCH) as retrieve.py's
+    planner and re-ranker calls, so Ollama never reloads the model between them."""
+    lo = getattr(chat, "llm_options", None) if not MOCK else None
+    return lo(extra) if lo else dict(extra or {})
+
+
 # ------------------------------------------------------------------ pipeline
 
 def prepare(question, recent_titles):
     """Retrieval + prompt building. Returns (prompt, hits)."""
     if MOCK:
         return _mock_prepare(question)
+    got = site_cache.get_retrieval(question, recent_titles)
+    if got:                  # asked before: skip the planner, search and re-ranker
+        return got
     if _BUILD_TAKES_RECENT:
-        return chat.build_prompt(question, recent_titles=recent_titles or None)
-    return chat.build_prompt(question)
+        prompt, hits = chat.build_prompt(question, recent_titles=recent_titles or None)
+    else:
+        prompt, hits = chat.build_prompt(question)
+    site_cache.put_retrieval(question, recent_titles, prompt, hits)
+    return prompt, hits
 
 
 def next_recent_titles(hits, previous):
@@ -82,7 +97,7 @@ def stream_answer(messages, think, cancel):
         return
 
     stream = ollama.chat(model=MODEL, messages=messages, stream=True,
-                         think=think, keep_alive=KEEP_ALIVE)
+                         think=think, keep_alive=KEEP_ALIVE, options=_opts())
     try:
         for chunk in stream:
             if cancel.is_set():
@@ -123,6 +138,8 @@ def steps(hits):
     """retrieve()'s notes, turned into short lines for the page's Details view."""
     notes = (hits[0].get("_notes") if hits else None) or {}
     out = []
+    if hits and hits[0].get("_cached"):
+        out.append("Reused the search from an earlier question with the same wording")
     if notes.get("followup_resolved_to"):
         out.append(f'Follow-up: read "it" as {notes["followup_resolved_to"]}')
     f = notes.get("filters") or {}
@@ -222,7 +239,7 @@ def prewarm():
     try:
         ollama.embed(model=EMBED_MODEL, input=["warmup"], keep_alive=KEEP_ALIVE)
         ollama.chat(model=MODEL, messages=[{"role": "user", "content": "hi"}],
-                    options={"num_predict": 1}, keep_alive=KEEP_ALIVE)
+                    options=_opts({"num_predict": 1}), keep_alive=KEEP_ALIVE)
         print("[movie-buff] models warm", flush=True)
     except Exception as e:
         print(f"[movie-buff] warmup failed: {e}", flush=True)

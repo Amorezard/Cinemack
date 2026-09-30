@@ -1,0 +1,50 @@
+# Movie Buff settings.
+#
+# Each key is the name of an environment variable the code reads. A variable set in the shell
+# wins over this file, so one-off experiments still work the old way:
+#     RERANK_N=30 python stage_scores.py --split tune --tag try30
+# `python mb.py settings` shows every value in effect and where it came from.
+# `python mb.py check` checks that the models, databases and vector cache match these settings.
+#
+# The values below are the settings locked on 29-30 Sep 2026 (experiments E1-E9), identical to
+# the defaults written in the code. Change them here, not in the code.
+
+models:
+  ANSWER_MODEL: movie-buff          # writes answers, guesses titles, re-ranks (Ollama model name)
+  # QUERY_MODEL: movie-buff         # reads the question first; defaults to ANSWER_MODEL
+  EMBED_MODEL: mxbai-embed-large    # must be the model that built the vectors (mb.py check)
+  ROUTE_MODEL: llama3.2             # only used when PLAN_ROUTE=1
+  KEEP_ALIVE: 30m                   # how long Ollama keeps the models loaded after a question
+
+search:
+  WIKI: 1                           # search Wikipedia passages (E1)
+  WIKI_KW: 1                        # keyword search over Wikipedia text
+  WIKI_KINDS: plot,lead             # passage kinds searched by vector
+  WIKI_Q: rrf                       # generated descriptions as their own ranked list (E3)
+  WIKI_QSTYLES: short,scene,fuzzy,childhood
+  WIKI_EXACT: 0
+  WIKI_PASSAGE_FAST: 1
+  HYDE: 1                           # planner writes a guessed plot to search with (E3)
+  HYBRID: 1                         # keyword search over TMDB records
+  VEC_MEM: 1                        # in-memory vector search, same results, ~7x faster (E9)
+
+planner:
+  PLAN_FAST: 1                      # shorter planner output (E6)
+  PLAN_ROUTE: 0                     # two-step planner: lost 1 tune + 2 check, slower (E9)
+  NUM_BATCH: 0                      # 0 = Ollama default (E8)
+
+rerank:
+  RERANK: auto                      # 1 = always, 0 = never, auto = skip when the search is sure (E5)
+  RERANK_AGREE: 1
+  RERANK_GAP: 0.03
+  RERANK_ENGINE: llm                # the chat model re-ranks (cross-encoders lost, E6/E9)
+  RERANK_TEXT: wiki                 # re-ranker reads the Wikipedia passage (E4)
+  RERANK_WIKI_CHARS: 400
+  RERANK_N: 50                      # films shown to the re-ranker (E7, E9: trims all lost)
+  RERANK_SECOND: 0                  # (E8)
+
+answers:
+  ANSWER_WIKI: 1                    # answer prompt includes Wikipedia details (E5 judge)
+  ANSWER_WIKI_CHARS: 700
+  ANSWER_STRICT: 0                  # (E8)
+  ANSWER_STYLE: 0

@@ -1,0 +1,361 @@
+E8 summary  Tue Sep 29 01:34:55 PM EDT 2026   NB=2048
+
+##### SPEED BUDGET (no cache): mean seconds per stage, and share of questions done in <= 5 s
+run                      n  plan search rerank  total median  <=5s 2nd look
+time_e8_base            20   5.0    2.3    7.9   15.3   17.6   0/20     0
+time_e8_nb              20   5.5    2.3    7.7   15.6   17.0   0/20     0
+time_e8_pslow           20   5.0    2.4    8.1   15.6   17.7   0/20     0
+time_e8_nosecond        20   4.9    2.3    8.0   15.3   17.6   0/20     0
+time_e8_qsmall          20   1.3    1.6    7.6   10.7   13.4   6/20     0
+time_e8_own_base        20   6.3    1.4    3.1   10.8    5.5  10/20     0
+time_e8_own_nb          20   5.9    1.3    2.8   10.0    5.4  10/20     0
+
+WHERE THE MODEL TIME GOES (mean per question that made the call; Ollama's own counters)
+run                    call      n calls build s read s read tok  tok/s write s out tok load s
+time_e8_base           plan     20  1.00    0.00   0.87      791    906    2.96      86   0.53
+time_e8_base           rerank   15  1.00    0.25   8.71     5476    629    0.29       7   0.55
+time_e8_nb             plan     20  1.00    0.00   1.42      791    555    2.95      87   0.43
+time_e8_nb             rerank   16  1.00    0.26   8.18     5469    668    0.33       8   0.46
+time_e8_pslow          plan     20  1.00    0.00   0.87      791    906    3.04      86   0.52
+time_e8_pslow          rerank   15  1.00    0.35   8.84     5476    620    0.30       7   0.55
+time_e8_nosecond       plan     20  1.00    0.00   0.78      791   1016    2.99      86   0.52
+time_e8_nosecond       rerank   15  1.00    0.25   8.83     5477    620    0.30       7   0.55
+time_e8_qsmall         plan     20  1.00    0.00   0.15      768   5222    0.76      63   0.42
+time_e8_qsmall         rerank   14  1.00    0.26   8.97     5571    621    0.29       7   0.53
+time_e8_own_base       plan     19  1.00    0.00   1.17      657    563    2.08      65   2.97
+time_e8_own_base       rerank    6  1.00    0.23   8.60     5287    615    0.24       4   0.55
+time_e8_own_nb         plan     19  1.00    0.00   1.21      657    545    2.09      65   2.50
+time_e8_own_nb         rerank    6  1.00    0.24   7.92     5282    667    0.20       4   0.47
+(load s > ~1 on the llama3.2 run = the models are swapping in and out of the GPU)
+
+PASSAGE PICKING (all questions): films answered from the search results vs looked up, and time
+time_e8_base           from search   510  looked up   300  mean  0.05 s per question
+time_e8_nb             from search   519  looked up   341  mean  0.06 s per question
+time_e8_pslow          from search     0  looked up   810  mean  0.14 s per question
+time_e8_nosecond       from search   511  looked up   299  mean  0.05 s per question
+time_e8_qsmall         from search   436  looked up   324  mean  0.06 s per question
+time_e8_own_base       from search   241  looked up    99  mean  0.01 s per question
+time_e8_own_nb         from search   244  looked up    96  mean  0.01 s per question
+
+##### TUNE: A = current defaults, B = NUM_BATCH=2048
+A = results/stage_scores_2026-09-28_tune_e6_planfast.json
+B = results/stage_scores_2026-09-29_tune_e8_nb.json
+
+group        A pass   B pass
+OWN-TUNE      53/55    54/55 
+TREC-TUNE     21/60    21/60 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.86     0.86    0.36    0.36    0.62    0.63
+rerank_in         0.64     0.63    0.27    0.27    0.49    0.51
+rerank_out        0.51     0.52    0.49    0.51    0.51    0.52
+after_cutoff      0.81     0.81    0.59    0.60    0.67    0.68
+final             0.63     0.64    0.60    0.61    0.63    0.64
+
+Average ms          A        B
+plan_ms          4766     4868
+search_ms        1750     1898
+rerank_ms       10845     9752
+total_ms        12828    12542
+rerank_chars    21114    21111   (re-ranker prompt size; ~4 chars per token)
+
+Gained (3): u12, trec-dev-346, trec-dev-735
+Lost   (2): trec-dev-252, trec-dev-723
+  trec-dev-252: in the pool but beyond what the re-ranker sees: pool #81, re-ranker shown the top 50
+  trec-dev-723: re-ranker saw it but chose others: #4 of 50, picked The Toll (2021, 0.789), Animal (2014, 0.800), Ghostland (2018, 0.834)
+
+Expected film in the search pool: A 96  B 96  (newly found by B: 0)
+
+##### TUNE: A = current defaults, B = no second re-rank call
+A = results/stage_scores_2026-09-28_tune_e6_planfast.json
+B = results/stage_scores_2026-09-29_tune_e8_nosecond.json
+
+group        A pass   B pass
+OWN-TUNE      53/55    53/55 
+TREC-TUNE     21/60    21/60 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.86     0.86    0.36    0.36    0.62    0.62
+rerank_in         0.64     0.64    0.27    0.27    0.49    0.49
+rerank_out        0.51     0.51    0.49    0.49    0.51    0.51
+after_cutoff      0.81     0.81    0.59    0.59    0.67    0.67
+final             0.63     0.63    0.60    0.60    0.63    0.63
+
+Average ms          A        B
+plan_ms          4766        1
+search_ms        1750     1317
+rerank_ms       10845      166
+total_ms        12828     1399
+rerank_chars    21114    21114   (re-ranker prompt size; ~4 chars per token)
+
+Gained (0): -
+Lost   (0): -
+
+Expected film in the search pool: A 96  B 96  (newly found by B: 0)
+
+##### TUNE: A = current defaults, B = planner on llama3.2
+A = results/stage_scores_2026-09-28_tune_e6_planfast.json
+B = results/stage_scores_2026-09-29_tune_e8_qsmall.json
+
+group        A pass   B pass
+OWN-TUNE      53/55    50/55 
+TREC-TUNE     21/60    20/60 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.86     0.84    0.36    0.32    0.62    0.57
+rerank_in         0.64     0.58    0.27    0.19    0.49    0.44
+rerank_out        0.51     0.48    0.49    0.45    0.51    0.48
+after_cutoff      0.81     0.79    0.59    0.53    0.67    0.64
+final             0.63     0.60    0.60    0.54    0.63    0.60
+
+Average ms          A        B
+plan_ms          4766      964
+search_ms        1750     1620
+rerank_ms       10845    10816
+total_ms        12828     8817
+rerank_chars    21114    21205   (re-ranker prompt size; ~4 chars per token)
+
+Gained (3): trec-dev-665, trec-dev-735, trec-dev-834
+Lost   (7): u02, u03, u04, trec-dev-832, trec-dev-252, trec-dev-749, trec-dev-351
+  u02: re-ranker saw it but chose others: #40 of 50, picked Armageddon (1998, 0.772), Deep Impact (1998, 0.789)
+  u03: ranked too low to be sent: #12 after the cutoff, only 3 sent (or merged as a same-title version)
+  u04: in the pool but beyond what the re-ranker sees: pool #78, re-ranker shown the top 50
+  trec-dev-832: removed by the 0.90 distance cutoff: pool #61 at distance 0.914
+  trec-dev-252: in the pool but beyond what the re-ranker sees: pool #79, re-ranker shown the top 50
+  trec-dev-749: ranked too low to be sent: #17 after the cutoff, only 3 sent (or merged as a same-title version)
+  trec-dev-351: ranked too low to be sent: #5 after the cutoff, only 3 sent (or merged as a same-title version)
+
+Expected film in the search pool: A 96  B 94  (newly found by B: 0)
+
+##### CHECK: A = current defaults, B = NUM_BATCH=2048
+A = results/stage_scores_2026-09-28_check_e6_planfast.json
+B = results/stage_scores_2026-09-29_check_e8_nb.json
+
+group        A pass   B pass
+OWN-CHECK      8/9      8/9  
+TREC-CHECK    10/24     9/24 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.79     0.82    0.27    0.24    0.52    0.52
+rerank_in         0.75     0.71    0.12    0.14    0.50    0.57
+rerank_out        0.54     0.57    0.50    0.33    0.54    0.57
+after_cutoff      0.76     0.79    0.48    0.33    0.64    0.58
+final             0.55     0.52    0.45    0.33    0.55    0.52
+
+Average ms          A        B
+plan_ms          5171     5640
+search_ms        1902     2092
+rerank_ms       10947     9583
+total_ms        15062    13849
+rerank_chars    20966    20971   (re-ranker prompt size; ~4 chars per token)
+
+Gained (0): -
+Lost   (1): trec-dev-512
+  trec-dev-512: re-ranker saw it but chose others: #19 of 50, picked In the Name of the King 2: Two Worlds (2011, 0.855), In the Name of the King: A Dungeon
+
+Expected film in the search pool: A 26  B 27  (newly found by B: 1)
+
+##### CHECK: A = current defaults, B = no second re-rank call
+A = results/stage_scores_2026-09-28_check_e6_planfast.json
+B = results/stage_scores_2026-09-29_check_e8_nosecond.json
+
+group        A pass   B pass
+OWN-CHECK      8/9      8/9  
+TREC-CHECK    10/24    10/24 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.79     0.79    0.27    0.27    0.52    0.52
+rerank_in         0.75     0.75    0.12    0.12    0.50    0.50
+rerank_out        0.54     0.54    0.50    0.50    0.54    0.54
+after_cutoff      0.76     0.76    0.48    0.48    0.64    0.64
+final             0.55     0.55    0.45    0.45    0.55    0.55
+
+Average ms          A        B
+plan_ms          5171        1
+search_ms        1902     1430
+rerank_ms       10947      167
+total_ms        15062     1563
+rerank_chars    20966    20966   (re-ranker prompt size; ~4 chars per token)
+
+Gained (0): -
+Lost   (0): -
+
+Expected film in the search pool: A 26  B 26  (newly found by B: 0)
+
+##### CHECK: A = current defaults, B = planner on llama3.2
+A = results/stage_scores_2026-09-28_check_e6_planfast.json
+B = results/stage_scores_2026-09-29_check_e8_qsmall.json
+
+group        A pass   B pass
+OWN-CHECK      8/9      7/9  
+TREC-CHECK    10/24     7/24 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.79     0.76    0.27    0.24    0.52    0.42
+rerank_in         0.75     0.54    0.12    0.04    0.50    0.42
+rerank_out        0.54     0.42    0.50    0.38    0.54    0.42
+after_cutoff      0.76     0.76    0.48    0.36    0.64    0.55
+final             0.55     0.42    0.45    0.33    0.55    0.42
+
+Average ms          A        B
+plan_ms          5171     1168
+search_ms        1902     1555
+rerank_ms       10947    11233
+total_ms        15062    11001
+rerank_chars    20966    21241   (re-ranker prompt size; ~4 chars per token)
+
+Gained (1): trec-dev-492
+Lost   (5): u08, trec-dev-693, trec-dev-169, trec-dev-906, trec-dev-157
+  u08: ranked too low to be sent: #4 after the cutoff, only 3 sent (or merged as a same-title version)
+  trec-dev-693: in the pool but beyond what the re-ranker sees: pool #75, re-ranker shown the top 50
+  trec-dev-169: in the pool but beyond what the re-ranker sees: pool #111, re-ranker shown the top 50
+  trec-dev-906: ranked too low to be sent: #15 after the cutoff, only 3 sent (or merged as a same-title version)
+  trec-dev-157: ranked too low to be sent: #15 after the cutoff, only 3 sent (or merged as a same-title version)
+
+Expected film in the search pool: A 26  B 25  (newly found by B: 0)
+
+##### SPEED 20 TREC: A = tonight's defaults, B = NUM_BATCH=2048
+A = results/stage_scores_2026-09-29_tune_only_time_e8_base.json
+B = results/stage_scores_2026-09-29_tune_only_time_e8_nb.json
+
+group        A pass   B pass
+TREC-TUNE      6/20     5/20 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.75     0.75    0.10    0.05    0.30    0.30
+rerank_in         0.60     0.50    0.00    0.00    0.40    0.38
+rerank_out        0.40     0.31    0.40    0.31    0.40    0.31
+after_cutoff      0.70     0.70    0.30    0.25    0.40    0.35
+final             0.30     0.25    0.30    0.25    0.30    0.25
+
+Average ms          A        B
+plan_ms          4992     5478
+search_ms        2298     2265
+rerank_ms       10522     9677
+total_ms        15331    15614
+rerank_chars    20943    20932   (re-ranker prompt size; ~4 chars per token)
+
+Gained (0): -
+Lost   (1): trec-dev-252
+  trec-dev-252: in the pool but beyond what the re-ranker sees: pool #81, re-ranker shown the top 50
+
+Expected film in the search pool: A 15  B 15  (newly found by B: 0)
+
+##### SPEED 20 TREC: A = old passage lookups, B = tonight's defaults
+A = results/stage_scores_2026-09-29_tune_only_time_e8_pslow.json
+B = results/stage_scores_2026-09-29_tune_only_time_e8_base.json
+
+group        A pass   B pass
+TREC-TUNE      6/20     6/20 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.75     0.75    0.10    0.10    0.30    0.30
+rerank_in         0.60     0.60    0.00    0.00    0.40    0.40
+rerank_out        0.40     0.40    0.40    0.40    0.40    0.40
+after_cutoff      0.70     0.70    0.30    0.30    0.40    0.40
+final             0.30     0.30    0.30    0.30    0.30    0.30
+
+Average ms          A        B
+plan_ms          5039     4992
+search_ms        2359     2298
+rerank_ms       10754    10522
+total_ms        15628    15331
+rerank_chars    20943    20943   (re-ranker prompt size; ~4 chars per token)
+
+Gained (0): -
+Lost   (0): -
+
+Expected film in the search pool: A 15  B 15  (newly found by B: 0)
+
+##### SPEED 20 TREC: A = tonight's defaults, B = no second call
+A = results/stage_scores_2026-09-29_tune_only_time_e8_base.json
+B = results/stage_scores_2026-09-29_tune_only_time_e8_nosecond.json
+
+group        A pass   B pass
+TREC-TUNE      6/20     6/20 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.75     0.75    0.10    0.10    0.30    0.30
+rerank_in         0.60     0.60    0.00    0.00    0.40    0.40
+rerank_out        0.40     0.40    0.40    0.40    0.40    0.40
+after_cutoff      0.70     0.70    0.30    0.30    0.40    0.40
+final             0.30     0.30    0.30    0.30    0.30    0.30
+
+Average ms          A        B
+plan_ms          4992     4902
+search_ms        2298     2287
+rerank_ms       10522    10643
+total_ms        15331    15319
+rerank_chars    20943    20938   (re-ranker prompt size; ~4 chars per token)
+
+Gained (0): -
+Lost   (0): -
+
+Expected film in the search pool: A 15  B 15  (newly found by B: 0)
+
+##### SPEED 20 TREC: A = tonight's defaults, B = llama3.2 planner
+A = results/stage_scores_2026-09-29_tune_only_time_e8_base.json
+B = results/stage_scores_2026-09-29_tune_only_time_e8_qsmall.json
+
+group        A pass   B pass
+TREC-TUNE      6/20     6/20 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              0.75     0.75    0.10    0.05    0.30    0.30
+rerank_in         0.60     0.43    0.00    0.00    0.40    0.29
+rerank_out        0.40     0.36    0.40    0.21    0.40    0.36
+after_cutoff      0.70     0.65    0.30    0.20    0.40    0.35
+final             0.30     0.30    0.30    0.20    0.30    0.30
+
+Average ms          A        B
+plan_ms          4992     1340
+search_ms        2298     1604
+rerank_ms       10522    10884
+total_ms        15331    10749
+rerank_chars    20943    21144   (re-ranker prompt size; ~4 chars per token)
+
+Gained (2): trec-dev-1095, trec-dev-665
+Lost   (2): trec-dev-832, trec-dev-252
+  trec-dev-832: removed by the 0.90 distance cutoff: pool #61 at distance 0.914
+  trec-dev-252: in the pool but beyond what the re-ranker sees: pool #79, re-ranker shown the top 50
+
+Expected film in the search pool: A 15  B 15  (newly found by B: 0)
+
+##### SPEED 20 own: A = tonight's defaults, B = NUM_BATCH=2048
+A = results/stage_scores_2026-09-29_tune_only_time_e8_own_base.json
+B = results/stage_scores_2026-09-29_tune_only_time_e8_own_nb.json
+
+group        A pass   B pass
+OWN-TUNE      20/20    20/20 
+
+stage          A found  B found   A s@1   B s@1  A s@10  B s@10
+pool              1.00     1.00    0.61    0.61    1.00    1.00
+rerank_in         1.00     1.00    1.00    1.00    1.00    1.00
+rerank_out        1.00     1.00    1.00    1.00    1.00    1.00
+after_cutoff      1.00     1.00    0.94    0.94    1.00    1.00
+final             1.00     1.00    1.00    1.00    1.00    1.00
+
+Average ms          A        B
+plan_ms          6300     5919
+search_ms        1439     1402
+rerank_ms       10312     9263
+total_ms        10779    10046
+rerank_chars    20728    20704   (re-ranker prompt size; ~4 chars per token)
+
+Gained (0): -
+Lost   (0): -
+
+Expected film in the search pool: A 18  B 18  (newly found by B: 0)
+
+##### ANSWER PROMPT (judge.py): A = old strict prompt (E6 defaults), B = ANSWER_STRICT=0
+(the judge's grounded/honest scores reward sticking to the context, so they are expected to drop a little)
+run                   pass grounded   direct specific   honest  concise
+judge-v2_pf.json    44/56      4.29     5.00     4.11     5.00     3.70
+judge-v2_strict0.json  43/56      4.04     5.00     4.20     5.00     3.84
+results/judge-v2_pf.json             answer words: mean  99.1, median 100.0   answers with a hedge/'I don't have' phrase: 3/56
+results/judge-v2_strict0.json        answer words: mean  92.4, median  87.0   answers with a hedge/'I don't have' phrase: 0/56
+(honesty questions about films not in the database are SUPPOSED to say 'I don't have that film')
+
+##### ollama ps at the end
+NAME          ID              SIZE     PROCESSOR    CONTEXT    UNTIL              
+gemma3:27b    a418f5838eaf    17 GB    100% GPU     4096       4 minutes from now    
