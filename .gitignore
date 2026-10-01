@@ -6,3 +6,10 @@ __pycache__/
 data/
 wiki.db
 vec_cache/
+# public copy (v81_public_export.py)
+*.sqlite
+*.env
+!*lock*.env
+inbox/
+facts.db
+sets/sealed_*
