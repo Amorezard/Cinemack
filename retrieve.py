@@ -272,6 +272,17 @@ WIKI_QSTYLES = tuple(x for x in _os_w.environ.get("WIKI_QSTYLES", "short,scene,f
 if WIKI_Q == "merge" and "question" not in WIKI_KINDS:
     WIKI_KINDS = WIKI_KINDS + ("question",)
 TEXT_KINDS = ("plot", "lead")   # real Wikipedia text (shown to models); "question" = generated
+# v2 E10: plot_s = the same plot text in smaller chunks (~80 words; wiki_small.py). When the
+# searched kinds include it, the passage shown to the re-ranker and the answer comes from the
+# searched real-text kinds, so a small chunk that matched is the one shown.
+_TK = tuple(k for k in WIKI_KINDS if k != "question")
+if _TK and set(_TK) != set(TEXT_KINDS):
+    TEXT_KINDS = _TK
+# RERANK_WIN: which RERANK_WIKI_CHARS of the matched passage the re-ranker reads.
+# 0 = the first ones (E4-E9). kw = the run of whole sentences sharing the most content words
+# with the question. emb = the run holding the sentence closest to the question vector
+# (one batched embedding call per re-rank). A passage that fits is shown whole either way.
+RERANK_WIN = _os_w.environ.get("RERANK_WIN", "0")
 # RERANK_TEXT: what the re-ranker reads for each candidate. tmdb = the TMDB overview
 # (v1); wiki = the Wikipedia passage closest to the question; both = the first 200
 # characters of the overview, then that passage. RERANK_WIKI_CHARS caps the passage.
@@ -309,7 +320,7 @@ RERANK_AGREE = int(_os_w.environ.get("RERANK_AGREE", "1"))
 # 29 Sep (gate re-sim on the current defaults): gap 0.03 keeps every pass (tune 74/115,
 # check 18/33) and skips the re-ranker on 35/97 tune and 10/31 check questions (0.05: 30, 7).
 RERANK_GAP = float(_os_w.environ.get("RERANK_GAP", "0.03")) if _os_w.environ.get("RERANK_GAP", "0.03") != "none" else None
-WIKI_PER_FILM = 4        # passages fetched per film wanted: k = pool * this, per kind
+WIKI_PER_FILM = int(_os_w.environ.get("WIKI_PER_FILM", "4"))   # passages fetched per film wanted: k = pool * this, per kind
 _WIKI_STATE = {}         # path -> {"vec": bool, "fts": bool}
 _WIKI_CACHE = {}         # one question's wiki KNN results, cleared per retrieve() call
 
@@ -489,6 +500,79 @@ def _clip(text, n):
     if len(text) <= n:
         return text
     return text[:n].rsplit(" ", 1)[0] + " ..."
+
+
+_SENT_W = re.compile(r"(?<=[.!?])[\"')\]]?\s+(?=[A-Z0-9\"'(\[])")   # = wiki_common.split_sentences
+
+
+def _stem_terms(text):
+    out = set()
+    for w in re.findall(r"[a-z0-9']+", (text or "").lower()):
+        w = w.strip("'")
+        if len(w) < 3 or w in _STOP:
+            continue
+        for suf in ("ing", "ed", "es", "s"):
+            if len(w) > len(suf) + 3 and w.endswith(suf):
+                w = w[: -len(suf)]
+                break
+        out.add(w)
+    return out
+
+
+def _windows(sents, n):
+    """[(start, end)] runs of whole sentences of at most n characters (one sentence alone if longer)."""
+    spans = []
+    for i in range(len(sents)):
+        j, size = i, 0
+        while j < len(sents) and (j == i or size + 1 + len(sents[j]) <= n):
+            size += len(sents[j]) + (1 if j > i else 0)
+            j += 1
+        spans.append((i, j))
+    return spans
+
+
+def best_windows(passages, question, q_vec, n, mode="kw"):
+    """For each passage (or None): the n-character excerpt the re-ranker should read, or None
+    to keep the default (first n characters). Ties keep the earliest run, so a passage that
+    shares nothing with the question reads exactly as before."""
+    out = [None] * len(passages)
+    split = []
+    for i, p in enumerate(passages):
+        if p and len(p) > n:
+            sents = [x.strip() for x in _SENT_W.split(p) if x.strip()]
+            if len(sents) > 1:
+                split.append((i, sents))
+    if not split:
+        return out
+    if mode == "emb" and _as_list(q_vec) is not None:
+        uniq = list(dict.fromkeys(s for _, sents in split for s in sents))
+        try:
+            vecs = ollama.embed(model=EMBED_MODEL, input=uniq)["embeddings"]
+            import numpy as _np_w
+            q = _np_w.asarray(q_vec, dtype=_np_w.float32)
+            q = q / (float(_np_w.linalg.norm(q)) or 1.0)
+            m = _np_w.asarray(vecs, dtype=_np_w.float32)
+            sims = m @ q / _np_w.maximum(_np_w.linalg.norm(m, axis=1), 1e-9)
+            sim = dict(zip(uniq, (float(x) for x in sims)))
+            score_of = lambda sents, a, b: (max(sim[s] for s in sents[a:b]),
+                                            sum(sim[s] for s in sents[a:b]) / (b - a))
+        except Exception:  # noqa: BLE001 - fall back to keywords
+            mode = "kw"
+    if mode != "emb" or _as_list(q_vec) is None:
+        qt = _stem_terms(question)
+        score_of = lambda sents, a, b: (len(qt & _stem_terms(" ".join(sents[a:b]))), 0)
+    for i, sents in split:
+        best, best_span = None, None
+        for a, b in _windows(sents, n):
+            sc = score_of(sents, a, b)
+            if best is None or sc > best:
+                best, best_span = sc, (a, b)
+        a, b = best_span
+        if a == 0:
+            continue                      # the default already starts here
+        text = " ".join(sents[a:b])
+        out[i] = "... " + _clip(text, n) + ("" if b == len(sents) else " ...")
+    return out
 
 
 def wiki_question_ranking(conn, q_vec, n=100):
@@ -1060,7 +1144,8 @@ SWITCHES = {"RERANK_CAP": RERANK_CAP, "SOFT_FILTERS": SOFT_FILTERS,
             "RRF_WEIGHTS": RRF_WEIGHTS, "RRF_K": RRF_K_ENV,
             "RERANK_TEXT": RERANK_TEXT, "RERANK_WIKI_CHARS": RERANK_WIKI_CHARS,
             "RERANK_SECOND": RERANK_SECOND, "NUM_BATCH": NUM_BATCH,
-            "WIKI_PASSAGE_FAST": WIKI_PASSAGE_FAST, "VEC_MEM": VEC_MEM}
+            "WIKI_PASSAGE_FAST": WIKI_PASSAGE_FAST, "VEC_MEM": VEC_MEM,
+            "RERANK_WIN": RERANK_WIN, "WIKI_PER_FILM": WIKI_PER_FILM}
 
 _STOP = set("""a about above after again against all am an and any are as at be because been
 before being below between both but by can could did do does doing down during each few for
@@ -1174,6 +1259,167 @@ def rrf(*rankings):
     return sorted(score, key=lambda m: -score[m])
 
 
+
+# ------------------------------------------------ v2 E11: search each remembered detail
+# A tip-of-the-tongue description is several separate memories ("a lighthouse", "the dog dies",
+# "a storm"). As one vector, the strongest detail decides; the right film often sits at #4-#20
+# (E10 without the re-ranker). DETAILS splits the description into its details, searches each
+# on its own against the Wikipedia passages, and fuses the per-detail rankings with RRF, so a
+# film that several details point at rises. The result joins the main fusion as one list:
+#   dv  = per-detail vector search over the plot + intro passages
+#   dkw = per-detail keyword search over single passages (wiki_pfts.db, wiki_pfts.py), so the
+#         words of one detail must occur in the same passage, not anywhere in the article
+# DETAILS: 0 = off (default), split = sentences/clauses of the question (no model call),
+# llm = DETAILS_MODEL lists the details (one short call; falls back to split).
+# Only description ("identify") questions use the fused search, so named-film and
+# recommendation questions are unaffected.
+DETAILS = _os_w.environ.get("DETAILS", "0")
+DETAIL_LISTS = tuple(x for x in _os_w.environ.get("DETAIL_LISTS", "dv,dkw").split(",") if x)
+DETAILS_MODEL = _os_w.environ.get("DETAILS_MODEL", "llama3.2")
+DETAIL_K = int(_os_w.environ.get("DETAIL_K", "200"))     # passages per kind per detail
+DETAIL_MAX = 8
+PFTS_DB = _os_w.environ.get("PFTS_DB", "")               # default: wiki_pfts.db next to movies.db
+SWITCHES.update({"DETAILS": DETAILS, "DETAIL_LISTS": ",".join(DETAIL_LISTS)})
+_PFTS = {"conn": None, "tried": False}
+_CLAUSE = re.compile(r",?\s+(?:and then|but then|and also|and later|and at the end|but|and|then|where|when|while)\s+",
+                     re.I)
+
+
+_FILLER = set("""help helps appreciated appreciate thanks thank please anyone anybody ideas idea lot
+name title trying try find finding looking recall forgot forget forgotten crying cried sure
+guess kinda sort mind brain head""".split())
+
+
+def _content_words(text):
+    return [w for w in re.findall(r"[a-z0-9]+", normalize(text))
+            if len(w) >= 3 and w not in _STOP and w not in _FILLER]
+
+
+def split_details(question):
+    """The description's separate details: sentences, long ones cut at clause words.
+    [] when there are fewer than two (the whole-question search already covers it)."""
+    pieces = []
+    for sent in re.split(r"(?<=[.!?;])\s+|\n+", question.strip()):
+        if len(sent.split()) > 22:
+            pieces += [x for x in _CLAUSE.split(sent) if x and x.strip()]
+        else:
+            pieces.append(sent)
+    out, carry = [], ""
+    for p in pieces:
+        p = (carry + " " + p).strip() if carry else p.strip()
+        if len(_content_words(p)) < 3:
+            carry = p
+            continue
+        carry = ""
+        out.append(p)
+    if carry and out and len(_content_words(carry)) >= 2:
+        out[-1] = out[-1] + " " + carry
+    while len(out) > DETAIL_MAX:                 # merge the two shortest neighbours
+        i = min(range(len(out) - 1), key=lambda j: len(out[j]) + len(out[j + 1]))
+        out[i:i + 2] = [out[i] + " " + out[i + 1]]
+    return out if len(out) >= 2 else []
+
+
+_DETAILS_SYSTEM = (
+    "You list the separate things a person remembers about a film they are trying to identify. "
+    "Give one short phrase per remembered detail: a scene, a character, the setting, the time or "
+    "place, an object, a plot event, how it ends. Keep their own words. Do not guess the film and "
+    "do not add facts they did not give. Skip filler such as 'I saw this years ago' or 'please help'. "
+    'Reply with JSON only: {"details": ["...", "..."]} with 2 to 8 items.')
+_DETAILS_SCHEMA = {"type": "object", "properties": {"details": {"type": "array", "items": {"type": "string"}}},
+                   "required": ["details"]}
+
+
+def llm_details(question):
+    try:
+        r = ollama.chat(model=DETAILS_MODEL, think=False, format=_DETAILS_SCHEMA,
+                        options=llm_options({"num_predict": 220, "temperature": 0}),
+                        messages=[{"role": "system", "content": _DETAILS_SYSTEM},
+                                  {"role": "user", "content": question}])
+        _note_llm("details", r)
+        items = _json.loads(r["message"]["content"]).get("details") or []
+        items = [str(x).strip() for x in items if str(x).strip() and _content_words(str(x))]
+        return items[:DETAIL_MAX] if len(items) >= 2 else []
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def _pfts():
+    if not _PFTS["tried"]:
+        _PFTS["tried"] = True
+        root = _os_w.path.dirname(_os_w.path.abspath(_VEC["db"] or "movies.db"))
+        path = PFTS_DB or _os_w.path.join(root, "wiki_pfts.db")
+        if _os_w.path.exists(path):
+            c = sqlite3.connect(f"file:{path}?mode=ro", uri=True, check_same_thread=False)
+            if c.execute("SELECT 1 FROM sqlite_master WHERE name = 'pfts'").fetchone():
+                _PFTS["conn"] = c
+        if _PFTS["conn"] is None and "dkw" in DETAIL_LISTS:
+            import sys as _sys_d
+            print("[retrieve] DETAILS: wiki_pfts.db not found, so no dkw list (python wiki_pfts.py)",
+                  file=_sys_d.stderr)
+    return _PFTS["conn"]
+
+
+def _detail_vec_ranking(conn, d_vec, n):
+    best = {}
+    vs = _vec_store()
+    arg = None
+    for kind in TEXT_KINDS:
+        if vs is not None and vs.chunks is not None:
+            rows = vs.knn_cos(kind, d_vec, DETAIL_K)
+        else:
+            arg = arg or _vec_arg(d_vec)
+            rows = conn.execute("SELECT chunk_id, film_id, distance FROM wiki.vec_chunks "
+                                "WHERE embedding MATCH ? AND k = ? AND kind = ?",
+                                (arg, DETAIL_K, kind)).fetchall()
+        for _cid, fid, d in rows:
+            if fid not in best or d < best[fid]:
+                best[fid] = d
+    return [m for m, _ in sorted(best.items(), key=lambda x: x[1])[:n]]
+
+
+def _detail_kw_ranking(text, n):
+    c = _pfts()
+    match = _fts_query(text)
+    if c is None or not match:
+        return []
+    out, seen = [], set()
+    try:
+        for (fid,) in c.execute("SELECT film_id FROM pfts WHERE pfts MATCH ? ORDER BY bm25(pfts) LIMIT ?",
+                                (match, n * 4)):
+            if fid not in seen:
+                seen.add(fid)
+                out.append(fid)
+                if len(out) >= n:
+                    break
+    except sqlite3.OperationalError:
+        return []
+    return out
+
+
+def detail_lists(conn, question, pool, trace=None):
+    """[(name, ranking)] for the main fusion: one fused list per DETAIL_LISTS entry, or []."""
+    import time as _td
+    t0 = _td.perf_counter()
+    details = llm_details(question) if DETAILS == "llm" else []
+    how = "llm" if details else "split"
+    details = details or split_details(question)
+    out = []
+    if len(details) >= 2 and _wiki_has(conn, "vec"):
+        if "dv" in DETAIL_LISTS:
+            vecs = ollama.embed(model=EMBED_MODEL, input=[QUERY_PREFIX + d for d in details])["embeddings"]
+            out.append(("dv", rrf(*[_detail_vec_ranking(conn, v, pool) for v in vecs])[:pool]))
+        if "dkw" in DETAIL_LISTS:
+            kw = [r for r in (_detail_kw_ranking(d, pool) for d in details) if r]
+            if kw:
+                out.append(("dkw", rrf(*kw)[:pool]))
+    if trace is not None:
+        trace["details"] = {"how": how, "items": details, "ms": round((_td.perf_counter() - t0) * 1000)}
+        for name, lst in out:
+            trace[f"pool_{name}"] = lst[:50]
+    return out
+
+
 def rerank(question, conn, q_vec, current_hits, trace=None, keep_ids=(), filters=None,
            prefer=None, ranked=False, exclude_ids=()):
     """Let the chat model read the candidates' plots and pick the ones that fit.
@@ -1257,10 +1503,23 @@ def rerank(question, conn, q_vec, current_hits, trace=None, keep_ids=(), filters
         wp = wiki_passage(conn, mid, q_vec)
         if not wp:
             return overview[:lim]
+        raw[mid] = wp[1]
         passage = _clip(wp[1], RERANK_WIKI_CHARS)
         return passage if RERANK_TEXT == "wiki" else f"{_clip(overview, 200)} | Wikipedia: {passage}"
 
+    raw = {}
     texts = [shown(mid, o) for mid, _, (_t, _y, o, _v) in cands]
+    if RERANK_WIN in ("kw", "emb") and raw:
+        wins = best_windows([raw.get(mid) for mid, _, _r in cands], question, q_vec,
+                            RERANK_WIKI_CHARS, RERANK_WIN)
+        changed = 0
+        for i, (mid, _, (_t, _y, o, _v)) in enumerate(cands):
+            if mid in raw and wins[i] is not None:
+                new = wins[i] if RERANK_TEXT == "wiki" else f"{_clip(o, 200)} | Wikipedia: {wins[i]}"
+                changed += new != texts[i]
+                texts[i] = new
+        if trace is not None:
+            trace["rerank_win"] = changed
 
     if RERANK_ENGINE in ("cross", "cross_llm"):
         # v2: cross-encoder over title + TMDB overview + the Wikipedia passage closest
@@ -1674,6 +1933,9 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
                     lists.append(wk_list); names.append("wkw")
                     if trace is not None:
                         trace["pool_wiki_keyword"] = wk_list[:50]
+            if DETAILS != "0":                                   # v2 E11
+                for name, lst in detail_lists(conn, question, pool, trace):
+                    lists.append(lst); names.append(name)
             order = (rrf_named(list(zip(names, lists))) if (RRF_WEIGHTS or RRF_K_ENV != RRF_K)
                      else rrf(*lists))[:pool * 2]
             for m in order:

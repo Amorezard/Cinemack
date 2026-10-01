@@ -27,6 +27,8 @@ search:
   HYDE: 1                           # planner writes a guessed plot to search with (E3)
   HYBRID: 1                         # keyword search over TMDB records
   VEC_MEM: 1                        # in-memory vector search, same results, ~7x faster (E9)
+  WIKI_PER_FILM: 4                  # passages fetched per film wanted, per kind (E10: 8 with plot_s)
+  DETAILS: 0                        # search each remembered detail separately: 0, split, llm (E11)
 
 planner:
   PLAN_FAST: 1                      # shorter planner output (E6)
@@ -42,6 +44,7 @@ rerank:
   RERANK_WIKI_CHARS: 400
   RERANK_N: 50                      # films shown to the re-ranker (E7, E9: trims all lost)
   RERANK_SECOND: 0                  # (E8)
+  RERANK_WIN: 0                     # which 400 chars of the passage it reads: 0 first, kw, emb (E10)
 
 answers:
   ANSWER_WIKI: 1                    # answer prompt includes Wikipedia details (E5 judge)

@@ -24,6 +24,7 @@ warning) until it is rebuilt, and retrieve.py falls back to sqlite-vec.
 import json
 import math
 import os
+import shutil
 import sqlite3
 import sys
 import time
@@ -60,8 +61,13 @@ def _blobs_to_matrix(blobs, dim):
 
 
 def build(db_path="movies.db"):
-    root, wiki_path, out = _paths(db_path)
-    os.makedirs(out, exist_ok=True)
+    root, wiki_path, final = _paths(db_path)
+    # Written to vec_cache.new and swapped in at the end: a running website or evaluation
+    # keeps reading the old files (memory-mapped) instead of crashing mid-write.
+    out = final + ".new"
+    if os.path.exists(out):
+        shutil.rmtree(out)
+    os.makedirs(out)
     meta = {"movies.db": _stamp(os.path.join(root, os.path.basename(db_path))), "tables": {}}
     t0 = time.time()
     conn = _connect(db_path)
@@ -107,7 +113,15 @@ def build(db_path="movies.db"):
         meta["chunks"] = {"rows": int(start), "dim": int(mat.shape[1]), "kinds": slices}
         w.close()
     json.dump(meta, open(os.path.join(out, "meta.json"), "w"), indent=1)
-    print(f"Built {out} in {time.time() - t0:.0f} s")
+    old = final + ".old"
+    if os.path.exists(old):
+        shutil.rmtree(old)
+    if os.path.exists(final):
+        os.rename(final, old)
+    os.rename(out, final)
+    if os.path.exists(old):
+        shutil.rmtree(old)          # open memory maps keep the old data until they close
+    print(f"Built {final} in {time.time() - t0:.0f} s")
 
 
 class Store:
