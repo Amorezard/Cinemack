@@ -29,9 +29,14 @@ def context_for(h):
     """What the LLM sees. Separate from embed_text on purpose: the embedding
     holds what people search BY, the prompt holds what the model needs to
     ANSWER - so ratings go in, keywords stay out, and cast is capped at 4."""
-    title, year, genres, director, cast, overview, va, vc = _CTX_DB.execute(
+    row = None if h.get("_facts_only") else _CTX_DB.execute(
         "SELECT title, release_year, genres, director, top_cast, overview, "
         "vote_average, vote_count FROM movies WHERE id = ?", (h["id"],)).fetchone()
+    if row is None:
+        # v3: a film only facts.db has (released after the catalogue was built).
+        import tools as _T
+        return _T.film_card(h)
+    title, year, genres, director, cast, overview, va, vc = row
     lines = [f"{title} ({year or 'unknown year'})"]
     if genres:
         lines.append(f"Genres: {genres}")
@@ -96,9 +101,153 @@ NO_HEDGING = ("No disclaimers: don't say you are unsure, don't suggest checking 
               "and never reason out loud or correct yourself mid-answer.")
 
 
-def build_prompt(question, k=3, recent_titles=None):
-    """Returns (prompt, hits). hits feed the next turn's follow-up resolution."""
-    hits = retrieve(question, k=k, recent_titles=recent_titles)
+# ------------------------------------------------------------------ v3 answers (TOOLS=1)
+# tools.py adds structured data (facts, comparisons, market context, Wikipedia sections,
+# review analysis, rankings, current releases) as tagged blocks after the film records.
+# Analysis questions ("why did X work", reviews, rankings) get ANALYSIS_HOW instead of
+# HOW_TO_ANSWER + NO_HEDGING: evidence and interpretation kept apart, sources named,
+# uncertainty stated - the opposite of v2's "no disclaimers", on purpose, for these questions only.
+# TOOLS=0 = the v2 prompt exactly.
+TOOLS = _os.environ.get("TOOLS", "0") == "1"
+PROMPT_VERSION = "v3.1" if TOOLS else "v2"   # v3.1 (6 Oct): fact / ranking / reviews styles
+LAST_TOOL = {}       # the last build_prompt's tool result (route, timings) for logs and evals
+
+DATA_NOTE = ("Lines in the structured data end with their source in brackets. When you use a number "
+             "from them, name the source briefly (for example \"per TMDB\"). If two sources disagree, "
+             "say so and give both. For recommendations with 'why these may suit this person' notes, "
+             "recommend from the top of that list and give each pick's reason in your own words.")
+ANALYSIS_HOW = """How to answer: this asks for analysis, not just a fact. Use short bold headings, only the ones the data above supports:
+**What happened** - the measurable outcome: gross against budget, ratings, awards, with the numbers above.
+**What audiences liked / disliked** - from the audience review analysis, if present.
+**What critics said** - from the reception text, if present.
+**Market context** - release timing and competition, genre, franchise and director track record from the data above.
+**Why it likely worked** (or **why it likely struggled**) - your interpretation, tied to the evidence above.
+**Uncertainty** - one or two sentences on what the data cannot show (it shows correlation, not cause; missing or conflicting figures).
+Put the source in brackets after every number or reported claim, e.g. [TMDB], [Wikipedia: Box office], [TMDB user reviews]. Mark your own reasoning as interpretation ("this suggests", "likely"); never present it as fact. Use only figures that appear above; if a figure is missing, say it is not in the data. For rankings and trends, lead with the answer, then the table's key rows, then caveats. Keep it under about 350 words."""
+# 6 Oct: separate, shorter instructions for rankings, reception questions and single facts
+# (tools.run sets the style). ANALYSIS_HOW stays for "why" questions, careers and trends.
+FACT_HOW = ("How to answer: this is a factual question. Answer it in one or two sentences: the fact asked for, "
+            "with its source (for example \"per TMDB\"). Give only what was asked - no reasons, opinions, "
+            "comparisons, box-office figures or other details the question didn't ask for, and nothing that is "
+            "not in the information above. If two sources disagree, give both.")
+RANKING_HOW = ("How to answer: this asks for a ranking from the table above. Start with a one-sentence answer, then "
+               "list the top entries in the table's order (as many as the question asks for, otherwise up to 10), one "
+               "line each with the figures that matter for the question (year, gross, budget, gross/budget) and the "
+               "source in brackets. Then at most two sentences of caveats, e.g. that the ranking only covers films "
+               "with figures in Movie Buff's database. Name only films and people that appear in the table - never "
+               "add others from memory. No other headings, and no reasons why films succeeded or market analysis "
+               "unless the question asks why. Keep it under about 200 words.")
+REVIEWS_HOW = ("How to answer: say what the question asks about the film's reception. Keep the sources apart: critics "
+               "come from the Wikipedia reception text; TMDB user reviews are ordinary viewers, so call them audience "
+               "or user reviews, never critics. Give specific points (what was praised or criticised) with the source "
+               "in brackets, quoting short phrases where the data has them. No box-office analysis, market context or "
+               "explanation of why the film succeeded unless the question asks for it, and mark any interpretation of "
+               "your own as such. Keep it under about 250 words.")
+CURRENT_HOW = ("How to answer: list the films from the current/upcoming data that fit the question, each with "
+               "its date and one line on what it is. Say the list comes from TMDB as of the date shown and that "
+               "release dates can still change. Don't add films that are not in the list.")
+
+
+def _v3_prompt(question, hits, tool, amb_line):
+    context = "\n\n---\n\n".join(context_for(h) for h in hits)
+    blocks = "\n\n".join(b for _k, b in tool.get("blocks") or [])
+    parts = []
+    if context:
+        parts.append(f"Here is information on movies that might be relevant to the question:\n\n{context}")
+    if blocks:
+        parts.append(f"Structured data from Movie Buff's database (sources in brackets):\n\n{blocks}")
+    style = tool.get("style")
+    styled = {"analysis": ANALYSIS_HOW, "current": CURRENT_HOW, "ranking": RANKING_HOW, "reviews": REVIEWS_HOW,
+              "fact": FACT_HOW}
+    how = styled.get(style) or (f"{HOW_TO_ANSWER}\n\n{DATA_NOTE}\n\n{NO_HEDGING}" if blocks
+                                else f"{HOW_TO_ANSWER}\n\n{NO_HEDGING}")
+    return "\n\n".join(parts) + f"""
+
+Question: {question}
+
+Answer using the information above.{amb_line}
+
+{how}"""
+
+
+def _personalize(question, hits, plan, conv, user, tool):
+    """v3 recommendations: drop films the question says the person disliked, then (with a
+    taste profile, stated tastes or a liked/disliked film in the question) re-rank for this
+    person and add a 'why it fits you' block. Returns the new hits."""
+    import personal as _P
+    import tools as _T
+    neg = _P.disliked_in(question)
+    nneg = {_R.normalize(t) for t in neg}
+    if nneg:
+        hits = [h for h in hits if _R.normalize(h["title"]) not in nneg]
+    likes, dis, stated = _P.load(user) if (_P.PERSONAL and user) else ([], [], [])
+    likes, dis = list(likes), list(dis)
+    stated = list(stated) + [(p["text"], p["polarity"]) for p in (conv or {}).get("prefs") or []]
+    for t in (plan or {}).get("films") or []:            # "if I liked Arrival ..."
+        if _R.normalize(t) not in nneg:
+            likes += [h["id"] for h in _T.facts_hits([t])]
+    for t in neg:
+        dis += [h["id"] for h in _T.facts_hits([t])]
+    if not (likes or dis or stated) or not hits:
+        return hits
+    ranked, _notes = _P.rerank(hits, likes, dis, stated, k=len(hits))
+    lines = [f"{h['title']} ({h.get('release_year') or '?'}): {h['_why_you']}" for h in ranked[:6] if h.get("_why_you")]
+    if lines:
+        tool.setdefault("blocks", []).append(("personal", "Why these may suit this person (matched against the "
+                                              "films they liked and disliked; Movie Buff's own analysis):\n" + "\n".join(lines)))
+    tool["personal"] = {"likes": len(likes), "dislikes": len(dis), "stated": len(stated)}
+    return ranked
+
+
+def build_prompt(question, k=3, recent_titles=None, conv=None, user=None):
+    """Returns (prompt, hits). hits feed the next turn's follow-up resolution.
+    conv: v3 conversation state (conv.py), passed to retrieve() for the planner.
+    user: anonymous browser id, for the taste profile (PERSONAL=1)."""
+    if conv is not None:
+        hits = retrieve(question, k=k, recent_titles=recent_titles, conv=conv)
+    else:
+        hits = retrieve(question, k=k, recent_titles=recent_titles)
+    LAST_TOOL.clear()
+    if TOOLS:
+        import tools as _T
+        plan = (hits[0].get("_plan") if hits else None) or _R.LAST.get("plan")
+        if not hits and _R.LAST.get("unknown"):
+            hits = _T.facts_hits(_R.LAST["unknown"])     # a film newer than the catalogue
+            if hits:
+                hits[0]["_plan"] = plan
+        elif hits and (plan or {}).get("intent") == "named_film":
+            # The catalogue's film of that title is from another year ("Sinners" 2007 vs the
+            # 2025 film the planner meant): use facts.db's film of the right year instead.
+            for f in _R.LAST.get("plan_films") or []:
+                try:
+                    y = int(f.get("year") or 0)
+                except (TypeError, ValueError):
+                    y = 0
+                nt = _R.normalize(f["title"])
+                same = [i for i, h in enumerate(hits) if _R.normalize(h["title"]) == nt]
+                if y and same and all(abs(int(str(hits[i].get("release_year") or 0)[:4] or 0) - y) > 1 for i in same):
+                    fh = _T.facts_hits([f["title"]], year=y)
+                    if fh and abs(int(fh[0]["release_year"] or 0) - y) <= 1:
+                        fh[0]["_plan"] = hits[0].get("_plan")
+                        hits[same[0]] = fh[0]
+        try:
+            tool = _T.run(question, hits, plan, q_text=(plan or {}).get("search_query"))
+        except Exception as e:                            # a tool failure must not lose the answer
+            print(f"[chat] tools failed: {e!r}", file=sys.stderr)
+            tool = {"blocks": [], "replace_hits": False, "style": None, "route": None, "ms": {}}
+        if (plan or {}).get("intent") == "recommend" and hits:
+            try:
+                hits = _personalize(question, hits, plan, conv, user, tool)
+            except Exception as e:                        # personalisation must not lose the answer
+                print(f"[chat] personalisation failed: {e!r}", file=sys.stderr)
+        LAST_TOOL.update(tool)
+        if tool.get("replace_hits"):
+            hits = []
+        if hits or tool.get("blocks"):
+            amb = hits[0].get("_ambiguous") if hits else None
+            amb_line = (f"\n\nThe question could refer to {amb[0]} or {amb[1]}. Answer for {amb[0]} in one or two "
+                        f"sentences, then ask which one they meant.") if amb and len(amb) > 1 else ""
+            return _v3_prompt(question, hits, tool, amb_line), hits
     if not hits:
         # Change 9: nothing in the database matched (e.g. a film we don't have).
         # Say so instead of answering from memory.
@@ -106,6 +255,11 @@ def build_prompt(question, k=3, recent_titles=None):
 
 The movie database found nothing that matches this question. If the question is about a specific film, say plainly and briefly that you don't have that film in your database, and do not describe it, its cast or its plot from memory. If it is a general question about movies, answer briefly and say you are answering without information from the database.""", hits
     context = "\n\n---\n\n".join(context_for(h) for h in hits)
+    amb = hits[0].get("_ambiguous") if hits else None
+    # v3: the planner said "that" could mean either of two films -> answer for the likelier
+    # one and ask, instead of silently picking.
+    amb_line = (f"\n\nThe question could refer to {amb[0]} or {amb[1]}. Answer for {amb[0]} in one or two "
+                f"sentences, then ask which one they meant.") if amb and len(amb) > 1 else ""
     if not ANSWER_STRICT:
         return f"""Here is information on movies that might be relevant to the question:
 
@@ -113,7 +267,7 @@ The movie database found nothing that matches this question. If the question is 
 
 Question: {question}
 
-Answer using the information above.
+Answer using the information above.{amb_line}
 
 {HOW_TO_ANSWER}
 
@@ -221,6 +375,8 @@ def main():
     # when you want to see the model work, e.g. for a demo.
     thinking_on = False
     recent_titles = []   # what the last turn was about, for "who directed it?"
+    import conv as _conv
+    state = _conv.new()  # v3 (CONV=1): the whole conversation, for the planner
 
     while True:
         try:
@@ -238,7 +394,10 @@ def main():
             print(f"  reasoning: {'on' if thinking_on else 'OFF (faster replies)'}\n")
             continue
 
-        prompt, hits = build_prompt(question, recent_titles=recent_titles)
+        if _R.CONV:
+            prompt, hits = build_prompt(question, conv=state)
+        else:
+            prompt, hits = build_prompt(question, recent_titles=recent_titles)
         if hits:
             recent_titles = [h["title"] for h in hits]
         history.append({"role": "user", "content": prompt})
@@ -246,6 +405,8 @@ def main():
         if hits:
             # In the order the answer talked about them - see recent_titles_from.
             recent_titles = recent_titles_from(hits, answer)
+        state = _conv.update(state, question, hits, plan=(hits[0].get("_plan") if hits else None),
+                             answer=answer)
 
         # Same as before: swap the stuffed prompt back to the plain question so
         # history doesn't balloon with repeated movie blurbs every turn.

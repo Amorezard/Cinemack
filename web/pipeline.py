@@ -52,10 +52,27 @@ if not MOCK:
     # follow-up resolution...). explain=True only attaches h["_notes"] and
     # prints one log line - the hits and the prompt are unchanged, so the page
     # still gets exactly what chat.py and the eval get.
+    # v3 observability: also ask for retrieve()'s trace (per-stage timings, model-call
+    # counters, the gate decision) so every request log line says where the time went.
+    # The server answers one question at a time (gpu_lock), so one module-level slot is enough.
+    _TRACE = {"last": None}
+    _TAKES_TRACE = "trace" in inspect.signature(chat.retrieve).parameters
+
+    def _retrieve_logged(*a, **kw):
+        if _TAKES_TRACE:
+            tr = {}
+            kw["trace"] = tr
+            _TRACE["last"] = tr
+        return chat.retrieve(*a, **kw)
+
     if "explain" in inspect.signature(chat.retrieve).parameters:
-        chat.build_prompt.__globals__["retrieve"] = functools.partial(chat.retrieve, explain=True)
+        chat.build_prompt.__globals__["retrieve"] = functools.partial(_retrieve_logged, explain=True)
+    _BUILD_TAKES_CONV = "conv" in inspect.signature(chat.build_prompt).parameters
+    CONV_ON = bool(getattr(chat._R, "CONV", False)) and _BUILD_TAKES_CONV
 else:
     MODEL = "movie-buff (mock)"
+    CONV_ON = False
+    _TRACE = {"last": None}
 
 
 def _opts(extra=None):
@@ -67,19 +84,129 @@ def _opts(extra=None):
 
 # ------------------------------------------------------------------ pipeline
 
-def prepare(question, recent_titles):
-    """Retrieval + prompt building. Returns (prompt, hits)."""
+def user_tag(user):
+    """Cache key part for the person's taste profile: changes whenever they like/dislike a film,
+    so a personalised recommendation is never replayed to someone else or after their tastes move."""
+    if MOCK or not user:
+        return ""
+    try:
+        import personal
+        if not personal.PERSONAL:
+            return ""
+        likes, dis, st = personal.load(user)
+        return f"{user}:{len(likes)}:{len(dis)}:{len(st)}" if (likes or dis or st) else ""
+    except Exception:
+        return ""
+
+
+def prepare(question, recent_titles, conv=None, user=None):
+    """Retrieval + prompt building. Returns (prompt, hits).
+    conv: v3 conversation state from the page (CONV=1); None = v2 behaviour.
+    user: anonymous browser id (PERSONAL=1 taste profile)."""
+    _TRACE["last"] = None
     if MOCK:
         return _mock_prepare(question)
-    got = site_cache.get_retrieval(question, recent_titles)
+    use_conv = CONV_ON and conv is not None
+    tag = user_tag(user)
+    got = site_cache.get_retrieval(question, recent_titles, conv if use_conv else None, tag)
     if got:                  # asked before: skip the planner, search and re-ranker
         return got
-    if _BUILD_TAKES_RECENT:
-        prompt, hits = chat.build_prompt(question, recent_titles=recent_titles or None)
+    kw = {"user": user} if "user" in inspect.signature(chat.build_prompt).parameters else {}
+    if use_conv:
+        prompt, hits = chat.build_prompt(question, conv=conv, **kw)
+    elif _BUILD_TAKES_RECENT:
+        prompt, hits = chat.build_prompt(question, recent_titles=recent_titles or None, **kw)
     else:
         prompt, hits = chat.build_prompt(question)
-    site_cache.put_retrieval(question, recent_titles, prompt, hits)
+    site_cache.put_retrieval(question, recent_titles, prompt, hits, conv if use_conv else None, tag, last_ttl())
     return prompt, hits
+
+
+TTL_CURRENT = 6 * 3600       # now playing / upcoming: refreshed daily, so never reuse past a few hours
+TTL_RECENT = 3 * 86400       # films still in release: box office and ratings still move
+
+
+def last_ttl():
+    """v3 cache freshness: how long the answer just built may be reused (None = no limit)."""
+    lt = getattr(chat, "LAST_TOOL", None) if not MOCK else None
+    tasks = ((lt or {}).get("route") or {}).get("tasks") or []
+    if "current" in tasks:
+        return TTL_CURRENT
+    if any(k == "facts" for k, _b in (lt or {}).get("blocks") or []) and \
+            any("Status: upcoming" in b or "Status: now playing" in b for _k, b in lt.get("blocks") or []):
+        return TTL_CURRENT
+    if "facts" in tasks or "market" in tasks or "reviews" in tasks:
+        return TTL_RECENT
+    return None
+
+
+def next_conv(conv, question, hits, answer):
+    """v3: the conversation state after this exchange (sent back to the page)."""
+    if MOCK or not CONV_ON:
+        return None
+    import conv as _conv
+    plan = (hits[0].get("_plan") if hits else None)
+    return _conv.update(conv, question, hits, plan=plan, answer=answer)
+
+
+def last_trace():
+    """Per-stage numbers from the retrieve() call that just ran (None when it was cached)."""
+    tr = _TRACE.get("last")
+    if not tr:
+        return None
+    keep = ("path", "planner", "plan_ms", "search_ms", "rerank_ms", "total_ms", "gate", "rerank_skipped",
+            "llm", "passages", "pool_size", "merged_description", "plan")
+    out = {k: tr[k] for k in keep if k in tr}
+    lt = getattr(chat, "LAST_TOOL", None) if not MOCK else None
+    if lt:
+        out["tools"] = {"route": lt.get("route"), "ms": lt.get("ms"), "style": lt.get("style"),
+                        "blocks": [(k, len(b)) for k, b in lt.get("blocks") or []]}
+    return out
+
+
+HISTORY_CHARS = int(os.environ.get("HISTORY_CHARS", "6000"))
+
+
+def trim_history(history, budget=HISTORY_CHARS):
+    """v3 context management: the answer model gets the conversation, but not unbounded.
+    Newest messages are kept whole; older assistant answers are cut to their first 400
+    characters; whatever still doesn't fit is dropped, oldest first. (The planner gets its
+    own compact view of the whole conversation from conv.py.)"""
+    if not budget:
+        return history
+    out, used = [], 0
+    for i, m in enumerate(reversed(history)):
+        c = m["content"]
+        if i >= 2 and m["role"] == "assistant" and len(c) > 400:
+            c = c[:400].rsplit(" ", 1)[0] + " ..."
+        if used + len(c) > budget and out:
+            break
+        out.append({"role": m["role"], "content": c})
+        used += len(c)
+    out.reverse()
+    while out and out[0]["role"] != "user":
+        out.pop(0)
+    return out
+
+
+_VERSIONS = None
+
+
+def versions():
+    """What produced an answer: code commit, settings fingerprint, models. Logged with every
+    request and every piece of feedback, so a thumbs-down can be traced to a version."""
+    global _VERSIONS
+    if _VERSIONS is None:
+        import subprocess
+        try:
+            git = subprocess.run(["git", "-C", str(RAG_DIR), "describe", "--always", "--dirty", "--tags"],
+                                 capture_output=True, text=True, timeout=5).stdout.strip()
+        except Exception:
+            git = ""
+        _VERSIONS = {"git": git, "fingerprint": site_cache.fingerprint() if not MOCK else "mock",
+                     "model": MODEL, "conv": CONV_ON,
+                     "prompt_version": getattr(chat, "PROMPT_VERSION", "v2") if not MOCK else "mock"}
+    return _VERSIONS
 
 
 def next_recent_titles(hits, previous):
@@ -206,8 +333,10 @@ def card(hit):
     """The fields the page shows for each retrieved film. Every field is
     optional - different versions of retrieve.py carry different columns."""
     cast = hit.get("top_cast") or ""
-    rating = _rating(hit)
+    rating = _rating(hit) if not hit.get("_facts_only") else None
     return {
+        "id": hit.get("id"),
+        "why": hit.get("_why_you"),
         "title": hit.get("title"),
         "year": hit.get("release_year"),
         "director": hit.get("director"),
@@ -248,7 +377,7 @@ def prewarm():
 # ------------------------------------------------------------------- mock
 
 _MOCK_FILMS = [
-    {"title": "Parasite", "release_year": "2019", "director": "Bong Joon Ho",
+    {"id": 496243, "title": "Parasite", "release_year": "2019", "director": "Bong Joon Ho",
      "top_cast": "Song Kang-ho, Lee Sun-kyun, Cho Yeo-jeong, Choi Woo-shik",
      "genres": "Comedy, Thriller, Drama", "vote_average": 8.5},
     {"title": "The Joneses", "release_year": "2009", "director": "Derrick Borte",

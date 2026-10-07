@@ -51,3 +51,15 @@ answers:
   ANSWER_WIKI_CHARS: 700
   ANSWER_STRICT: 0                  # (E8)
   ANSWER_STYLE: 0
+
+v3:
+  # Each v3 switch is off until its run says otherwise (decision rules in run_v3a.sh / run_v3b.sh).
+  CONV: 1                           # conversation-aware planner (conv.py); run_v3a.sh
+  TOOLS: 1                          # router + structured tools + analysis answers (tools.py); run_v3b.sh
+  PERSONAL: 1                       # taste profile + explained recommendations (personal.py); run_v3b.sh
+  PERSONAL_W: 0.25,2,0.5          # personal.py sweep, 6 Oct (held-out recall@10 0.420)
+  PARALLEL: 0                       # question-only searches during planning (same results); run_v3b.sh
+  # RERANK_MODEL: movie-buff        # re-ranker model; default = ANSWER_MODEL; run_v3b.sh tries smaller ones
+  SPEC_MODEL: llama3.2              # fills the query spec for ranking/trend/career questions (TOOLS=1)
+  TOOL_CHARS: 9000                  # all tool blocks together, ~2.3k tokens of the 8k context
+  HISTORY_CHARS: 6000               # website: conversation history sent to the answer model

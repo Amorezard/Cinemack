@@ -1,0 +1,1063 @@
+"""
+v3 tools (TOOLS=1): structured lookups and analysis context from facts.db, chosen per question.
+
+v2 answered every question from the same material: up to 3 films' TMDB records plus their
+Wikipedia intro and the closest plot passage. That is right for "what's that movie where..."
+and wrong for "why did Oppenheimer do so well?", "compare the budgets of Dune and Dune: Part
+Two", "which sci-fi directors made money on moderate budgets in the 2010s?" or "what's coming
+out next month?" - questions whose answer is in numbers, credits, dates and review text, not
+in a plot synopsis.
+
+    question ─► planner (retrieve.py, unchanged) ─► route() ─► tools ─► context blocks
+                                                     │ rules on the question's words +
+                                                     │ the plan; an LLM only for aggregate
+                                                     │ questions that need a query spec
+                                                     ▼
+          facts      budget / gross (best source + conflicts), runtime, dates, crew, cast,
+                     franchise, awards, ratings (TMDB, MovieLens)             SQL
+          compare    the same facts side by side for 2-3 named films         SQL
+          market     release-window competition, genre-year baseline,
+                     director track record, franchise history                SQL
+          sections   Wikipedia Production / Reception / Box office / Themes
+                     passages closest to the question, for the named films  vectors (per film)
+          reviews    audience + critic aspect counts with quotes             SQL (reviews_analyze.py)
+          people     filmography / career stats / recurring keywords         SQL
+          aggregate  rankings and trends across many films ("which directors...") SQL from an LLM spec
+          current    now playing / upcoming / announced, by date and genre   SQL (fetch_tmdb.py current)
+
+Every line handed to the answer model carries a source tag ([TMDB], [Wikipedia infobox],
+[Wikidata], [Wikipedia: Reception], [TMDB user reviews], [MovieLens]) and, for data that
+changes, the date it was fetched. Conflicting money figures are shown together, never
+silently resolved. The analysis answer format (answer_v3.py) separates evidence from
+interpretation.
+
+    python tools.py build                 # money table (best figure per film) + MovieLens stats
+    python tools.py try "why did Jaws do so well?"     # show the route and the blocks, no answer
+"""
+import datetime
+import json
+import os
+import re
+import sqlite3
+import statistics
+import sys
+import time
+
+import facts_db as F
+
+TOOLS = os.environ.get("TOOLS", "0") == "1"
+SPEC_MODEL = os.environ.get("SPEC_MODEL", "llama3.2")
+TOOL_CHARS = int(os.environ.get("TOOL_CHARS", "9000"))    # all tool blocks together (~2.3k tokens)
+# 7 Oct (context-window experiment): Wikipedia section passages per film and characters each.
+SECTION_N = int(os.environ.get("SECTION_N", "3"))
+SECTION_CHARS = int(os.environ.get("SECTION_CHARS", "650"))
+PROFIT_X = 2.5        # gross >= 2.5 x budget counts as profitable (rule of thumb, stated in answers)
+
+_DB = {"conn": None, "tried": False}
+
+
+def db():
+    if not _DB["tried"]:
+        _DB["tried"] = True
+        _DB["conn"] = F.connect(readonly=True)
+    return _DB["conn"]
+
+
+def has(table):
+    c = db()
+    if c is None:
+        return False
+    try:
+        return c.execute(f"select 1 from {table} limit 1").fetchone() is not None
+    except sqlite3.Error:
+        return False
+
+
+# ================================================================== routing
+_W = lambda p: re.compile(p, re.I)   # noqa: E731
+R_CURRENT = _W(r"\b(coming out|upcoming|come out (soon|next|this)|out (soon|next)|releas\w* (soon|next|this|later)|"
+               r"in (theaters|theatres|cinemas)|now playing|playing now|out now|new releases?|just came out|"
+               r"this (week|weekend|month)|next (week|month|year)|later this year|currently (showing|playing))\b")
+R_WHY = _W(r"\bwhy\b.{0,80}\b(succe\w*|work(ed|s)?|flop\w*|fail\w*|bomb\w*|popular|hit|so well|so badly|perform\w*|"
+           r"underperform\w*|beloved|loved|hated|disappoint\w*|cult|overrated|underrated|"
+           r"(make|made|earn|earned|lose|lost) (so much |so little |a lot of |more |less |any )?money)\b"
+           r"|\bwhat made\b.{0,60}\b(work|successful|a hit|so good|so popular|special|fail|flop)\b"
+           r"|\b(succe\w*|flop\w*|fail\w*|work(ed)?) (because|due to)\b|\bdriven (more )?by\b"
+           r"|\bhow did\b.{0,60}\b(do|perform) at the box office\b|\bexpectations\b")
+R_REVIEWS = _W(r"\b(critics?|reviews?|reviewers?|audiences?|viewers|fans|moviegoers|people)\b.{0,40}\b(like[ds]?|love[ds]?|hate[ds]?|"
+               r"dislike[ds]?|prais\w*|critici\w*|think|thought|say|said|react\w*|respond\w*|receiv\w*)\b"
+               r"|\breception\b|\bwell[- ]received\b|\bcritical(ly)?\b|\brotten\b|\breviews?\b"
+               r"|\bhow was\b.{0,60}\breceived\b|\b(liked|disliked|hated) (it|about)\b")
+R_MONEY = _W(r"\b(budgets?|box[- ]office|gross(ed|es)?|revenue|earn(ed|ings)?|made (more |the most |less )?money|profit\w*|"
+             r"cost|how much did|opening weekend|financial\w*|commercial\w*|roi)\b")
+R_FACTS = _W(r"\b(runtime|how long is|length|release date|when (did|does|was|is)\b.{0,40}\b(come out|released?|premiere)|"
+             r"who (wrote|scored|composed|shot|produced|edited)|writer|composer|cinematograph\w*|producer|studio|"
+             r"franchise|sequel|prequel|series|rated|rating)\b")
+R_PRODUCTION = _W(r"\b(filmed|shot (in|on|at)|filming|production|behind the scenes|making of|casting|cast as|"
+                  r"developed|development|special effects|visual effects|cgi|practical effects|soundtrack|score|"
+                  r"music|composed|camera|budget overruns?|reshoots?|troubled|stunts?|sets?|locations?)\b"
+                  r"|\bhow did they (film|shoot|make|do|create|pull off)\b")
+R_THEMES = _W(r"\b(themes?|meaning|symboli\w*|message|interpret\w*|allegor\w*|what is .{0,30} really about)\b")
+R_AWARDS = _W(r"\b(awards?|oscars?|academy awards?|nominat\w*|golden globes?|won best|baftas?|palme|accolades?)\b")
+R_PEOPLE = _W(r"\b(career|filmograph\w*|track record|over (time|the years)|(early|earlier|later|recent) (films|movies|work)|"
+              r"style (changed|evolved|develop\w*)|throughout (his|her|their)|body of work|directors?|actors?|actresses|"
+              r"filmmakers?|directed by|starring)\b|\b[A-Z][a-z]+(?: [A-Z][a-z]+)*'s (films|movies|work|career|filmography)\b"
+              r"|\bcompare [A-Z][a-z]+ [A-Z][a-z]+ (and|with|to|vs\.?) [A-Z][a-z]+ [A-Z][a-z]+\b")
+R_AGG = _W(r"\b(which|what|who|top|most|least|highest|lowest|best|worst)\b.{0,60}\b(directors?|actors?|actresses|"
+           r"filmmakers?|studios?|genres?|years?|movies|films)\b.{0,80}\b(most|best|highest|lowest|consistently|"
+           r"multiple|profitable|successful|track record|budgets?|box office|gross\w*|rated|money|records?|"
+           r"outperform\w*|ratio|roi)\b"
+           r"|\b(in|during) (the )?(\d{4}s?|\d0s)\b.{0,40}\b(successful|popular|profitable|box office)\b"
+           r"|\b(successful|popular|profitable)\b.{0,40}\b(in|during) (\d{4}|the \d{2,4}s)\b"
+           r"|\bcompare\b.{0,40}\b(directors?|actors?|careers?)\b|\bover the years\b|\btrend\w*\b"
+           r"|\b(highest|top|biggest|lowest|best|worst)[- ](grossing|rated|earning|budget|reviewed)\b")
+
+
+def route(question, plan, hits):
+    """Which tools to run. Rules on the question's words and the plan; no model call.
+    Returns {"tasks": [...], "films": [hit dicts the question is about], "why": bool}."""
+    q = question or ""
+    intent = (plan or {}).get("intent") or ""
+    hits = hits or []
+    about = []
+    if intent == "identify":
+        about = hits[:1]
+    elif intent in ("named_film", "other") and hits:
+        import retrieve as R
+        want = [R.normalize(t) for t in (plan or {}).get("films") or []]
+        by = {R.normalize(h["title"]): h for h in hits}
+        about = [by[w] for w in want if w in by]
+        if not about and intent == "named_film":
+            about = hits[:1]
+    tasks = []
+    # A plot description gets its film's facts only when the question also asks for them
+    # ("what's that movie ... and how much did it make?"); the v2 answer is otherwise unchanged.
+    auto_facts = intent != "identify"
+    if R_CURRENT.search(q):
+        tasks.append("current")
+    if R_AGG.search(q) or (R_PEOPLE.search(q) and intent in ("other", "recommend")):
+        tasks.append("aggregate")
+    if about and not auto_facts and not (R_MONEY.search(q) or R_FACTS.search(q) or R_WHY.search(q)
+                                         or R_REVIEWS.search(q) or R_AWARDS.search(q)):
+        about = []
+    if about:
+        tasks.append("facts")
+        if len(about) > 1:
+            tasks.append("compare")
+        why = bool(R_WHY.search(q))
+        if why:
+            tasks += ["market", "sections", "reviews"]
+        else:
+            if R_REVIEWS.search(q):
+                tasks += ["reviews", "sections"]
+            if R_PRODUCTION.search(q) or R_THEMES.search(q) or R_MONEY.search(q) or R_AWARDS.search(q):
+                tasks.append("sections")
+            if R_MONEY.search(q) and len(about) == 1:
+                tasks.append("market")
+    else:
+        why = False
+    seen, out = set(), []
+    for t in tasks:
+        if t not in seen:
+            seen.add(t)
+            out.append(t)
+    return {"tasks": out, "films": about, "why": why,
+            "kinds": _section_kinds(q, why)}
+
+
+def _section_kinds(q, why):
+    kinds = []
+    if why or R_MONEY.search(q):
+        kinds += ["box_office", "release"]
+    if why or R_REVIEWS.search(q):
+        kinds += ["reception"]
+    if R_PRODUCTION.search(q):
+        kinds += ["production", "music"]
+    if R_THEMES.search(q):
+        kinds += ["themes", "legacy"]
+    if R_AWARDS.search(q):
+        kinds += ["accolades"]
+    if why:
+        kinds += ["legacy", "production"]
+    return list(dict.fromkeys(kinds)) or ["reception", "production", "box_office", "themes"]
+
+
+# ================================================================== facts
+def money(fid):
+    """{'budget': (value, source, [(value, source)...], conflict), 'gross': (...)} in USD."""
+    c = db()
+    out = {}
+    if c is None:
+        return out
+    try:
+        row = c.execute("select budget, budget_src, budget_alt, gross, gross_src, gross_alt, roi, conflict "
+                        "from money where tmdb_id = ?", (fid,)).fetchone()
+    except sqlite3.Error:
+        row = None
+    if row:
+        if row[0]:
+            out["budget"] = (row[0], row[1], json.loads(row[2] or "[]"), bool(row[7] & 1))
+        if row[3]:
+            out["gross"] = (row[3], row[4], json.loads(row[5] or "[]"), bool(row[7] & 2))
+        if row[6]:
+            out["roi"] = row[6]
+    return out
+
+
+SRC = {"tmdb": "TMDB", "wikipedia_infobox": "Wikipedia infobox", "wikidata": "Wikidata"}
+
+
+def usd(v):
+    if v is None:
+        return "?"
+    if v >= 1e9:
+        return f"${v / 1e9:.2f} billion"
+    if v >= 1e6:
+        return f"${v / 1e6:.1f} million"
+    return f"${v:,.0f}"
+
+
+def _money_line(name, m):
+    v, src, alts, conflict = m
+    s = f"{name}: {usd(v)} [{SRC.get(src, src)}]"
+    others = [(a, b) for a, b in alts if b != src]
+    if conflict and others:
+        s += " - sources disagree: " + ", ".join(f"{usd(a)} [{SRC.get(b, b)}]" for a, b in others)
+    return s
+
+
+def film_row(fid):
+    c = db()
+    if c is None:
+        return None
+    return c.execute("select tmdb_id, title, year, release_date, us_release_date, runtime, genres_json, "
+                     "companies_json, collection_id, collection_name, vote_average, vote_count, overview, "
+                     "tier, tmdb_fetched_at, original_language, countries_json from films where tmdb_id = ?",
+                     (fid,)).fetchone()
+
+
+def crew(fid):
+    c = db()
+    out = {}
+    for job, name in c.execute("select c.job, p.name from credits c join people p on p.person_id = c.person_id "
+                               "where c.tmdb_id = ? and c.kind = 'crew'", (fid,)):
+        out.setdefault(job, [])
+        if name not in out[job]:
+            out[job].append(name)
+    cast = [f"{n} as {ch}" if ch else n for n, ch in c.execute(
+        "select p.name, c.character from credits c join people p on p.person_id = c.person_id "
+        "where c.tmdb_id = ? and c.kind = 'cast' order by c.ord limit 6", (fid,))]
+    return out, cast
+
+
+def awards(fid):
+    c = db()
+    rows = c.execute("select award, status, year from awards where tmdb_id = ?", (fid,)).fetchall()
+    if not rows:
+        return None
+    won = [a for a, s, _y in rows if s == "won" and a]
+    nom = [a for a, s, _y in rows if s == "nominated" and a]
+    oscars_won = sum(1 for a in won if "Academy Award" in a)
+    oscars_nom = sum(1 for a in nom if "Academy Award" in a)
+    top = [a for a in won if "Academy Award" in a][:4] or won[:4]
+    s = f"Awards: {len(won)} wins, {len(nom)} nominations listed"
+    if oscars_won or oscars_nom:
+        s += f" (Academy Awards: {oscars_won} won, {oscars_nom} nominated)"
+    if top:
+        s += "; won include " + "; ".join(top)
+    return s + " [Wikidata]"
+
+
+def ml_line(fid):
+    c = db()
+    try:
+        row = c.execute("select n_ratings, mean from ml_stats where tmdb_id = ?", (fid,)).fetchone()
+    except sqlite3.Error:
+        return None
+    if row and row[0] >= 20:
+        return f"MovieLens audience: {row[1]:.2f}/5 from {row[0]:,} ratings [MovieLens]"
+    return None
+
+
+def facts_block(fid, short=False):
+    """The film's structured facts as tagged lines, or None if facts.db lacks it."""
+    r = film_row(fid)
+    if not r:
+        return None
+    (_fid, title, year, rd, usrd, runtime, genres, companies, coll_id, coll, va, vc, _ov,
+     tier, fetched, lang, countries) = r
+    lines = [f"{title} ({year or '?'}) - structured data"]
+    bits = []
+    if rd:
+        bits.append(f"released {rd}" + (f" (US theatrical {usrd})" if usrd and usrd != rd else ""))
+    if runtime:
+        bits.append(f"{runtime} min")
+    if genres:
+        bits.append(", ".join(json.loads(genres)[:4]))
+    if lang:
+        bits.append(f"language {lang}")
+    if bits:
+        lines.append("; ".join(bits) + " [TMDB]")
+    m = money(fid)
+    if "budget" in m:
+        lines.append(_money_line("Budget", m["budget"]))
+    if "gross" in m:
+        lines.append(_money_line("Worldwide gross", m["gross"]))
+    if "roi" in m:
+        lines.append(f"Gross / budget: {m['roi']:.1f}x (break-even is roughly {PROFIT_X}x once marketing and "
+                     f"the theaters' share are counted - a rule of thumb, not data)")
+    cr, cast = crew(fid)
+    for job, label in (("Director", "Director"), ("Screenplay", "Screenplay"), ("Writer", "Writer"),
+                       ("Novel", "Based on novel by"), ("Director of Photography", "Cinematographer"),
+                       ("Original Music Composer", "Composer"), ("Editor", "Editor"), ("Producer", "Producers")):
+        if cr.get(job) and not (short and job in ("Editor", "Producer", "Writer")):
+            lines.append(f"{label}: {', '.join(cr[job][:3])} [TMDB]")
+    if cast and not short:
+        lines.append(f"Cast: {', '.join(cast[:6])} [TMDB]")
+    if coll:
+        lines.append(f"Franchise: {coll} [TMDB]")
+    if companies and not short:
+        cs = json.loads(companies)[:3]
+        if cs:
+            lines.append(f"Studios: {', '.join(cs)} [TMDB]")
+    if va and vc:
+        lines.append(f"TMDB user rating {va:.1f}/10 from {vc:,} votes [TMDB, fetched {str(fetched)[:10]}]")
+    ml = ml_line(fid)
+    if ml:
+        lines.append(ml)
+    aw = awards(fid)
+    if aw:
+        lines.append(aw)
+    if tier in ("upcoming", "now_playing"):
+        lines.append(f"Status: {tier.replace('_', ' ')} as of {str(fetched)[:10]} [TMDB]")
+    return "\n".join(lines)
+
+
+def compare_block(fids):
+    """Side-by-side numbers for 2-3 films."""
+    rows = []
+    for fid in fids[:3]:
+        r = film_row(fid)
+        if not r:
+            continue
+        m = money(fid)
+        cr, _ = crew(fid)
+        rows.append((r[1], r[2], r[5], m.get("budget", (None,))[0], m.get("gross", (None,))[0], m.get("roi"),
+                     r[10], r[11], ", ".join(cr.get("Director", [])[:2])))
+    if len(rows) < 2:
+        return None
+    out = ["Side by side: title | year | runtime | budget | worldwide gross | gross/budget | TMDB rating | director"]
+    for t, y, rt, b, g, roi, va, vc, d in rows:
+        out.append(f"{t} | {y} | {rt or '?'} min | {usd(b) if b else '?'} | {usd(g) if g else '?'} | "
+                   f"{f'{roi:.1f}x' if roi else '?'} | {f'{va:.1f} ({vc:,} votes)' if va else '?'} | {d or '?'}")
+    out.append("(money from the best available source per film; see each film's lines for sources) ")
+    return "\n".join(out)
+
+
+# ================================================================== market context
+def _median(xs):
+    xs = [x for x in xs if x is not None]
+    return statistics.median(xs) if xs else None
+
+
+def market_block(fid):
+    """Release window, genre-year baseline, director track record, franchise history."""
+    c = db()
+    r = film_row(fid)
+    if not r:
+        return None
+    title, year, rd, usrd, genres = r[1], r[2], r[3], r[4], json.loads(r[6] or "[]")
+    lines = [f"Market context for {title} ({year})"]
+    date = usrd or rd
+    if date:
+        try:
+            d0 = datetime.date.fromisoformat(date[:10])
+            lo, hi = (d0 - datetime.timedelta(days=14)).isoformat(), (d0 + datetime.timedelta(days=14)).isoformat()
+            comp = c.execute("""select f.title, coalesce(f.us_release_date, f.release_date), m.gross
+                from films f join money m on m.tmdb_id = f.tmdb_id
+                where coalesce(f.us_release_date, f.release_date) between ? and ? and f.tmdb_id != ?
+                  and m.gross > 0 order by m.gross desc limit 5""", (lo, hi, fid)).fetchall()
+            if comp:
+                lines.append(f"Released {date[:10]} ({d0.strftime('%B')}); other films within two weeks, by gross: " +
+                             "; ".join(f"{t} ({dd[:10]}, {usd(g)})" for t, dd, g in comp) + " [TMDB / Wikipedia]")
+        except ValueError:
+            pass
+    if genres and year:
+        g = genres[0]
+        rows = c.execute("""select m.gross, m.roi from films f join money m on m.tmdb_id = f.tmdb_id
+            where f.year = ? and f.genres_json like ? and m.gross > 0""", (year, f'%"{g}"%')).fetchall()
+        if len(rows) >= 5:
+            mg, mr = _median([x[0] for x in rows]), _median([x[1] for x in rows])
+            my = money(fid)
+            rank = sorted([x[0] for x in rows], reverse=True).index(my["gross"][0]) + 1 \
+                if "gross" in my and my["gross"][0] in [x[0] for x in rows] else None
+            lines.append(f"{g} films released in {year} with box-office data: {len(rows)}; median gross {usd(mg)}"
+                         + (f", median gross/budget {mr:.1f}x" if mr else "")
+                         + (f"; this film ranks #{rank} of {len(rows)}" if rank else "") + " [TMDB / Wikipedia, computed]")
+    cr, _ = crew(fid)
+    for d in (cr.get("Director") or [])[:1]:
+        prev = c.execute("""select f.title, f.year, m.gross, f.vote_average from credits k
+            join people p on p.person_id = k.person_id join films f on f.tmdb_id = k.tmdb_id
+            left join money m on m.tmdb_id = f.tmdb_id
+            where p.name = ? and k.job = 'Director' and f.tmdb_id != ? and f.year < ?
+            order by f.year desc limit 6""", (d, fid, year or 9999)).fetchall()
+        if prev:
+            lines.append(f"{d}'s earlier films: " + "; ".join(
+                f"{t} ({y}{', ' + usd(g) if g else ''}{f', {va:.1f}/10' if va else ''})" for t, y, g, va in prev)
+                + " [TMDB / Wikipedia]")
+        else:
+            lines.append(f"{d}: no earlier directing credits in the database (a first feature, or older work missing)")
+    if r[8]:
+        fr = c.execute("""select f.title, f.year, m.gross, f.vote_average from films f
+            left join money m on m.tmdb_id = f.tmdb_id where f.collection_id = ? order by f.year""",
+                       (r[8],)).fetchall()
+        if len(fr) > 1:
+            lines.append(f"{r[9]}: " + "; ".join(f"{t} ({y}{', ' + usd(g) if g else ''})" for t, y, g, _va in fr)
+                         + " [TMDB]")
+    return "\n".join(lines) if len(lines) > 1 else None
+
+
+# ================================================================== Wikipedia sections
+_SEC = {"mat": None, "ids": None}
+
+
+def _sec_vectors(fid):
+    c = db()
+    import numpy as np
+    rows = c.execute("""select s.sec_id, s.kind, s.section_key, s.text, v.emb from sections s
+        join sec_vec v on v.sec_id = s.sec_id where s.tmdb_id = ?""", (fid,)).fetchall()
+    if not rows:
+        return [], None
+    mat = np.stack([np.frombuffer(r[4], dtype=np.float32) for r in rows])
+    mat /= np.linalg.norm(mat, axis=1, keepdims=True) + 1e-9
+    return rows, mat
+
+
+def sections_block(fid, title, q_vec, kinds, n=3, chars=650):
+    """The film's Wikipedia passages (non-plot) closest to the question, preferring the
+    kinds the route asked for. Passages, not summaries: what the answer quotes is the text."""
+    c = db()
+    if c is None:
+        return None
+    rows, mat = ([], None)
+    if q_vec is not None and has("sec_vec"):
+        rows, mat = _sec_vectors(fid)
+    if rows and mat is not None:
+        import numpy as np
+        qv = np.asarray(q_vec, dtype=np.float32)
+        qv /= np.linalg.norm(qv) + 1e-9
+        sim = mat @ qv
+        bonus = np.array([0.05 if r[1] in kinds else 0.0 for r in rows], dtype=np.float32)
+        order = list(np.argsort(-(sim + bonus))[:n])
+        picked = [(rows[i][1], rows[i][2], rows[i][3]) for i in order]
+    else:
+        picked = []
+        for k in kinds:
+            for kind, key, text in c.execute("select kind, section_key, text from sections where tmdb_id = ? "
+                                             "and kind = ? order by position limit 1", (fid, k)):
+                picked.append((kind, key, text))
+            if len(picked) >= n:
+                break
+    if not picked:
+        return None
+    out = [f"{title} - Wikipedia sections (2023 snapshot)"]
+    for kind, key, text in picked:
+        t = text if len(text) <= chars else text[:chars].rsplit(" ", 1)[0] + " ..."
+        out.append(f"[Wikipedia: {key.title()}] {t}")
+    return "\n".join(out)
+
+
+# ================================================================== reviews
+def reviews_block(fid, title):
+    c = db()
+    if c is None:
+        return None
+    lines = []
+    for st, label in (("audience", "Audience reviews (TMDB users)"), ("critic", "Critics (from Wikipedia's reception text)")):
+        try:
+            rows = c.execute("select aspect, pos, neg, mixed, n_reviews, quotes_json from film_aspects "
+                             "where tmdb_id = ? and source_type = ? order by (pos + neg + mixed) desc limit 6",
+                             (fid, st)).fetchall()
+        except sqlite3.Error:
+            rows = []
+        if not rows:
+            continue
+        n = rows[0][4]
+        parts = []
+        for aspect, pos, neg, mixed, _n, quotes in rows:
+            qs = json.loads(quotes or "[]")[:1]
+            parts.append(f"{aspect}: {pos} positive, {neg} negative" + (f", {mixed} mixed" if mixed else "")
+                         + (f' ("{qs[0]}")' if qs else ""))
+        src = "TMDB user reviews" if st == "audience" else "Wikipedia: Reception"
+        lines.append(f"{label}, {n} analysed - " + "; ".join(parts) + f" [{src}, aspects by Movie Buff]")
+    if not lines:
+        n = c.execute("select count(*) from reviews where tmdb_id = ?", (fid,)).fetchone()[0]
+        if n:
+            ex = c.execute("select content, rating from reviews where tmdb_id = ? order by length(content) "
+                           "limit 2", (fid,)).fetchall()
+            lines.append(f"{n} TMDB user reviews (not yet analysed); e.g. " + " | ".join(
+                f"{'(' + str(rt) + '/10) ' if rt else ''}{' '.join(t.split())[:220]}" for t, rt in ex) + " [TMDB user reviews]")
+    return (f"{title} - what reviewers said\n" + "\n".join(lines)) if lines else None
+
+
+# ================================================================== people + aggregates
+GENRES = ["Action", "Adventure", "Animation", "Comedy", "Crime", "Documentary", "Drama", "Family", "Fantasy",
+          "History", "Horror", "Music", "Mystery", "Romance", "Science Fiction", "Thriller", "War", "Western"]
+
+SPEC_SYSTEM = """Turn a question about movies into a database query spec. Reply with JSON only.
+
+task: "filmography" (one or more named people's films / careers / styles), "ranking" (which films, people or years are best, worst, most, least by some measure), "trend" (how something changed across years), or "none" (anything else).
+people: people the question names, [{"name": "...", "role": "director"|"actor"|"writer"|"composer"|"any"}].
+group_by: what the answer lists - "film", "director", "actor", "genre" or "year".
+genres: from this list only: Action, Adventure, Animation, Comedy, Crime, Documentary, Drama, Family, Fantasy, History, Horror, Music, Mystery, Romance, Science Fiction, Thriller, War, Western.
+year_from, year_to: integers or null. "the 2010s" = 2010-2019.
+metric: "gross", "roi" (gross divided by budget; "profitable", "made money", "outperformed its budget"), "rating", "budget", "count" or "awards".
+min_films: films each person or group needs (1 unless the question says "multiple" = 2 or "consistently" = 3).
+max_budget: US dollars or null ("moderate budgets" = 60000000, "low-budget" = 15000000).
+order: "desc" or "asc". limit: 10 unless the question asks for a number.
+
+Examples
+Question: Which science-fiction directors consistently made commercially successful movies on moderate budgets?
+{"task":"ranking","people":[],"group_by":"director","genres":["Science Fiction"],"year_from":null,"year_to":null,"metric":"roi","min_films":3,"max_budget":60000000,"order":"desc","limit":10}
+Question: How has Christopher Nolan's style changed over time?
+{"task":"filmography","people":[{"name":"Christopher Nolan","role":"director"}],"group_by":"film","genres":[],"year_from":null,"year_to":null,"metric":"rating","min_films":1,"max_budget":null,"order":"asc","limit":20}
+Question: Why were horror movies so successful in 2017?
+{"task":"trend","people":[],"group_by":"year","genres":["Horror"],"year_from":2012,"year_to":2019,"metric":"roi","min_films":1,"max_budget":null,"order":"asc","limit":10}
+Question: Which actors have the best track record in comedies?
+{"task":"ranking","people":[],"group_by":"actor","genres":["Comedy"],"year_from":null,"year_to":null,"metric":"rating","min_films":3,"max_budget":null,"order":"desc","limit":10}"""
+
+_PERSON = {"type": "object", "properties": {"name": {"type": "string"}, "role": {"type": "string"}},
+           "required": ["name", "role"]}
+SPEC_SCHEMA = {"type": "object", "properties": {
+    "task": {"type": "string", "enum": ["filmography", "ranking", "trend", "none"]},
+    "people": {"type": "array", "items": _PERSON},
+    "group_by": {"type": "string", "enum": ["film", "director", "actor", "genre", "year"]},
+    "genres": {"type": "array", "items": {"type": "string"}},
+    "year_from": {"type": ["integer", "null"]}, "year_to": {"type": ["integer", "null"]},
+    "metric": {"type": "string", "enum": ["gross", "roi", "rating", "budget", "count", "awards"]},
+    "min_films": {"type": "integer"}, "max_budget": {"type": ["integer", "null"]},
+    "order": {"type": "string", "enum": ["desc", "asc"]}, "limit": {"type": "integer"}},
+    "required": ["task", "people", "group_by", "genres", "year_from", "year_to", "metric", "min_films",
+                 "max_budget", "order", "limit"]}
+
+
+_SPEC_CACHE = {}
+
+
+def spec_for(question):
+    """One short structured-output call (SPEC_MODEL, default llama3.2: ~1 s). The model only
+    fills in a spec; the SQL is written by code below, never by the model. Cached per process
+    (the spec depends only on the question's words)."""
+    key = " ".join(question.casefold().split())
+    if key in _SPEC_CACHE:
+        return dict(_SPEC_CACHE[key])
+    s = _spec_call(question)
+    if s is not None:
+        if len(_SPEC_CACHE) > 500:
+            _SPEC_CACHE.clear()
+        _SPEC_CACHE[key] = dict(s)
+    return s
+
+
+def _spec_call(question):
+    try:
+        import ollama
+        import retrieve as R
+        r = ollama.chat(model=SPEC_MODEL, think=False, format=SPEC_SCHEMA,
+                        options=R.llm_options({"num_predict": 200, "temperature": 0}) if SPEC_MODEL == R.QUERY_MODEL
+                        else {"num_predict": 200, "temperature": 0},
+                        keep_alive=os.environ.get("KEEP_ALIVE", "30m"),
+                        messages=[{"role": "system", "content": SPEC_SYSTEM},
+                                  {"role": "user", "content": f"Question: {question}"}])
+        R._note_llm("spec", r)
+        s = json.loads(r["message"]["content"])
+    except Exception:
+        return None
+    s["genres"] = [g for g in s.get("genres") or [] if g in GENRES]
+    s["limit"] = max(1, min(int(s.get("limit") or 10), 25))
+    s["min_films"] = max(1, min(int(s.get("min_films") or 1), 10))
+    return s
+
+
+# 6 Oct (v3b L2 regressions a29, a36): llama3.2 padded specs with genres and years the question
+# never mentioned (a36 "highest-grossing movies of 1997" got 16 genres; a29 "Ridley Scott's early
+# and later films" got 6 genres and 1975-2012) and _film_filter ANDs genres, so both returned no
+# rows. The spec's filters are now taken from the question's own words: genres only when the
+# question names them, years only when it has a time expression, and a named person always
+# means their filmography (a29 was a "trend" spec that ignored the person).
+GENRE_WORDS = {
+    "Action": r"\baction\b", "Adventure": r"\badventures?\b",
+    "Animation": r"\banimat\w*|\bcartoons?\b|\bpixar\b",
+    "Comedy": r"\bcomed\w*|\bfunny\b|\brom-?coms?\b", "Crime": r"\bcrime\b|\bgangsters?\b|\bheists?\b|\bmob\b",
+    "Documentary": r"\bdocumentar\w*", "Drama": r"\bdramas?\b", "Family": r"\bfamily\b|\bkids'?\b|\bchildren'?s?\b",
+    "Fantasy": r"\bfantasy\b", "History": r"\bhistor\w*|\bperiod (pieces?|films?|dramas?)\b",
+    "Horror": r"\bhorror\b|\bscary\b|\bslashers?\b", "Music": r"\bmusicals?\b|\bmusic (films?|movies?)\b",
+    "Mystery": r"\bmyster\w*|\bwhodunn?its?\b", "Romance": r"\bromanc\w*|\bromantic\b|\brom-?coms?\b|\blove stor",
+    "Science Fiction": r"\bsci-?fi\b|\bscience[- ]fiction\b|\bscifi\b", "Thriller": r"\bthrillers?\b|\bsuspense\b",
+    "War": r"\bwar (films?|movies?|dramas?)\b|\bwartime\b", "Western": r"\bwesterns?\b"}
+R_TIME = re.compile(r"\b(1[89]\d\d|20\d\d)s?\b|'?\b\d0s\b|\b(nineties|eighties|seventies|sixties|fifties|forties|"
+                    r"decades?|this year|last year|recent\w*|lately|nowadays|these days)\b", re.I)
+
+
+def clean_spec(question, spec):
+    """Filters from the question's words, not the model's guesses (see above)."""
+    if not spec:
+        return spec
+    s = dict(spec)
+    q = question or ""
+    s["genres"] = [g for g, p in GENRE_WORDS.items() if re.search(p, q, re.I)]
+    if not R_TIME.search(q):
+        s["year_from"] = s["year_to"] = None
+    # Only people the question really names: llama3.2 sometimes fills "people" for "which
+    # science-fiction directors ..." (a30 a31 a33 lost their ranking to a filmography on 6 Oct).
+    ql = q.casefold()
+    s["people"] = [p for p in s.get("people") or []
+                   if (p.get("name") or "").strip() and p["name"].casefold() in ql]
+    if s["people"] and s.get("task") in ("trend", "ranking", "none"):
+        s["task"] = "filmography"
+    return s
+
+
+def person_id(name, role="any"):
+    c = db()
+    jobs = {"director": ("Director",), "actor": ("Actor",), "writer": ("Screenplay", "Writer", "Story"),
+            "composer": ("Original Music Composer", "Music")}.get(role)
+    rows = c.execute("select person_id, name, popularity from people where name = ? collate nocase", (name,)).fetchall()
+    if not rows:
+        rows = c.execute("select person_id, name, popularity from people where name like ? collate nocase "
+                         "order by popularity desc limit 5", (f"%{name}%",)).fetchall()
+    best = None
+    for pid, n, pop in rows:
+        q = "select count(*) from credits where person_id = ?" + (
+            f" and job in ({','.join('?' * len(jobs))})" if jobs else "")
+        cnt = c.execute(q, (pid, *(jobs or ()))).fetchone()[0]
+        if cnt and (best is None or cnt > best[2]):
+            best = (pid, n, cnt)
+    return best
+
+
+def filmography_block(name, role):
+    c = db()
+    p = person_id(name, role)
+    if not p:
+        return None
+    pid, pname, _ = p
+    jobs = {"director": "('Director')", "actor": "('Actor')", "writer": "('Screenplay','Writer','Story')",
+            "composer": "('Original Music Composer','Music')"}.get(role)
+    rows = c.execute(f"""select distinct f.tmdb_id, f.title, f.year, k.job, f.genres_json, f.vote_average, f.vote_count,
+            m.gross, m.budget, m.roi from credits k join films f on f.tmdb_id = k.tmdb_id
+            left join money m on m.tmdb_id = f.tmdb_id
+            where k.person_id = ? {'and k.job in ' + jobs if jobs else ''} and f.year is not null
+            order by f.year""", (pid,)).fetchall()
+    if not rows:
+        return None
+    lines = [f"{pname} - films in the database ({role}), oldest first: title | year | genres | TMDB rating | "
+             f"budget | worldwide gross | gross/budget"]
+    seen = set()
+    for fid, t, y, job, g, va, vc, gross, bud, roi in rows:
+        if fid in seen:
+            continue
+        seen.add(fid)
+        lines.append(f"{t} | {y} | {', '.join(json.loads(g or '[]')[:2])} | "
+                     f"{f'{va:.1f}' if va and (vc or 0) >= 50 else '?'} | {usd(bud) if bud else '?'} | "
+                     f"{usd(gross) if gross else '?'} | {f'{roi:.1f}x' if roi else '?'}")
+    ids = list(seen)
+    kw = {}
+    for (name_,) in c.execute(f"select name from keywords where tmdb_id in ({','.join('?' * len(ids))})", ids):
+        kw[name_] = kw.get(name_, 0) + 1
+    common = [k for k, n in sorted(kw.items(), key=lambda x: -x[1]) if n >= 2][:12]
+    if common:
+        lines.append("Keywords that recur across these films (TMDB tags, count): " +
+                     ", ".join(f"{k} ({kw[k]})" for k in common))
+    ratings = [r[5] for r in rows if r[5] and (r[6] or 0) >= 50]
+    if len(ratings) >= 4:
+        half = len(ratings) // 2
+        lines.append(f"Mean TMDB rating, first {half} films: {statistics.mean(ratings[:half]):.2f}; "
+                     f"later {len(ratings) - half}: {statistics.mean(ratings[half:]):.2f} [TMDB, computed]")
+    lines.append("[TMDB credits; money: TMDB / Wikipedia infobox / Wikidata]")
+    return "\n".join(lines)
+
+
+def _film_filter(s):
+    where, args = ["f.year is not null"], []
+    if s.get("year_from"):
+        where.append("f.year >= ?"); args.append(int(s["year_from"]))
+    if s.get("year_to"):
+        where.append("f.year <= ?"); args.append(int(s["year_to"]))
+    for g in s.get("genres") or []:
+        where.append("f.genres_json like ?"); args.append(f'%"{g}"%')
+    if s.get("max_budget"):
+        where.append("m.budget <= ?"); args.append(int(s["max_budget"]))
+    return " and ".join(where), args
+
+
+METRIC_SQL = {"gross": "m.gross", "roi": "m.roi", "budget": "m.budget",
+              "rating": "case when f.vote_count >= 200 then f.vote_average end"}
+
+
+def aggregate_block(question, spec):
+    """Rankings and trends computed in SQL from the spec. The model never writes SQL."""
+    c = db()
+    if not spec or spec.get("task") == "none" or c is None:
+        return None
+    if spec["task"] == "filmography":
+        blocks = [filmography_block(p["name"], p.get("role") or "any") for p in spec.get("people") or []][:2]
+        return "\n\n".join(b for b in blocks if b) or None
+    where, args = _film_filter(spec)
+    metric = spec.get("metric") or "gross"
+    order = "asc" if spec.get("order") == "asc" else "desc"
+    lim = spec.get("limit") or 10
+    note = (f"Profitable = worldwide gross >= {PROFIT_X}x production budget (rule of thumb; marketing and the "
+            f"theaters' share are not in the data). ") if metric == "roi" else ""
+    desc = (f"genres {', '.join(spec.get('genres') or []) or 'any'}, years {spec.get('year_from') or 'any'}-"
+            f"{spec.get('year_to') or 'any'}" + (f", budget <= {usd(spec['max_budget'])}" if spec.get("max_budget") else ""))
+    gb = spec.get("group_by") or "film"
+    if spec["task"] == "trend" or gb == "year":
+        data = {}
+        for y, g, roi in c.execute(f"select f.year, m.gross, m.roi from films f left join money m on m.tmdb_id = f.tmdb_id "
+                                   f"where {where}", args):
+            data.setdefault(y, []).append((g, roi))
+        all_years = {}
+        for y, g, roi in c.execute("select f.year, m.gross, m.roi from films f join money m on m.tmdb_id = f.tmdb_id "
+                                   "where f.year between ? and ? and m.gross > 0",
+                                   (spec.get("year_from") or 1900, spec.get("year_to") or 2100)):
+            all_years.setdefault(y, []).append(roi)
+        lines = [f"By year ({desc}): year | films | with box office | median gross | median gross/budget | "
+                 f"median gross/budget, all genres"]
+        for y in sorted(data):
+            vals = data[y]
+            gs = [g for g, _ in vals if g]
+            rs = [r for _, r in vals if r]
+            ar = [r for r in all_years.get(y, []) if r]
+            lines.append(f"{y} | {len(vals)} | {len(gs)} | {usd(_median(gs)) if gs else '?'} | "
+                         f"{f'{_median(rs):.1f}x' if rs else '?'} | {f'{_median(ar):.1f}x' if ar else '?'}")
+        top = c.execute(f"""select f.title, f.year, m.budget, m.gross, m.roi from films f join money m on m.tmdb_id = f.tmdb_id
+            where {where} and m.gross > 0 order by {METRIC_SQL.get(metric, 'm.gross')} desc limit 8""", args).fetchall()
+        if top:
+            lines.append("Top films by " + metric + ": " + "; ".join(
+                f"{t} ({y}, budget {usd(b) if b else '?'}, gross {usd(g)}{f', {r:.1f}x' if r else ''})" for t, y, b, g, r in top))
+        return note + "\n".join(lines) + "\n[TMDB / Wikipedia infobox / Wikidata, computed by Movie Buff]"
+    if gb in ("director", "actor"):
+        job = "Director" if gb == "director" else "Actor"
+        extra = " and k.ord < 4" if gb == "actor" else ""
+        rows = c.execute(f"""select p.name, count(distinct f.tmdb_id), group_concat(f.title || ' (' || f.year || ')', '; '),
+                avg(case when f.vote_count >= 200 then f.vote_average end),
+                sum(case when m.roi >= {PROFIT_X} then 1 else 0 end), sum(case when m.roi is not null then 1 else 0 end),
+                sum(m.gross), group_concat(m.roi)
+            from credits k join people p on p.person_id = k.person_id join films f on f.tmdb_id = k.tmdb_id
+            left join money m on m.tmdb_id = f.tmdb_id
+            where k.job = ?{extra} and {where} group by p.person_id having count(distinct f.tmdb_id) >= ?""",
+                         (job, *args, spec.get("min_films") or 1)).fetchall()
+        def score(r):
+            rois = [float(x) for x in (r[7] or "").split(",") if x]
+            return {"roi": _median(rois) or -1, "rating": r[3] or -1, "gross": r[6] or -1,
+                    "count": r[1], "budget": r[6] or -1}.get(metric, r[6] or -1)
+        if metric == "roi":
+            rows = [r for r in rows if r[5] >= (spec.get("min_films") or 1)]
+        rows.sort(key=score, reverse=(order == "desc"))
+        lines = [f"{gb.title()}s ranked by {metric} ({desc}; at least {spec.get('min_films') or 1} films): "
+                 f"name | films | profitable / with data | median gross/budget | total gross | mean TMDB rating | films"]
+        for r in rows[:lim]:
+            rois = [float(x) for x in (r[7] or "").split(",") if x]
+            lines.append(f"{r[0]} | {r[1]} | {r[4]}/{r[5]} | {f'{_median(rois):.1f}x' if rois else '?'} | "
+                         f"{usd(r[6]) if r[6] else '?'} | {f'{r[3]:.1f}' if r[3] else '?'} | {(r[2] or '')[:160]}")
+        if len(lines) == 1:
+            return None
+        return note + "\n".join(lines) + "\n[TMDB credits; money: TMDB / Wikipedia infobox / Wikidata; computed by Movie Buff]"
+    if gb == "genre":
+        rows = c.execute(f"""select f.genres_json, m.gross, m.roi, f.vote_average from films f
+            left join money m on m.tmdb_id = f.tmdb_id where {where}""", args).fetchall()
+        agg = {}
+        for gj, g, r, va in rows:
+            for gname in json.loads(gj or "[]")[:2]:
+                agg.setdefault(gname, []).append((g, r, va))
+        lines = [f"Genres ({desc}): genre | films | median gross | median gross/budget"]
+        for gname, vals in sorted(agg.items(), key=lambda x: -len(x[1]))[:lim]:
+            gs = [g for g, _, _ in vals if g]
+            rs = [r for _, r, _ in vals if r]
+            lines.append(f"{gname} | {len(vals)} | {usd(_median(gs)) if gs else '?'} | {f'{_median(rs):.1f}x' if rs else '?'}")
+        return note + "\n".join(lines) + "\n[TMDB / Wikipedia, computed]"
+    col = METRIC_SQL.get(metric, "m.gross")
+    rows = c.execute(f"""select f.title, f.year, m.budget, m.gross, m.roi, f.vote_average, f.vote_count from films f
+        left join money m on m.tmdb_id = f.tmdb_id where {where} and {col} is not null
+        order by {col} {order} limit ?""", (*args, lim)).fetchall()
+    if not rows:
+        return None
+    lines = [f"Films ranked by {metric} ({desc}): title | year | budget | worldwide gross | gross/budget | TMDB rating"]
+    for t, y, b, g, r, va, vc in rows:
+        lines.append(f"{t} | {y} | {usd(b) if b else '?'} | {usd(g) if g else '?'} | {f'{r:.1f}x' if r else '?'} | "
+                     f"{f'{va:.1f}' if va and (vc or 0) >= 50 else '?'}")
+    return note + "\n".join(lines) + "\n[TMDB / Wikipedia infobox / Wikidata, computed by Movie Buff]"
+
+
+# ================================================================== current / upcoming
+def current_block(question):
+    c = db()
+    if c is None or not has("lists"):
+        return None
+    import retrieve as R
+    f = R.parse_filters(question)
+    genres = f.get("genres") or []
+    today = datetime.date.today()
+    ql = question.lower()
+    if re.search(r"\b(now playing|in (theaters|theatres|cinemas)|playing now|out now|currently)\b", ql):
+        lists, lo, hi = ("now_playing",), None, None
+    elif "next month" in ql:
+        nm = (today.replace(day=1) + datetime.timedelta(days=32)).replace(day=1)
+        lists, lo, hi = ("upcoming", "announced"), nm.isoformat(), \
+            ((nm + datetime.timedelta(days=32)).replace(day=1) - datetime.timedelta(days=1)).isoformat()
+    elif re.search(r"\b(this (week|weekend))\b", ql):
+        lists, lo, hi = ("now_playing", "upcoming"), (today - datetime.timedelta(days=3)).isoformat(), \
+            (today + datetime.timedelta(days=7)).isoformat()
+    elif re.search(r"\b(just came out|recent|new releases?|this year)\b", ql):
+        lists, lo, hi = ("now_playing", "since_snapshot"), (today - datetime.timedelta(days=120)).isoformat(), today.isoformat()
+    else:
+        lists, lo, hi = ("upcoming", "announced"), today.isoformat(), (today + datetime.timedelta(days=180)).isoformat()
+    sql = (f"select distinct f.tmdb_id, f.title, coalesce(f.us_release_date, f.release_date) d, f.genres_json, f.overview, "
+           f"f.popularity, l.fetched_at from lists l join films f on f.tmdb_id = l.tmdb_id "
+           f"where l.list_name in ({','.join('?' * len(lists))})")
+    args = list(lists)
+    if lo:
+        sql += " and coalesce(f.us_release_date, f.release_date) between ? and ?"
+        args += [lo, hi]
+    for g in genres:
+        sql += " and f.genres_json like ?"
+        args.append(f'%"{g}"%')
+    sql += " order by f.popularity desc limit 12"
+    rows = c.execute(sql, args).fetchall()
+    if not rows:
+        return f"No films in the current/upcoming lists match ({', '.join(lists)}{', ' + ', '.join(genres) if genres else ''}). [TMDB]"
+    fetched = max(r[6] for r in rows)[:10]
+    out = [f"From TMDB's {' / '.join(x.replace('_', ' ') for x in lists)} lists (US), fetched {fetched}; "
+           f"release dates can still move:"]
+    for fid, t, d, g, ov, _pop, _f in sorted(rows, key=lambda r: r[2] or ""):
+        cr, cast = crew(fid)
+        dirs = ", ".join(cr.get("Director", [])[:1])
+        out.append(f"{t} - {d or 'date not set'} - {', '.join(json.loads(g or '[]')[:3])}"
+                   + (f" - dir. {dirs}" if dirs else "") + (f" - {', '.join(c_.split(' as ')[0] for c_ in cast[:2])}" if cast else "")
+                   + (f": {' '.join((ov or '').split())[:160]}" if ov else ""))
+    return "\n".join(out) + " [TMDB]"
+
+
+# ================================================================== films only in facts.db
+def facts_hits(titles, year=None):
+    """Hits for films the catalogue (movies.db) doesn't have but facts.db does - mostly
+    films released after the catalogue was built. Shaped like retrieve()'s hits.
+    year: prefer that release year (+/- 1), e.g. Sinners (2025) over an older Sinners."""
+    c = db()
+    if c is None:
+        return []
+    import retrieve as R
+    out = []
+    for t in titles:
+        order = (f"abs(coalesce(year, 0) - {int(year)}) <= 1 desc, " if year else "") + "vote_count desc"
+        rows = c.execute("select tmdb_id, title, year, genres_json, overview, vote_count from films "
+                         f"where title = ? collate nocase order by {order} limit 1", (t,)).fetchall()
+        if not rows:
+            nt = R.normalize(t)
+            rows = [r for r in c.execute("select tmdb_id, title, year, genres_json, overview, vote_count from films "
+                                         "where tier != 'catalog' order by vote_count desc")
+                    if R.normalize(r[1]) == nt][:1]
+        for fid, title, year, g, ov, vc in rows:
+            cr, cast = crew(fid)
+            out.append({"id": fid, "title": title, "release_year": str(year or ""),
+                        "genres": ", ".join(json.loads(g or "[]")), "director": ", ".join(cr.get("Director", [])),
+                        "top_cast": ", ".join(cast[:4]), "text": ov or "", "vote_count": vc or 0,
+                        "distance": None, "_facts_only": True})
+    return out
+
+
+def film_card(h):
+    """What the answer model sees for a film that is only in facts.db (chat.context_for's job
+    for catalogue films)."""
+    b = facts_block(h["id"]) or f"{h.get('title')} ({h.get('release_year')})"
+    r = film_row(h["id"])
+    if r and r[12]:
+        b += f"\nPlot (TMDB): {r[12]}"
+    return b
+
+
+# ================================================================== run
+def run(question, hits, plan, q_text=None):
+    """All tool blocks for this question: {"blocks": [...], "route": {...}, "replace_hits": bool,
+    "ms": {...}}. Safe when facts.db is missing (returns no blocks)."""
+    t0 = time.perf_counter()
+    out = {"blocks": [], "route": None, "replace_hits": False, "ms": {}, "style": None}
+    if db() is None:
+        return out
+    rt = route(question, plan, hits)
+    out["route"] = {k: v for k, v in rt.items() if k != "films"}
+    out["route"]["films"] = [h.get("title") for h in rt["films"]]
+    q_vec = None
+    blocks = []
+    films = [h for h in rt["films"] if film_row(h["id"])]
+    if "sections" in rt["tasks"] and films:
+        try:
+            import retrieve as R
+            q_vec = R.embed_query(q_text or question)
+        except Exception:
+            q_vec = None
+    for h in films[:3]:
+        b = facts_block(h["id"], short=len(films) > 1)
+        if b:
+            blocks.append(("facts", b))
+    if "compare" in rt["tasks"] and len(films) > 1:
+        b = compare_block([h["id"] for h in films])
+        if b:
+            blocks.append(("compare", b))
+    if "market" in rt["tasks"] and films:
+        b = market_block(films[0]["id"])
+        if b:
+            blocks.append(("market", b))
+    if "reviews" in rt["tasks"]:
+        for h in films[:2]:
+            b = reviews_block(h["id"], h["title"])
+            if b:
+                blocks.append(("reviews", b))
+    if "sections" in rt["tasks"]:
+        for h in films[:2]:
+            b = sections_block(h["id"], h["title"], q_vec, rt["kinds"],
+                               n=SECTION_N if len(films) == 1 else max(2, SECTION_N - 1), chars=SECTION_CHARS)
+            if b:
+                blocks.append(("sections", b))
+    out["ms"]["sql"] = round((time.perf_counter() - t0) * 1000)
+    if "aggregate" in rt["tasks"]:
+        t1 = time.perf_counter()
+        spec = clean_spec(question, spec_for(question))
+        out["ms"]["spec"] = round((time.perf_counter() - t1) * 1000)
+        out["route"]["spec"] = spec
+        b = aggregate_block(question, spec)
+        if b:
+            blocks.insert(0, ("aggregate", b))
+            if not films:
+                out["replace_hits"] = True
+    if "current" in rt["tasks"]:
+        b = current_block(question)
+        if b:
+            blocks.insert(0, ("current", b))
+            if not films:
+                out["replace_hits"] = True
+    # Budget: the whole tool context stays under TOOL_CHARS; later (less central) blocks shrink first.
+    total = 0
+    kept = []
+    for kind, b in blocks:
+        room = TOOL_CHARS - total
+        if room < 300:
+            break
+        if len(b) > room:
+            b = b[:room].rsplit("\n", 1)[0] + "\n..."
+        kept.append((kind, b))
+        total += len(b)
+    out["blocks"] = kept
+    # Answer style (chat.py picks the "How to answer" text). 6 Oct: the one analysis template
+    # for everything made the judge fail plain facts, rankings and "what did critics say"
+    # answers for unrequested interpretation and length (a03 a05 a16 a34 a35 a43), so
+    # rankings, reception and single facts get their own, shorter instructions.
+    tasks = set(rt["tasks"])
+    spec_task = ((out["route"] or {}).get("spec") or {}).get("task")
+    if rt["why"]:
+        style = "analysis"
+    elif "aggregate" in tasks and spec_task == "ranking":
+        style = "ranking"
+    elif "aggregate" in tasks:
+        style = "analysis"                      # careers and trends
+    elif "reviews" in tasks and films:
+        style = "reviews"
+    elif "current" in tasks:
+        style = "current"
+    elif films and tasks <= {"facts"}:
+        style = "fact"
+    else:
+        style = None
+    out["style"] = style
+    out["ms"]["total"] = round((time.perf_counter() - t0) * 1000)
+    return out
+
+
+# ================================================================== build
+def build(facts_path=None, movielens_zip="data/movielens/ml-latest-small.zip"):
+    """money: one best figure per film (and the others when sources disagree by > 25%).
+    Preference: films released before mid-2022 -> Wikipedia infobox, Wikidata, TMDB (the
+    infobox is usually the cited figure); newer -> TMDB first (the 2023 snapshot predates
+    their final gross). Only US-dollar amounts are used for numbers."""
+    conn = F.connect(facts_path)
+    conn.executescript("""drop table if exists money;
+        create table money(tmdb_id integer primary key, budget real, budget_src text, budget_alt text,
+          gross real, gross_src text, gross_alt text, roi real, conflict integer);""")
+    films = {fid: rd for fid, rd in conn.execute("select tmdb_id, release_date from films")}
+    cand = {}
+    for fid, field, v, cur, src in conn.execute("select tmdb_id, field, value_num, currency, source from facts "
+                                                "where field in ('budget','revenue','box_office')"):
+        if cur != "USD" or not v or v < 1000:
+            continue
+        key = "budget" if field == "budget" else "gross"
+        cand.setdefault(fid, {}).setdefault(key, []).append((v, src))
+    rows = []
+    for fid, d in cand.items():
+        new = (films.get(fid) or "") >= "2022-07-01"
+        pref = ["tmdb", "wikipedia_infobox", "wikidata"] if new else ["wikipedia_infobox", "wikidata", "tmdb"]
+        rec = {"budget": (None, None, "[]"), "gross": (None, None, "[]")}
+        conflict = 0
+        for i, key in enumerate(("budget", "gross")):
+            vals = d.get(key) or []
+            if not vals:
+                continue
+            vals = sorted(set(vals), key=lambda x: pref.index(x[1]) if x[1] in pref else 9)
+            best = vals[0]
+            nums = [v for v, _ in vals]
+            if len(nums) > 1 and max(nums) / max(min(nums), 1) > 1.25:
+                conflict |= (1 << i)
+            rec[key] = (best[0], best[1], json.dumps(vals))
+        b, g = rec["budget"][0], rec["gross"][0]
+        roi = (g / b) if (b and g and b >= 1e5) else None
+        rows.append((fid, *rec["budget"], *rec["gross"], roi, conflict))
+    conn.executemany("insert into money values (?,?,?,?,?,?,?,?,?)", rows)
+    print(f"money: {len(rows):,} films; with budget and gross: {sum(1 for r in rows if r[7]):,}; "
+          f"sources disagree: {sum(1 for r in rows if r[8]):,}")
+    # MovieLens audience ratings (the small set is already downloaded by build_movielens.py).
+    if os.path.exists(movielens_zip):
+        import csv
+        import io
+        import zipfile
+        z = zipfile.ZipFile(movielens_zip)
+        def read(name):
+            member = next(n for n in z.namelist() if n.endswith("/" + name))
+            return csv.DictReader(io.TextIOWrapper(z.open(member), encoding="utf-8"))
+        to_tmdb = {r["movieId"]: int(r["tmdbId"]) for r in read("links.csv") if r.get("tmdbId", "").isdigit()}
+        agg = {}
+        for r in read("ratings.csv"):
+            t = to_tmdb.get(r["movieId"])
+            if t:
+                s = agg.setdefault(t, [0, 0.0])
+                s[0] += 1
+                s[1] += float(r["rating"])
+        conn.execute("delete from ml_stats")
+        conn.executemany("insert into ml_stats values (?,?,?,?)",
+                         [(t, n, tot / n, os.path.basename(movielens_zip)) for t, (n, tot) in agg.items()])
+        print(f"MovieLens: {len(agg):,} films rated")
+    else:
+        print(f"(no {movielens_zip}: MovieLens stats skipped)")
+    F.set_meta(conn, "money_built_at", F.now())
+    conn.commit()
+
+
+def _try(question):
+    import retrieve as R
+    hits = R.retrieve(question, k=3)
+    plan = hits[0].get("_plan") if hits else None
+    print("plan:", json.dumps(plan)[:400])
+    print("hits:", [h["title"] for h in hits])
+    res = run(question, hits, plan)
+    print("route:", json.dumps(res["route"], default=str)[:600])
+    print("ms:", res["ms"], "style:", res["style"], "replace_hits:", res["replace_hits"])
+    for kind, b in res["blocks"]:
+        print(f"\n--- {kind} ({len(b)} chars)\n{b}")
+
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] == "build":
+        build()
+    elif len(sys.argv) > 2 and sys.argv[1] == "try":
+        _try(" ".join(sys.argv[2:]))
+    else:
+        print(__doc__)

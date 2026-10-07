@@ -135,26 +135,65 @@ def rank_of(stage_list, expect, expect_year):
     return worst
 
 
-def traced(question, recent):
+def traced(question, recent, state=None):
+    """state: v3 conversation (conv.py); used only when CONV=1, otherwise the v2 path
+    (recent titles only) runs, so CONV=0 reproduces v2 exactly."""
     trace = {}
     with contextlib.redirect_stdout(io.StringIO()):
-        hits = R.retrieve(question, k=3, recent_titles=recent, trace=trace)
-    return [h["title"] for h in hits], trace
+        if state is not None and getattr(R, "CONV", False):
+            hits = R.retrieve(question, k=3, recent_titles=recent, trace=trace, conv=state)
+        else:
+            hits = R.retrieve(question, k=3, recent_titles=recent, trace=trace)
+    return hits, trace
 
 
-def run_case(turns, expect, expect_year):
-    recent = None
-    for q in turns[:-1]:                      # earlier turns set the conversation
-        titles, _ = traced(q, recent)
-        recent = titles or recent
-    titles, trace = traced(turns[-1], recent)
-    trace["filters"] = R.parse_filters(turns[-1])     # the question's year/genre filter
+_FILM_YEAR = __import__("re").compile(r"^(.*?)\s*\((\d{4})\)\s*$")
+
+
+def _scripted_hits(films):
+    """A scripted earlier turn ({"user", "assistant", "films": ["Heat (1995)", ...]}): the films
+    the answer talked about, without running retrieval - so a follow-up test measures the
+    follow-up, not whether an earlier description happened to be found."""
+    out = []
+    for f in films:
+        m = _FILM_YEAR.match(f)
+        out.append({"title": m.group(1) if m else f, "release_year": m.group(2) if m else None})
+    return out
+
+
+def run_case(turns, expect, expect_year, absent=None):
+    """turns: earlier turns then the graded question. An earlier turn is a question string,
+    or {"user": q, "assistant": answer text, "films": [...]} (films = scripted, no retrieval).
+    absent: films that must NOT come back (a topic change must drop the old film; a film
+    the user rejected must not be offered again)."""
+    import conv as C
+    recent, state = None, C.new()
+    for t in turns[:-1]:                      # earlier turns set the conversation
+        q, a = (t.get("user", ""), t.get("assistant")) if isinstance(t, dict) else (t, None)
+        if isinstance(t, dict) and t.get("films"):
+            hits, plan = _scripted_hits(t["films"]), None
+        else:
+            hits, _tr = traced(q, recent, state)
+            plan = hits[0].get("_plan") if hits else None
+        titles = [h["title"] for h in hits]
+        if titles:
+            recent = R.recent_titles_from(hits, a) if a else titles    # chat.py's order
+        state = C.update(state, q, hits, plan=plan, answer=a)
+    last = turns[-1] if isinstance(turns[-1], str) else turns[-1]["user"]
+    hits, trace = traced(last, recent, state)
+    titles = [h["title"] for h in hits]
+    trace["filters"] = R.parse_filters(last)     # the question's year/genre filter
     ranks = {s: (rank_of(trace[s], expect, expect_year) if s in trace else "n/a")
              for s in STAGES}
     years = [str(r[2] or "")[:4] for r in trace.get("final", [])]
     passed = T.graded(titles, years, expect, expect_year)
-    return {"pass": passed, "hits": titles, "ranks": ranks,
-            "lost_at": None if passed else diagnose(trace, ranks, expect, expect_year),
+    leaked = [x for x in (absent or []) if any(T.norm(x) == T.norm(t) for t in titles)]
+    if leaked:
+        passed = False
+    return {"pass": passed, "hits": titles, "ranks": ranks, "leaked": leaked,
+            "lost_at": None if passed else (f"kept a film it should have dropped: {', '.join(leaked)}"
+                                            if leaked and T.graded(titles, years, expect, expect_year)
+                                            else diagnose(trace, ranks, expect, expect_year)),
             "trace": trace}
 
 
@@ -341,7 +380,8 @@ def main():
                      "with --final.")
         d = json.load(open(qfile))
         todo = [((q.get("source", "file") + "-" + q.get("split", "")).upper().strip("-"),
-                 q["id"], q["turns"], q.get("expect_retrieved") or [], q.get("expect_year"))
+                 q["id"], q["turns"], q.get("expect_retrieved") or [], q.get("expect_year"),
+                 q.get("expect_absent") or [])
                 for q in (d if isinstance(d, list) else d["questions"])
                 if (not split or q.get("split") == split)
                 and q.get("retrieval_graded", "expect_retrieved" in q)]
@@ -360,17 +400,20 @@ def main():
         R.retrieve("warm up", k=3)
 
     rows = []
-    for group, qid, turns, expect, ey in todo:
-        res = run_case(turns, expect, ey)
-        rows.append({"group": group, "id": qid, "question": turns[-1],
-                     "expect": expect, "expect_year": ey, "result": res})
+    for case in todo:
+        group, qid, turns, expect, ey = case[:5]
+        absent = case[5] if len(case) > 5 else []
+        res = run_case(turns, expect, ey, absent)
+        last = turns[-1] if isinstance(turns[-1], str) else turns[-1].get("user", "")
+        rows.append({"group": group, "id": qid, "question": last, "turns": len(turns),
+                     "expect": expect, "expect_year": ey, "expect_absent": absent, "result": res})
         rk = res["ranks"]
         cells = "  ".join(f"{s}={rk[s] if rk[s] is not None else '-'}" for s in SCORED
                           if rk[s] != "n/a") if expect else \
             f"returned {len(res['trace'].get('final', []))} film(s)"
         print(f"{group:9s} {qid:4s} {'PASS' if res['pass'] else 'FAIL'}  {cells}")
         if not res["pass"]:
-            print(f"      Q:       {turns[-1][:90]}")
+            print(f"      Q:       {last[:90]}")
             print(f"      expect:  {expect or 'nothing (honesty case)'}")
             print(f"      got:     {', '.join(res['hits'])[:90] or '(none)'}")
             print(f"      LOST AT: {res['lost_at']}")

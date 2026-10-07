@@ -1096,11 +1096,20 @@ RERANK_SECOND = _os_r.environ.get("RERANK_SECOND", "0") != "0"
 NUM_BATCH = int(_os_r.environ.get("NUM_BATCH", "0"))
 
 
+# v3 (7 Oct): NUM_CTX sets movie-buff's context window for every call (planner, re-ranker,
+# answer) - one value for all, so Ollama never reloads the model between calls. 0 (default) =
+# the Modelfile's 8192. The context-window experiment (run_v3f.sh) tries 16384 with more
+# tool context (TOOL_CHARS, SECTION_N, SECTION_CHARS).
+NUM_CTX = int(_os_r.environ.get("NUM_CTX", "0"))
+
+
 def llm_options(opts=None):
-    """Ollama options for a chat call, plus num_batch when NUM_BATCH is set."""
+    """Ollama options for a chat call, plus num_batch / num_ctx when NUM_BATCH / NUM_CTX are set."""
     out = dict(opts or {})
     if NUM_BATCH:
         out["num_batch"] = NUM_BATCH
+    if NUM_CTX:
+        out.setdefault("num_ctx", NUM_CTX)
     return out
 
 
@@ -1133,6 +1142,16 @@ def _note_llm(name, r=None, build_ms=None):
 
 
 DESCRIBE_POOL = 100         # vector pool per list for descriptions when HYDE/HYBRID
+
+# v3 latency switches (decided by run_v3b.sh):
+#   RERANK_MODEL  which Ollama model reads the 50 candidates (default: the chat model, as in v2).
+#                 The re-rank prompt is ~6.5k tokens; on one A10 reading it with the 27B model is
+#                 ~8.7 s of the ~13 s per hard question (E9). A smaller model reads it 3-6x faster.
+#   PARALLEL      start the question's own searches (its embedding, the TMDB/description/keyword
+#                 lists) while the planner is still writing, instead of after it. Same results
+#                 by construction (the planner's output is not used by those lists).
+RERANK_MODEL = _os_r.environ.get("RERANK_MODEL", GUESS_MODEL)
+PARALLEL = _os_r.environ.get("PARALLEL", "0") == "1"
 RRF_K = 60
 SWITCHES = {"RERANK_CAP": RERANK_CAP, "SOFT_FILTERS": SOFT_FILTERS,
             "SOFT_FIT_SLOTS": SOFT_FIT_SLOTS, "UNKNOWN_FILM": UNKNOWN_FILM,
@@ -1145,7 +1164,8 @@ SWITCHES = {"RERANK_CAP": RERANK_CAP, "SOFT_FILTERS": SOFT_FILTERS,
             "RERANK_TEXT": RERANK_TEXT, "RERANK_WIKI_CHARS": RERANK_WIKI_CHARS,
             "RERANK_SECOND": RERANK_SECOND, "NUM_BATCH": NUM_BATCH,
             "WIKI_PASSAGE_FAST": WIKI_PASSAGE_FAST, "VEC_MEM": VEC_MEM,
-            "RERANK_WIN": RERANK_WIN, "WIKI_PER_FILM": WIKI_PER_FILM}
+            "RERANK_WIN": RERANK_WIN, "WIKI_PER_FILM": WIKI_PER_FILM,
+            "RERANK_MODEL": RERANK_MODEL, "PARALLEL": PARALLEL}
 
 _STOP = set("""a about above after again against all am an and any are as at be because been
 before being below between both but by can could did do does doing down during each few for
@@ -1280,6 +1300,7 @@ DETAIL_K = int(_os_w.environ.get("DETAIL_K", "200"))     # passages per kind per
 DETAIL_MAX = 8
 PFTS_DB = _os_w.environ.get("PFTS_DB", "")               # default: wiki_pfts.db next to movies.db
 SWITCHES.update({"DETAILS": DETAILS, "DETAIL_LISTS": ",".join(DETAIL_LISTS)})
+SWITCHES["NUM_CTX"] = NUM_CTX
 _PFTS = {"conn": None, "tried": False}
 _CLAUSE = re.compile(r",?\s+(?:and then|but then|and also|and later|and at the end|but|and|then|where|when|while)\s+",
                      re.I)
@@ -1578,8 +1599,9 @@ def rerank(question, conn, q_vec, current_hits, trace=None, keep_ids=(), filters
     try:
         import ollama
         r = ollama.chat(
-            model=GUESS_MODEL, think=False,
-            options=llm_options({"num_predict": 16, "temperature": 0}),
+            model=RERANK_MODEL, think=False, keep_alive=_os_r.environ.get("KEEP_ALIVE", "30m"),
+            options=llm_options({"num_predict": 16, "temperature": 0}) if RERANK_MODEL == GUESS_MODEL
+            else {"num_predict": 16, "temperature": 0},
             messages=[
                 {"role": "system", "content":
                     "You match film descriptions to plot summaries. Read the numbered films "
@@ -1733,45 +1755,142 @@ ROUTE_MODEL = _os_q.environ.get("ROUTE_MODEL", "llama3.2")
 SWITCHES["PLAN_ROUTE"] = PLAN_ROUTE
 
 
-def understand(question, recent_titles=None):
+# ------------------------------------------------ v3: conversation-aware planner (CONV=1)
+# v2's planner saw one line about the conversation: the previous turn's top 3 search results.
+# With CONV=1 and a conversation in progress, it also sees the earlier questions, the films
+# each answer talked about, every film mentioned so far (with turn numbers and which ones the
+# user rejected) and the start of the last answer (conv.planner_block), and may return:
+#   rejected     films the user said are not the one ("no, that's not it")
+#   ambiguous    a reference that could mean two films (the answer then asks)
+#   preferences  lasting tastes the user stated ("I hate jump scares") -> conv state / personal.py
+# A first question (empty conversation) gets exactly the v2 prompt, so single-turn results and
+# the call cache are unchanged. CONV=0 = v2 behaviour everywhere.
+CONV = _os_q.environ.get("CONV", "0") == "1"
+SWITCHES["CONV"] = CONV
+
+_CONV_RULES = """
+
+The user message may start with the conversation so far. Use it only to resolve references; a question that makes sense on its own is about what it says, not about earlier films.
+- "it", "that", "the film", "this one" = the film the latest answer was about (the first film listed for the latest turn), unless the question says otherwise.
+- "the first one", "the second one" = that position in the latest answer's films. "the one from earlier", "going back to the first movie", "the one I asked about before" = look back through the turns and the films mentioned so far.
+- "compare that with X", "what about X", "both", "their", "them", "the two" = every film involved goes in films, earlier ones first, and search_query names them all.
+- If the user says the latest answer was wrong ("no, that's not it", "not that one", "no, it's older"), put the film(s) that answer proposed in rejected, keep intent "identify", and write search_query as ONE standalone description combining everything the user has said about the film so far (earlier description plus the new details). Never include a rejected film in guesses.
+- If a reference could fairly mean two different films, set ambiguous to true and put both in films, most likely first.
+
+rejected: films the user says are not the one they mean. Usually [].
+ambiguous: true only as described above, otherwise false.
+preferences: lasting tastes the user states about themselves ("I hate jump scares", "I love slow sci-fi"), as {"text": "...", "polarity": 1 or -1}. Not opinions about a single film. Usually []."""
+
+_CONV_EXAMPLES = """
+
+Turn 1. User: Why did Oppenheimer do so well?
+  Films in the answer: Oppenheimer (2023)
+Turn 2. User: Compare that with Barbie.
+  Films in the answer: Barbie (2023), Oppenheimer (2023)
+  The answer began: "Barbie (2023) out-earned Oppenheimer at the box office ..."
+Films mentioned so far, in order: 1. Oppenheimer (2023) [turn 1,2]  2. Barbie (2023) [turn 2]
+Recent films: 1. Barbie  2. Oppenheimer
+Question: what about their budgets?
+{"intent":"named_film","films":[{"title":"Oppenheimer","year":2023},{"title":"Barbie","year":2023}],"guesses":[],"search_query":"Compare the production budgets of Oppenheimer (2023) and Barbie (2023)","guessed_plot":"","rejected":[],"ambiguous":false,"preferences":[]}
+
+Turn 1. User: movie where a family of con artists gets jobs working for a rich family one by one
+  Films in the answer: The Joneses (2009)
+  The answer began: "That sounds like The Joneses (2009), where a fake family ..."
+Films mentioned so far, in order: 1. The Joneses (2009) [turn 1]
+Recent films: 1. The Joneses
+Question: no, it's Korean and their basement floods
+{"intent":"identify","films":[],"guesses":[{"title":"Parasite","year":2019}],"search_query":"Korean movie where a poor family of con artists get jobs working for a rich family one by one, and their basement floods","guessed_plot":"A poor family schemes its way into jobs with a wealthy household.","rejected":[{"title":"The Joneses","year":2009}],"ambiguous":false,"preferences":[]}
+
+Turn 1. User: Tell me about Heat.
+  Films in the answer: Heat (1995)
+Turn 2. User: what else did Michael Mann direct? I love slow-burn crime films
+  Films in the answer: Collateral (2004), The Insider (1999), Thief (1981)
+Films mentioned so far, in order: 1. Heat (1995) [turn 1]  2. Collateral (2004) [turn 2]  3. The Insider (1999) [turn 2]  4. Thief (1981) [turn 2]
+User's stated tastes: likes slow-burn crime films
+Recent films: 1. Collateral  2. The Insider  3. Thief
+Question: going back to the first movie, how long is it?
+{"intent":"named_film","films":[{"title":"Heat","year":1995}],"guesses":[],"search_query":"How long is Heat (1995)?","guessed_plot":"","rejected":[],"ambiguous":false,"preferences":[]}
+
+Turn 1. User: Tell me about Jaws.
+  Films in the answer: Jaws (1975)
+Films mentioned so far, in order: 1. Jaws (1975) [turn 1]
+Recent films: 1. Jaws
+Question: who directed The Thing?
+{"intent":"named_film","films":[{"title":"The Thing","year":1982}],"guesses":[],"search_query":"Who directed The Thing (1982)?","guessed_plot":"","rejected":[],"ambiguous":false,"preferences":[]}"""
+
+_PREF = {"type": "object", "properties": {"text": {"type": "string"}, "polarity": {"type": "integer"}},
+         "required": ["text", "polarity"]}
+PLAN_SCHEMA_CONV = {**PLAN_SCHEMA_HYDE,
+                    "properties": {**PLAN_SCHEMA_HYDE["properties"],
+                                   "rejected": {"type": "array", "items": _FILM},
+                                   "ambiguous": {"type": "boolean"},
+                                   "preferences": {"type": "array", "items": _PREF}},
+                    "required": PLAN_SCHEMA_HYDE["required"] + ["rejected", "ambiguous", "preferences"]}
+
+
+def _conv_system():
+    """PLAN_SYSTEM_HYDE (after the PLAN_FAST edits) + the conversation rules + its examples
+    in the same JSON shape (every example gains the three new fields)."""
+    head, examples = PLAN_SYSTEM_HYDE.split("\n\nExamples\n", 1)
+    examples = examples.replace(',"guessed_plot":""}', ',"guessed_plot":"","rejected":[],"ambiguous":false,"preferences":[]}')
+    examples = _re.sub(r'(,"guessed_plot":"[^"]+")}', r'\1,"rejected":[],"ambiguous":false,"preferences":[]}', examples)
+    return head + _CONV_RULES + "\n\nExamples\n" + examples + _CONV_EXAMPLES
+
+
+PLAN_SYSTEM_CONV = _conv_system()
+
+
+def understand(question, recent_titles=None, conv_block=""):
     """The model's reading of the question, or None (-> old regex path)."""
-    if PLAN_ROUTE and ROUTE_MODEL != QUERY_MODEL:
+    if PLAN_ROUTE and ROUTE_MODEL != QUERY_MODEL and not conv_block:
         first = _understand_with(question, recent_titles, ROUTE_MODEL, "route")
         if first is not None and first["intent"] != "identify":
             first["_planner"] = ROUTE_MODEL
             return first
-    plan = _understand_with(question, recent_titles, QUERY_MODEL, "plan")
+    plan = _understand_with(question, recent_titles, QUERY_MODEL, "plan", conv_block)
     if plan is not None:
         plan["_planner"] = QUERY_MODEL
     return plan
 
 
-def _understand_with(question, recent_titles, model, stat):
+def _understand_with(question, recent_titles, model, stat, conv_block=""):
     recent = "  ".join(f"{i}. {t}" for i, t in enumerate(recent_titles or [], 1)) or "(none)"
     user = f"Recent films: {recent}\nQuestion: {question}"
+    use_conv = bool(CONV and conv_block)
+    if use_conv:
+        user = conv_block + "\n" + user
     try:
         import ollama
         hyde = globals().get("HYDE", False)
+        if use_conv:
+            system, schema, n_out = PLAN_SYSTEM_CONV, PLAN_SCHEMA_CONV, 480
+        elif hyde:
+            system, schema, n_out = PLAN_SYSTEM_HYDE, PLAN_SCHEMA_HYDE, 400
+        else:
+            system, schema, n_out = PLAN_SYSTEM, PLAN_SCHEMA, 220
         kw = dict(model=model, think=False,
-                  options=llm_options({"num_predict": 400 if hyde else 220, "temperature": 0}),
-                  messages=[{"role": "system", "content": PLAN_SYSTEM_HYDE if hyde else PLAN_SYSTEM},
+                  options=llm_options({"num_predict": n_out, "temperature": 0}),
+                  messages=[{"role": "system", "content": system},
                             {"role": "user", "content": user}])
         try:
-            r = ollama.chat(format=PLAN_SCHEMA_HYDE if hyde else PLAN_SCHEMA, **kw)
+            r = ollama.chat(format=schema, **kw)
         except TypeError:          # older ollama client: no schema support
             r = ollama.chat(format="json", **kw)
         _note_llm(stat, r)
         raw = _json.loads(r["message"]["content"])
     except Exception:
         return None
-    return _clean_plan(raw, question)
+    plan = _clean_plan(raw, question)
+    if plan is not None:
+        plan["_conv"] = use_conv
+    return plan
 
 
 def _clean_plan(raw, question):
     if not isinstance(raw, dict) or raw.get("intent") not in INTENTS:
         return None
 
-    def films(key):
+    def films(key, cap=3):
         out = []
         for f in raw.get(key) or []:
             if not isinstance(f, dict) or not str(f.get("title") or "").strip():
@@ -1782,13 +1901,23 @@ def _clean_plan(raw, question):
             except (TypeError, ValueError):
                 y = None
             out.append({"title": str(f["title"]).strip(), "year": y})
-        return out[:3]
+        return out[:cap]
 
     sq = str(raw.get("search_query") or "").strip() or question
     gp = str(raw.get("guessed_plot") or "").strip()
+    prefs = []
+    for p in raw.get("preferences") or []:
+        if isinstance(p, dict) and str(p.get("text") or "").strip():
+            try:
+                pol = 1 if int(p.get("polarity", 1)) >= 0 else -1
+            except (TypeError, ValueError):
+                pol = 1
+            prefs.append({"text": str(p["text"]).strip()[:120], "polarity": pol})
     return {"intent": raw["intent"], "films": films("films"),
             "guesses": films("guesses"), "search_query": sq,
-            "guessed_plot": gp if raw["intent"] == "identify" else ""}
+            "guessed_plot": gp if raw["intent"] == "identify" else "",
+            "rejected": films("rejected", 6), "ambiguous": bool(raw.get("ambiguous")),
+            "preferences": prefs[:4]}
 
 
 def _mentioned(ntitle, nquestion):
@@ -1810,12 +1939,24 @@ def _norm_titles(conn):
     return _NORM_TITLES
 
 
-def lookup_named(conn, film, question, recent_titles):
+def _same_series(nt, known):
+    """'toy story 3' / 'toy story', 'back to the future' / 'back to the future part ii':
+    one title is the other plus more words (a sequel, a numbered part, a subtitle)."""
+    for k in known:
+        if k and k != nt and (nt.startswith(k + " ") or k.startswith(nt + " ")):
+            return True
+    return False
+
+
+def lookup_named(conn, film, question, recent_titles, series=False):
     """The plan says the question is about `film`. Believe it only if the film
     is in movies.db and the question's words (or the conversation) point at
-    it. Returns a titles_in()-style dict or None."""
+    it. Returns a titles_in()-style dict or None.
+    series (v3, CONV plans): also believe a sequel / original of a film the conversation
+    is about ("is the third one any good?" after Toy Story -> Toy Story 3)."""
     nt = normalize(film["title"])
-    from_recent = any(normalize(t) == nt for t in (recent_titles or []))
+    known = [normalize(t) for t in (recent_titles or [])]
+    from_recent = nt in known or (series and _same_series(nt, known))
     if not from_recent and not _mentioned(nt, normalize(question)):
         return None                      # the model named something the user didn't
     year = film.get("year") or None
@@ -1832,40 +1973,114 @@ def _snap(hits):
     return [(h["id"], h["title"], h.get("release_year"), h.get("distance")) for h in hits]
 
 
+LAST = {}     # v3: the last retrieve() call's plan and unknown films, for tools.py (even when hits == [])
+
+
+def _start_presearch(question, k, db_path):
+    """PARALLEL=1: the searches that depend only on the question's own words, started while the
+    planner writes. Keyword lists first (CPU only), then the embedding and the vector lists.
+    The pool size is the one a description would use (the planner hasn't said yet whether it is
+    one); retrieve() uses these only when the plan leads to exactly the same searches."""
+    import threading
+    import time as _tp
+    pre = {"done": threading.Event()}
+    f0 = parse_filters(question)
+    pool0 = max(POOL_WIDE if f0 else max(POOL_DEFAULT, k * 5), DESCRIBE_POOL)
+
+    def work():
+        t0 = _tp.perf_counter()
+        c2 = None
+        try:
+            c2 = open_db(db_path)
+            kw = keyword_ranking(c2, question, pool0) if HYBRID else None
+            wkw = wiki_keyword_ranking(c2, question, pool0) if HYBRID else None
+            v = embed_query(question)
+            pre.update(q_vec=v, pool=pool0, kw=kw, wkw=wkw)
+            pre["wq"] = wiki_question_ranking(c2, v, pool0)
+            pre["q_list"] = knn_multi(c2, v, pool0)
+        except Exception as e:  # noqa: BLE001 - the main path recomputes anything missing
+            pre["error"] = repr(e)[:200]
+        finally:
+            if c2 is not None:
+                c2.close()
+            pre["ms"] = round((_tp.perf_counter() - t0) * 1000)
+            pre["done"].set()
+
+    threading.Thread(target=work, daemon=True).start()
+    return pre
+
+
 def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=False,
-             trace=None):
+             trace=None, conv=None):
     """trace: pass a dict to have it filled with the films each stage handed on
     (pool, subject, guesses, rerank_in, rerank_out, after_cutoff, final) plus
-    timings. Used by stage_scores.py; None (the default) changes nothing."""
+    timings. Used by stage_scores.py; None (the default) changes nothing.
+    conv: v3 conversation state (conv.py). With CONV=1 the planner reads it; the
+    recent titles then come from it unless given explicitly."""
     import time as _tt
     _t_start = _tt.perf_counter()
     _WIKI_CACHE.clear()
     _LLM_STATS.clear()
     _PASSAGE_STATS.update(fast=0, lookup=0, ms=0.0)
+    conv_block, conv_titles = "", []
+    if CONV and conv:
+        import conv as _conv
+        conv = _conv.coerce(conv)
+        conv_block = _conv.planner_block(conv)
+        conv_titles = _conv.entity_titles(conv)
+        if recent_titles is None:
+            recent_titles = _conv.recent_titles(conv) or None
+    asked = question
+    LAST.clear()
     conn = open_db(db_path)
+    pre = _start_presearch(question, k, db_path) if (PARALLEL and USE_QUERY_LLM) else None
     try:
-        plan = understand(question, recent_titles) if USE_QUERY_LLM else None
+        plan = understand(question, recent_titles, conv_block) if USE_QUERY_LLM else None
+        if plan:
+            LAST["plan"] = {"intent": plan["intent"], "films": [f["title"] for f in plan["films"]],
+                            "search_query": plan["search_query"], "model_films": [f["title"] for f in plan["films"]]}
+            LAST["plan_films"] = [dict(f) for f in plan["films"]]
         if trace is not None:
             trace["plan_ms"] = round((_tt.perf_counter() - _t_start) * 1000)
             trace["path"] = f"plan:{plan['intent']}" if plan else "regex"
             if plan:
                 trace["planner"] = plan.get("_planner")
+                trace["plan"] = {k_: plan.get(k_) for k_ in ("intent", "films", "search_query", "rejected",
+                                                            "ambiguous", "preferences", "_conv")}
+        rejected_ids = set()
         if plan:
             # The model read the question (and what the last answer was about).
             # A plot description never gets a subject from its words - that is
             # what locked q42/q43 onto "One Night" and "Boarding School".
+            known = list(recent_titles or []) + [t for t in conv_titles if t not in (recent_titles or [])]
+            for f in plan.get("rejected") or []:
+                g = lookup_guess(conn, {"title": normalize(f["title"]), "year": f.get("year")})
+                if g:
+                    rejected_ids.add(g["id"])
             named = []
             if plan["intent"] != "identify":
                 for f in plan["films"]:
-                    n = lookup_named(conn, f, question, recent_titles)
-                    if n and all(n["id"] != m["id"] for m in named):
+                    n = lookup_named(conn, f, question, known, series=bool(plan.get("_conv")))
+                    if n and all(n["id"] != m["id"] for m in named) and n["id"] not in rejected_ids:
                         named.append(n)
             resolved_from = None
-            if (named and recent_titles
-                    and any(normalize(t) == normalize(named[0]["title"]) for t in recent_titles)
+            if (named and known
+                    and any(normalize(t) == normalize(named[0]["title"]) for t in known)
                     and not _mentioned(normalize(named[0]["title"]), normalize(question))):
                 resolved_from = named[0]["title"]
+            # v3: a corrected description ("no, it's Korean and the basement floods") is
+            # searched as the whole description so far, which the planner wrote out.
+            if (plan.get("_conv") and plan["intent"] == "identify"
+                    and len(plan["search_query"]) > len(question) + 10):
+                question = plan["search_query"]
+                if trace is not None:
+                    trace["merged_description"] = question
             search_text = plan["search_query"] if named else question
+            if (not named and plan.get("_conv") and plan["intent"] in ("named_film", "other")
+                    and plan["search_query"] != question):
+                # v3: a follow-up whose film couldn't be confirmed still searches with the
+                # planner's resolved wording ("Is Toy Story 3 any good?"), not "is the third one any good?"
+                search_text = plan["search_query"]
             recommending = plan["intent"] == "recommend"
             describing = plan["intent"] == "identify"
             # Change 9: the question names a film (its words point at the title)
@@ -1875,6 +2090,7 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
                 unknown = [f["title"] for f in plan["films"]
                            if _mentioned(normalize(f["title"]), nq)]
                 if unknown:
+                    LAST["unknown"] = unknown
                     if trace is not None:
                         trace["unknown_film"] = unknown
                         for key in ("pool", "after_cutoff", "final"):
@@ -1899,15 +2115,27 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
             trace["soft_filters"] = soft
 
         _t_search = _tt.perf_counter()
-        q_vec = embed_query(search_text)
+        use_pre = pre is not None and search_text == asked and question == asked
+        if use_pre:
+            pre["done"].wait(30)
+            use_pre = "q_vec" in pre
+        q_vec = pre["q_vec"] if use_pre else embed_query(search_text)
         fused = bool(describing and not recommending and (HYDE or HYBRID))
+        if use_pre and not (fused and pre.get("pool") == max(pool, DESCRIBE_POOL)):
+            # The presearch cached Wikipedia neighbours for a different pool size; drop them so
+            # this search is exactly the sequential one.
+            _a = _vec_arg(q_vec)
+            _WIKI_CACHE.pop(_hashlib_w.sha1(_a if isinstance(_a, bytes) else _a.encode()).hexdigest(), None)
         gate_confident = False       # set by the fused search below (RERANK=auto)
         if fused:
             # Changes 10 + 11: the question's vector list, the guessed plot's
             # vector list and the keyword list, merged by reciprocal rank fusion.
             # Each hit keeps its distance to the QUESTION (the cutoff's scale).
             pool = max(pool, DESCRIBE_POOL)
-            q_list = knn_multi(conn, q_vec, pool)
+            pre_ok = use_pre and pre.get("pool") == pool and "q_list" in pre
+            if trace is not None and pre is not None:
+                trace["presearch"] = {"used": bool(pre_ok), "ms": pre.get("ms"), "error": pre.get("error")}
+            q_list = pre["q_list"] if pre_ok else knn_multi(conn, q_vec, pool)
             dist = dict(q_list)
             lists = [[m for m, _ in q_list]]
             names = ["q"]
@@ -1918,17 +2146,18 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
                 if trace is not None:
                     trace["guessed_plot"] = gp
                     trace["pool_hyde"] = [m for m, _ in h_list[:50]]
-            wq_list = wiki_question_ranking(conn, q_vec, pool)    # v2: generated descriptions
+            wq_list = pre["wq"] if pre_ok else wiki_question_ranking(conn, q_vec, pool)    # v2: generated descriptions
             if wq_list:
                 lists.append(wq_list); names.append("wq")
                 if trace is not None:
                     trace["pool_wiki_q"] = wq_list[:50]
             if HYBRID:
-                k_list = keyword_ranking(conn, question, pool)
+                k_list = pre["kw"] if (pre_ok and pre.get("kw") is not None) else keyword_ranking(conn, question, pool)
                 lists.append(k_list); names.append("kw")
                 if trace is not None:
                     trace["pool_keyword"] = k_list[:50]
-                wk_list = wiki_keyword_ranking(conn, question, pool)   # v2
+                wk_list = pre["wkw"] if (pre_ok and pre.get("wkw") is not None) \
+                    else wiki_keyword_ranking(conn, question, pool)   # v2
                 if wk_list:
                     lists.append(wk_list); names.append("wkw")
                     if trace is not None:
@@ -1973,7 +2202,13 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
         if plan:
             notes["plan"] = {"intent": plan["intent"], "search_query": plan["search_query"],
                              "films": [n["title"] for n in named],
-                             "model_films": [f["title"] for f in plan["films"]]}
+                             "model_films": [f["title"] for f in plan["films"]],
+                             "rejected": [f["title"] for f in plan.get("rejected") or []],
+                             "ambiguous": bool(plan.get("ambiguous")),
+                             "preferences": plan.get("preferences") or [],
+                             "conv": bool(plan.get("_conv"))}
+            if asked != question:
+                notes["merged_description"] = question
         if resolved_from:
             notes["followup_resolved_to"] = resolved_from
 
@@ -2014,7 +2249,7 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
             wide = []            # GUESS_WIDE: in the database, but too far to auto-accept
             for guess in guesses:
                 g = lookup_guess(conn, guess)
-                if not g or any(a[1]["id"] == g["id"] for a in accepted):
+                if not g or any(a[1]["id"] == g["id"] for a in accepted) or g["id"] in rejected_ids:
                     continue
                 if lo is not None and not soft:
                     try:
@@ -2064,13 +2299,14 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
                          filters=None if soft else filters,
                          prefer=filters if soft else None, ranked=fused)
             first_look = {}
-            hits, picked = rerank(question, conn, q_vec, hits, trace=first_look, **rr_kw)
+            hits, picked = rerank(question, conn, q_vec, hits, trace=first_look,
+                                  exclude_ids=tuple(rejected_ids), **rr_kw)
             if not picked and HYDE and fused and RERANK_SECOND:
                 # Change 10: a second look at the next candidates down the list.
                 shown = [c[0] for c in first_look.get("rerank_in", [])]
                 second = {}
                 hits, picked = rerank(question, conn, q_vec, hits, trace=second,
-                                      exclude_ids=shown, **rr_kw)
+                                      exclude_ids=list(shown) + list(rejected_ids), **rr_kw)
                 notes["second_look"] = bool(picked)
                 first_look["rerank_in"] = first_look.get("rerank_in", []) + second.get("rerank_in", [])
                 if "rerank_out" in second:
@@ -2099,6 +2335,9 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
             if trace is not None:
                 trace["rerank_ms"] = notes["rerank_ms"]
 
+        if rejected_ids:          # v3: films the user said are not the one
+            hits = [h for h in hits if h["id"] not in rejected_ids]
+            notes["rejected"] = len(rejected_ids)
         if filters and not soft:
             hits = [h for h in hits if passes(h, filters)]
             notes["after_filter"] = len(hits)
@@ -2222,6 +2461,11 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
             trace["passages"] = {"fast": _PASSAGE_STATS["fast"], "lookup": _PASSAGE_STATS["lookup"],
                                  "ms": round(_PASSAGE_STATS["ms"])}
             trace["total_ms"] = round((_tt.perf_counter() - _t_start) * 1000)
+        # v3: what conv.update() needs, on every call (not only with explain=True).
+        if hits:
+            hits[0]["_plan"] = notes.get("plan")
+            if plan and plan.get("ambiguous") and len(named) > 1:
+                hits[0]["_ambiguous"] = [n["title"] for n in named[:2]]
         if explain:
             for h in hits:
                 h["_notes"] = notes

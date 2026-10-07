@@ -34,7 +34,7 @@
       --accent:#ff5c93; --accent-ink:#1a0f1f;
       --ok:#62d6a0; --ok-bg:#15382a; --warn:#ffc86b; --warn-bg:#3a2a12; --bad:#ff8196; --bad-bg:#3d1822;
       --shadow: 0 1px 2px rgba(0,0,0,.45), 0 14px 34px -18px rgba(0,0,0,.9);
-      --blob1:#3b1638; --blob2:#241a52; --blob3:#3a2414;
+      --blob1:#3b1638; --scene-dk:#46366f; --scene-line:#8f80b8; --blob2:#241a52; --blob3:#3a2414;
     }
   }
   :root[data-theme="dark"]{
@@ -46,7 +46,7 @@
     --accent:#ff5c93; --accent-ink:#1a0f1f;
     --ok:#62d6a0; --ok-bg:#15382a; --warn:#ffc86b; --warn-bg:#3a2a12; --bad:#ff8196; --bad-bg:#3d1822;
     --shadow: 0 1px 2px rgba(0,0,0,.45), 0 14px 34px -18px rgba(0,0,0,.9);
-    --blob1:#3b1638; --blob2:#241a52; --blob3:#3a2414;
+    --blob1:#3b1638; --scene-dk:#46366f; --scene-line:#8f80b8; --blob2:#241a52; --blob3:#3a2414;
   }
 
   *{ box-sizing:border-box; }
@@ -90,18 +90,43 @@
   .btn-new{ border:none; background:var(--grad); color:#fff; border-radius:10px; padding:6px 13px; font-size:13px; font-weight:700; cursor:pointer; box-shadow:0 6px 14px -8px rgba(255,61,127,.8); }
   .btn-new:hover{ filter:brightness(1.05); }
   .navlink, .btn-new, .toggle{ white-space:nowrap; }
+  /* v3: saved chats */
+  .btn-chats{ border:1px solid var(--line-strong); background:var(--surface); color:var(--ink); border-radius:10px; padding:5px 11px; font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap; }
+  .btn-chats:hover{ background:var(--sunk); }
+  .drawer-bg{ position:fixed; inset:0; z-index:15; background:color-mix(in srgb, var(--bg) 55%, transparent); backdrop-filter:blur(3px); }
+  .drawer{ position:fixed; top:0; right:0; bottom:0; z-index:16; width:min(360px, 100vw); background:var(--surface);
+           border-left:1px solid var(--line); box-shadow:var(--shadow); display:flex; flex-direction:column; }
+  .drawer .dh{ display:flex; align-items:center; gap:8px; padding:14px 16px; border-bottom:1px solid var(--line); }
+  .drawer .dh h2{ margin:0; font-family:var(--display); font-size:18px; font-weight:800; flex:1; }
+  .drawer .x{ border:none; background:none; font-size:22px; line-height:1; cursor:pointer; color:var(--soft); padding:2px 6px; border-radius:8px; }
+  .drawer .x:hover{ background:var(--sunk); color:var(--ink); }
+  .drawer .note{ font-size:12.5px; color:var(--faint); padding:10px 16px 0; margin:0; }
+  .drawer ul{ list-style:none; margin:0; padding:8px; overflow-y:auto; flex:1; }
+  .drawer li{ display:flex; align-items:center; gap:4px; border-radius:12px; }
+  .drawer li[aria-current="true"]{ background:color-mix(in srgb, var(--violet) 10%, transparent); }
+  .drawer .open{ flex:1; min-width:0; text-align:left; border:none; background:none; cursor:pointer; padding:9px 10px; border-radius:12px; }
+  .drawer .open:hover{ background:var(--sunk); }
+  .drawer .t{ display:block; font-size:14px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .drawer .d{ display:block; font-size:12px; color:var(--faint); margin-top:2px; }
+  .drawer .del{ border:none; background:none; cursor:pointer; color:var(--faint); padding:6px 8px; border-radius:8px; font-size:13px; }
+  .drawer .del:hover{ color:var(--bad); background:var(--bad-bg); }
+  .drawer .empty{ color:var(--soft); font-size:14px; padding:16px; }
+  .msg.restored .card{ opacity:.97; }
   @media (max-width:680px){
     .bar{ flex-wrap:wrap; row-gap:6px; padding:8px 12px; }
     .tools{ order:3; width:100%; justify-content:space-between; flex-wrap:wrap; row-gap:4px; }
     .navlink{ padding:6px 4px; }
     .toggle{ padding:6px 4px; gap:5px; }
   }
-  @media (max-width:480px){ .tools .navlink{ display:none; } }
+  @media (max-width:480px){ .tools .navlink{ display:none; }
+    .tools{ flex-wrap:nowrap; gap:2px; } .toggle{ gap:4px; font-size:12.5px; padding:6px 2px; }
+    .btn-new, .btn-chats{ padding:5px 8px; font-size:12.5px; } }
+  @media (max-width:360px){ .tools{ flex-wrap:wrap; justify-content:flex-start; } }
 
   /* ---------- conversation ---------- */
   main{ flex:1; }
   #log{ max-width:860px; margin:0 auto; padding:24px 16px 12px; }
-  .intro{ position:relative; padding:clamp(28px,9vh,84px) 0 12px; text-align:center; isolation:isolate; }
+  .intro{ position:relative; padding:clamp(10px,4vh,40px) 0 12px; text-align:center; isolation:isolate; }
   .intro::before{ content:""; position:absolute; z-index:-1; left:50%; top:clamp(10px,6vh,56px); width:min(620px,92vw); height:280px; transform:translateX(-50%);
                   background:radial-gradient(closest-side, color-mix(in srgb,#ff3d7f 22%, transparent), transparent 70%),
                              radial-gradient(closest-side at 30% 60%, color-mix(in srgb,#7b5cff 20%, transparent), transparent 70%),
@@ -161,6 +186,14 @@
   .ticket strong{ display:block; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .ticket .sub{ color:var(--soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block; }
   .ticket .r{ color:var(--gold); font-weight:800; font-variant-numeric:tabular-nums; }
+  .ticket .why{ color:var(--soft); font-size:12px; display:block; white-space:normal; margin-top:2px; }
+  .ticket .fp{ display:inline-flex; gap:2px; margin-top:3px; }
+  .ticket .fp button{ border:1px solid var(--line-strong); background:none; color:var(--faint); font-size:11.5px; line-height:1; padding:3px 7px; border-radius:999px; cursor:pointer; }
+  .ticket .fp button:hover{ color:var(--ink); }
+  .ticket .fp button[aria-pressed="true"]{ color:var(--accent); border-color:var(--accent); }
+  .reasons{ display:flex; flex-wrap:wrap; gap:5px; width:100%; margin-top:6px; }
+  .reasons button{ border:1px solid var(--line-strong); background:none; color:var(--soft); font-size:12px; padding:3px 9px; border-radius:999px; cursor:pointer; }
+  .reasons button[aria-pressed="true"]{ color:var(--accent); border-color:var(--accent); background:color-mix(in srgb, var(--accent) 8%, transparent); }
   .memory-note{ font-size:13px; color:var(--warn); font-weight:600; }
 
   .alts{ margin-top:10px; display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 14px; font-size:13.5px; }
@@ -213,6 +246,19 @@
   .gate .go{ border:none; background:var(--grad); color:#fff; border-radius:12px; padding:9px 18px; cursor:pointer; font-weight:800; }
   .gate .msg-bad{ color:var(--bad); font-size:13px; margin-top:8px; min-height:1em; }
   .sr{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+
+  /* ---------- theatre scene ---------- */
+  .scene{ display:block; width:min(var(--scene-w,560px),100%); height:auto; margin:0 auto 14px; overflow:visible; }
+  .scene .dk{ fill:var(--scene-dk,#2b1f3f); } .scene .dks{ stroke:var(--scene-line,#2b1f3f); }
+  .scene .spin{ animation:scene-spin 16s linear infinite; }
+  .scene .bulbs circle{ animation:scene-bulb 1.4s ease-in-out infinite alternate; }
+  .scene .bulbs circle:nth-child(even){ animation-delay:.7s; }
+  .scene .twinkle path{ transform-box:fill-box; transform-origin:center; animation:scene-tw 2.6s ease-in-out infinite; }
+  .scene .twinkle path:nth-child(2){ animation-delay:.8s; } .scene .twinkle path:nth-child(3){ animation-delay:1.5s; } .scene .twinkle path:nth-child(4){ animation-delay:2s; }
+  @keyframes scene-spin{ to{ transform:rotate(360deg); } }
+  @keyframes scene-bulb{ from{ opacity:.35; } to{ opacity:1; } }
+  @keyframes scene-tw{ 0%,100%{ transform:scale(.7); opacity:.6; } 50%{ transform:scale(1.15); opacity:1; } }
+  @media (prefers-reduced-motion: reduce){ .scene .spin, .scene .bulbs circle, .scene .twinkle path{ animation:none; } }
 </style>
 </head>
 <body>
@@ -233,6 +279,7 @@
       <button class="toggle" id="t-details" role="switch" aria-checked="false" title="Show how each answer was found and how long it took">
         <span class="switch"></span><span>Details</span>
       </button>
+      <button class="btn-chats" id="open-chats" type="button" aria-haspopup="dialog" aria-controls="drawer">Chats</button>
       <button class="btn-new" id="new-chat" type="button">New chat</button>
     </div>
   </div>
@@ -241,6 +288,103 @@
 <main>
   <div id="log" aria-label="Conversation">
     <section class="intro" id="intro">
+      <svg class="scene" viewBox="0 0 720 210" role="img" aria-label="A cartoon movie theatre: a film camera, three posters under a Now Showing sign, a smiling popcorn bucket and a clapperboard">
+  <defs>
+    <linearGradient id="sc-sun" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff5c93"/><stop offset="1" stop-color="#ffab5e"/></linearGradient>
+    <linearGradient id="sc-curtain" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#b8123f"/><stop offset=".5" stop-color="#e0296b"/><stop offset="1" stop-color="#b8123f"/></linearGradient>
+    <clipPath id="sc-bucket"><path d="M528 118 L612 118 L601 204 L539 204 Z"/></clipPath>
+  </defs>
+  <g stroke="#2b1f3f" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+    <!-- curtains -->
+    <path d="M0 0 H40 C34 60 46 130 30 210 H0 Z" fill="url(#sc-curtain)"/>
+    <path d="M720 0 H680 C686 60 674 130 690 210 H720 Z" fill="url(#sc-curtain)"/>
+    <path d="M0 0 H720 V14 q-24 18 -48 0 q-24 18 -48 0 q-24 18 -48 0 q-24 18 -48 0 q-24 18 -48 0 q-24 18 -48 0 q-24 18 -48 0 q-24 18 -48 0 q-24 18 -48 0 q-24 18 -48 0 q-24 18 -48 0 q-24 18 -48 0 q-24 18 -48 0 q-24 18 -48 0 q-24 18 -48 0 Z" fill="#e0296b"/>
+
+    <!-- marquee -->
+    <rect class="dk" x="262" y="28" width="196" height="38" rx="8" fill="#2b1f3f"/>
+    <text x="360" y="57" text-anchor="middle" stroke="none" fill="#ffc247" font-family="ui-rounded, 'Nunito', system-ui, sans-serif" font-weight="900" font-size="14" letter-spacing="3">NOW SHOWING</text>
+    <g class="bulbs" stroke="none" fill="#ffc247">
+      <circle cx="274" cy="34" r="2.6"/><circle cx="300" cy="34" r="2.6"/><circle cx="326" cy="34" r="2.6"/><circle cx="352" cy="34" r="2.6"/><circle cx="378" cy="34" r="2.6"/><circle cx="404" cy="34" r="2.6"/><circle cx="430" cy="34" r="2.6"/><circle cx="446" cy="34" r="2.6"/>
+    </g>
+
+    <!-- poster 1: space -->
+    <rect x="262" y="76" width="58" height="84" rx="6" fill="#241a52"/>
+    <circle cx="302" cy="96" r="9" fill="#ffc247"/>
+    <path d="M281 128 l7 -22 l7 22 z" fill="#ff5c93"/>
+    <path d="M283 128 h10 l-5 9 z" fill="#ffab5e" stroke-width="2"/>
+    <g stroke="none" fill="#fff"><circle cx="276" cy="90" r="1.6"/><circle cx="310" cy="118" r="1.4"/><circle cx="296" cy="84" r="1.2"/></g>
+    <rect x="271" y="144" width="40" height="5" rx="2.5" fill="#ffab5e" stroke="none"/>
+
+    <!-- poster 2: sunset -->
+    <rect x="331" y="70" width="58" height="96" rx="6" fill="url(#sc-sun)"/>
+    <circle cx="360" cy="112" r="15" fill="#fff3c4"/>
+    <path d="M331 138 l18 -14 l12 9 l14 -12 l14 12 V166 H331 Z" fill="#6a4cf0" stroke-width="2.5"/>
+    <rect x="340" y="84" width="40" height="5" rx="2.5" fill="#fff" stroke="none"/>
+
+    <!-- poster 3: friendly ghost -->
+    <rect x="400" y="76" width="58" height="84" rx="6" fill="#16b7a7"/>
+    <path d="M415 142 v-24 a14 14 0 0 1 28 0 v24 l-5 -5 l-4.5 5 l-4.5 -5 l-4.5 5 l-4.5 -5 z" fill="#fff"/>
+    <g stroke="none" fill="#2b1f3f"><circle cx="424" cy="118" r="2.2"/><circle cx="434" cy="118" r="2.2"/></g>
+    <path d="M425 125 q4 3.5 8 0" fill="none" stroke-width="2"/>
+    <rect x="409" y="147" width="40" height="5" rx="2.5" fill="#fff" stroke="none"/>
+
+    <!-- camera on tripod -->
+    <path class="dks" d="M128 170 L96 206 M128 170 L160 206 M128 170 V206" fill="none" stroke-width="4"/>
+    <g class="spin" style="transform-origin:96px 80px">
+      <circle cx="96" cy="80" r="24" fill="#ffab5e"/>
+      <g fill="#fff8f1" stroke-width="2"><circle cx="96" cy="68" r="5"/><circle cx="107" cy="86" r="5"/><circle cx="85" cy="86" r="5"/></g>
+      <circle cx="96" cy="80" r="3" fill="#2b1f3f" stroke="none"/>
+    </g>
+    <g class="spin" style="transform-origin:152px 74px">
+      <circle cx="152" cy="74" r="28" fill="#ff5c93"/>
+      <g fill="#fff8f1" stroke-width="2"><circle cx="152" cy="60" r="6"/><circle cx="164" cy="81" r="6"/><circle cx="140" cy="81" r="6"/></g>
+      <circle cx="152" cy="74" r="3.4" fill="#2b1f3f" stroke="none"/>
+    </g>
+    <rect x="74" y="108" width="104" height="62" rx="14" fill="#7b5cff"/>
+    <circle cx="104" cy="139" r="13" fill="#a391ff"/>
+    <circle cx="104" cy="139" r="5" fill="#2b1f3f" stroke="none"/>
+    <path d="M178 124 L204 112 V166 L178 154 Z" fill="#ffc247"/>
+    <rect x="140" y="120" width="26" height="10" rx="4" fill="#ff5c93" stroke-width="2.5"/>
+
+    <!-- ticket -->
+    <g transform="rotate(-14 222 170)">
+      <path d="M200 156 h44 a5 5 0 0 0 0 10 v8 a5 5 0 0 0 0 10 h-44 a5 5 0 0 0 0 -10 v-8 a5 5 0 0 0 0 -10 z" fill="#ffc247" stroke-width="2.5"/>
+      <path d="M212 158 v24" stroke-dasharray="2 4" stroke-width="2"/>
+      <path d="M222 165 h14 M222 175 h10" stroke-width="2.5"/>
+    </g>
+
+    <!-- popcorn -->
+    <g fill="#fff3c4">
+      <circle cx="538" cy="114" r="13"/><circle cx="558" cy="104" r="14"/><circle cx="580" cy="106" r="14"/><circle cx="600" cy="114" r="12"/>
+      <circle cx="569" cy="92" r="12"/><circle cx="548" cy="96" r="10"/><circle cx="592" cy="94" r="10"/>
+    </g>
+    <path d="M528 118 L612 118 L601 204 L539 204 Z" fill="#fff"/>
+    <g clip-path="url(#sc-bucket)" stroke="none" fill="#ff3d7f">
+      <rect x="530" y="118" width="12" height="90"/><rect x="556" y="118" width="12" height="90"/><rect x="582" y="118" width="12" height="90"/><rect x="608" y="118" width="12" height="90"/>
+    </g>
+    <path d="M528 118 L612 118 L601 204 L539 204 Z" fill="none"/>
+    <rect x="547" y="138" width="46" height="34" rx="12" fill="#fff" stroke-width="2.5"/>
+    <g stroke="none" fill="#2b1f3f"><circle cx="562" cy="151" r="3"/><circle cx="578" cy="151" r="3"/></g>
+    <path d="M564 159 q6 5 12 0" fill="none" stroke-width="2.5"/>
+    <g stroke="none" fill="#ff8fb3"><ellipse cx="555" cy="158" rx="3.5" ry="2.2"/><ellipse cx="585" cy="158" rx="3.5" ry="2.2"/></g>
+
+    <!-- clapperboard -->
+    <rect class="dk" x="626" y="146" width="48" height="54" rx="5" fill="#2b1f3f"/>
+    <path d="M634 166 h32 M634 178 h32 M634 190 h20" stroke="#fff8f1" stroke-width="2.5"/>
+    <g transform="rotate(-20 626 146)">
+      <rect x="626" y="134" width="48" height="12" rx="3" fill="#fff8f1"/>
+      <path d="M636 134 l-6 12 M650 134 l-6 12 M664 134 l-6 12" stroke-width="5"/>
+    </g>
+
+    <!-- sparkles -->
+    <g class="twinkle" stroke="none">
+      <path d="M232 60 l3 8 l8 3 l-8 3 l-3 8 l-3 -8 l-8 -3 l8 -3 z" fill="#ffc247"/>
+      <path d="M492 70 l2.4 6 l6 2.4 l-6 2.4 l-2.4 6 l-2.4 -6 l-6 -2.4 l6 -2.4 z" fill="#ff5c93"/>
+      <path d="M500 150 l2 5 l5 2 l-5 2 l-2 5 l-2 -5 l-5 -2 l5 -2 z" fill="#7b5cff"/>
+      <path d="M60 176 l2 5 l5 2 l-5 2 l-2 5 l-2 -5 l-5 -2 l5 -2 z" fill="#ffab5e"/>
+    </g>
+  </g>
+</svg>
       <span class="kicker">Your film-nerd friend</span>
       <h1>What are we <span class="hl">watching</span> tonight?</h1>
       <p>Describe a film you half-remember, ask who made something, or ask whether it's worth your evening. Every answer shows the films from the database it came from, and gets checked against them.</p>
@@ -263,6 +407,13 @@
     <div class="fine"><span class="keys"><kbd>Enter</kbd> to send · <kbd>Shift</kbd>+<kbd>Enter</kbd> new line · </span>Answers can be wrong. Questions are logged to improve the system. Film data from TMDB; not endorsed or certified by TMDB. <a href="/how">How it works</a></div>
   </div>
 </div>
+
+<div class="drawer-bg" id="drawer-bg" hidden></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-h" hidden>
+  <div class="dh"><h2 id="drawer-h">Your chats</h2><button class="x" id="drawer-x" type="button" aria-label="Close">×</button></div>
+  <p class="note">Saved on the Movie Buff server for this browser only. Reopen one to carry on where you left off.</p>
+  <ul id="chat-list"></ul>
+</aside>
 
 <div class="gate" id="gate" hidden>
   <form id="gate-form">
@@ -295,13 +446,19 @@
     get(k){ try { return localStorage.getItem(k); } catch { return null; } },
     set(k, v){ try { localStorage.setItem(k, v); } catch {} },
   };
+  const newId = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2)).replace(/[^a-zA-Z0-9-]/g, '').slice(0, 36);
   const state = {
-    history: [], recentTitles: [],
+    history: [], recentTitles: [], conv: null,
+    user: store.get('mb.user') || (() => { const u = newId(); store.set('mb.user', u); return u; })(),
+    convId: newId(),
     think: store.get('mb.think') === '1',
     details: store.get('mb.details') === '1',
     code: store.get('mb.code') || '',
     busy: false, ctrl: null,
   };
+
+  const hdrs = () => ({ 'Content-Type': 'application/json', 'X-Access-Code': state.code,
+                        'X-MB-User': state.user, 'X-MB-Conv': state.convId });
 
   // ---------- toggles ----------
   function bindToggle(el, key, storeKey, onChange) {
@@ -315,11 +472,78 @@
   });
   $('#new-chat').onclick = () => {
     if (state.busy) stop();
-    state.history = []; state.recentTitles = [];
+    state.history = []; state.recentTitles = []; state.conv = null; state.convId = newId();
     log.querySelectorAll('.msg').forEach(m => m.remove());
     $('#intro').hidden = false;
     q.focus();
   };
+
+  // ---------- v3: saved chats ----------
+  const drawer = $('#drawer'), drawerBg = $('#drawer-bg'), chatList = $('#chat-list');
+  const when = (t) => { const d = new Date(t * 1000), now = new Date();
+    return d.toDateString() === now.toDateString() ? d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+                                                   : d.toLocaleDateString([], { month: 'short', day: 'numeric' }); };
+  function closeChats() { drawer.hidden = true; drawerBg.hidden = true; $('#open-chats').focus(); }
+  async function openChats() {
+    drawer.hidden = false; drawerBg.hidden = false;
+    chatList.innerHTML = '<li class="empty">Loading…</li>';
+    $('#drawer-x').focus();
+    try {
+      const res = await fetch('/api/chats', { headers: hdrs(), cache: 'no-store' });
+      if (res.status === 401) { closeChats(); askForCode("That code didn't work."); return; }
+      const list = (await res.json()).chats || [];
+      chatList.innerHTML = '';
+      if (!list.length) { chatList.innerHTML = '<li class="empty">No saved chats yet. They appear here after the first answer.</li>'; return; }
+      for (const c of list) {
+        const li = document.createElement('li');
+        if (c.id === state.convId) li.setAttribute('aria-current', 'true');
+        const open = document.createElement('button'); open.type = 'button'; open.className = 'open';
+        open.innerHTML = '<span class="t"></span><span class="d"></span>';
+        open.querySelector('.t').textContent = c.title || 'Untitled chat';
+        open.querySelector('.d').textContent = `${when(c.updated)} · ${c.turns} question${c.turns === 1 ? '' : 's'}`;
+        open.onclick = () => loadChat(c.id);
+        const del = document.createElement('button'); del.type = 'button'; del.className = 'del';
+        del.textContent = 'Delete'; del.setAttribute('aria-label', `Delete "${c.title}"`);
+        del.onclick = async () => {
+          try { await fetch('/api/chats/' + encodeURIComponent(c.id), { method: 'DELETE', headers: hdrs() }); } catch {}
+          li.remove();
+          if (c.id === state.convId) $('#new-chat').click();
+          if (!chatList.children.length) chatList.innerHTML = '<li class="empty">No saved chats.</li>';
+        };
+        li.append(open, del); chatList.append(li);
+      }
+    } catch { chatList.innerHTML = "<li class=\"empty\">Couldn't load your chats.</li>"; }
+  }
+  async function loadChat(id) {
+    if (state.busy) stop();
+    let c;
+    try {
+      const res = await fetch('/api/chats/' + encodeURIComponent(id), { headers: hdrs(), cache: 'no-store' });
+      if (!res.ok) throw new Error();
+      c = await res.json();
+    } catch { chatList.insertAdjacentHTML('afterbegin', "<li class=\"empty\">Couldn't open that chat.</li>"); return; }
+    log.querySelectorAll('.msg').forEach(m => m.remove());
+    $('#intro').hidden = true;
+    state.convId = c.id; state.recentTitles = c.recent_titles || []; state.conv = c.conv || null;
+    state.history = [];
+    for (const t of c.turns) {
+      addUser(t.question);
+      const ui = addBot();
+      ui.el.classList.add('restored');
+      ui.status.hidden = true;
+      ui.body.innerHTML = md(t.answer);
+      if (t.films && t.films.length) renderSources(ui, t.films);
+      renderActions(ui, t.answer, t.id || null);
+      state.history.push({ role: 'user', content: t.question }, { role: 'assistant', content: t.answer });
+    }
+    state.history = state.history.slice(-12);
+    closeChats();
+    scrollDown(true);
+  }
+  $('#open-chats').onclick = openChats;
+  $('#drawer-x').onclick = closeChats;
+  drawerBg.onclick = closeChats;
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !drawer.hidden) closeChats(); });
 
   // ---------- composer ----------
   const grow = () => { q.style.height = 'auto'; q.style.height = Math.min(q.scrollHeight, 180) + 'px'; };
@@ -418,6 +642,20 @@
       t.querySelector('.sub').innerHTML = esc(sub) + (f.rating != null ? ` <span class="r">★ ${esc(String(f.rating))}</span>` : '');
       const tip = [f.genres, f.cast && ('Starring ' + f.cast), f.rating != null && `TMDB rating ${f.rating}/10`].filter(Boolean).join(' · ');
       if (tip) t.title = tip;
+      if (f.why) { const w = document.createElement('span'); w.className = 'why'; w.textContent = 'For you: ' + f.why; t.append(w); }
+      if (f.id != null) {
+        // v3: "I liked this film" is a film preference for recommendations - not a vote on the answer.
+        const fp = document.createElement('span'); fp.className = 'fp';
+        const mkp = (label, sig, title) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.title = title; b.setAttribute('aria-pressed', 'false');
+          b.onclick = async () => { const on = b.getAttribute('aria-pressed') !== 'true';
+            fp.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', 'false'));
+            b.setAttribute('aria-pressed', String(on));
+            try { await fetch('/api/film', { method: 'POST', headers: hdrs(), body: JSON.stringify({ id: f.id, title: f.title || '', signal: on ? sig : 0 }) }); } catch {} };
+          fp.append(b); };
+        mkp('♥ liked it', 1, 'I liked this film (used for your recommendations)');
+        mkp('✕ not for me', -1, 'Not my kind of film (used for your recommendations)');
+        t.append(fp);
+      }
       box.append(t);
     });
   }
@@ -460,11 +698,11 @@
     if (!rid) return;
     const up = mk(ICON.up, 'Good answer'), down = mk(ICON.down, 'Bad answer');
     const thanks = document.createElement('span'); thanks.className = 'thanks'; ui.actions.append(thanks);
-    const vote = async (v, comment = '') => {
+    const vote = async (v, comment = '', reasons = []) => {
       up.setAttribute('aria-pressed', String(v === 'up')); down.setAttribute('aria-pressed', String(v === 'down'));
       try {
-        await fetch('/api/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Access-Code': state.code },
-                                       body: JSON.stringify({ id: rid, vote: v, comment }) });
+        await fetch('/api/feedback', { method: 'POST', headers: hdrs(),
+                                       body: JSON.stringify({ id: rid, vote: v, comment, reasons }) });
         thanks.textContent = 'Thanks!';
       } catch { thanks.textContent = "Couldn't send that."; }
     };
@@ -472,10 +710,19 @@
     down.onclick = () => {
       vote('down');
       if (ui.actions.querySelector('.fb-form')) return;
+      // v3: why it was bad, as tags people can click (stored with the answer's full record)
+      const chips = document.createElement('div'); chips.className = 'reasons';
+      const picked = new Set();
+      ['inaccurate', 'wrong film', 'missed the question', 'hallucinated', 'poor sources', 'outdated information',
+       'too verbose', 'too short', "recommendation wasn't useful", 'slow response'].forEach(r => {
+        const b = document.createElement('button'); b.type = 'button'; b.textContent = r; b.setAttribute('aria-pressed', 'false');
+        b.onclick = () => { picked.has(r) ? picked.delete(r) : picked.add(r); b.setAttribute('aria-pressed', String(picked.has(r))); };
+        chips.append(b);
+      });
       const f = document.createElement('form'); f.className = 'fb-form';
       f.innerHTML = '<input placeholder="What was wrong? (optional)" aria-label="What was wrong"><button type="submit">Send</button>';
-      f.onsubmit = (e) => { e.preventDefault(); const c = f.querySelector('input').value.trim(); if (c) vote('down', c); f.remove(); };
-      ui.actions.append(f); f.querySelector('input').focus();
+      f.onsubmit = (e) => { e.preventDefault(); const c = f.querySelector('input').value.trim(); vote('down', c, [...picked]); f.remove(); chips.remove(); };
+      ui.actions.append(chips, f); f.querySelector('input').focus();
     };
   }
 
@@ -527,6 +774,7 @@
       } else if (event === 'done') {
         rid = data.id || rid;
         state.recentTitles = data.recent_titles || state.recentTitles;
+        if (data.conv) state.conv = data.conv;
         renderCheck(ui, data.check);
         const t = data.timings || {};
         const parts = [];
@@ -545,8 +793,8 @@
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Access-Code': state.code },
-        body: JSON.stringify({ message: text, history: state.history, recent_titles: state.recentTitles, think: state.think }),
+        headers: hdrs(),
+        body: JSON.stringify({ message: text, history: state.history, recent_titles: state.recentTitles, conv: state.conv, think: state.think }),
         signal: state.ctrl.signal,
       });
       if (res.status === 401) { ui.el.remove(); finish(); askForCode("That code didn't work.", () => ask(text, { retry: true })); return; }

@@ -37,6 +37,9 @@ Added 23 Sep 2026:
   change 24  an exact repeat of a conversation (same question, same history,
              same reasoning setting) is answered from memory, instantly.
              In-process only: a restart (after any code or data change) clears it.
+  v3 (6 Oct) every finished turn is saved under the browser id + conversation id
+             (web/chats.py, logs/chats.db); /api/chats lists, opens and deletes them,
+             and reopening a chat restores its conversation state.
   /how       the How It Works page (how.html); /api/stats serves
              ../results/site_stats.json for its numbers, if present.
 """
@@ -50,13 +53,18 @@ import time
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 import pipeline
+import chats
+
+import sys
+if str(pipeline.RAG_DIR) not in sys.path:      # feedback.py / personal.py live next to chat.py
+    sys.path.insert(0, str(pipeline.RAG_DIR))
 
 HERE = Path(__file__).resolve().parent
 MAX_QUESTION_CHARS = 2000
@@ -105,6 +113,7 @@ class ChatRequest(BaseModel):
     message: str
     history: List[Turn] = []
     recent_titles: List[str] = []
+    conv: Optional[dict] = None        # v3 conversation state (conv.py), echoed back in "done"
     think: bool = False
 
 
@@ -134,6 +143,19 @@ class Feedback(BaseModel):
     id: str
     vote: str
     comment: str = ""
+    reasons: List[str] = []
+
+
+# v3: what each recent answer was built from, so feedback can be stored with it (feedback.py).
+RECENT = {}
+RECENT_MAX = 2000
+
+
+def user_of(request):
+    """Anonymous browser id from the page (localStorage), for the taste profile and the
+    per-user feedback cap. Not an account; nothing personal is stored with it."""
+    u = request.headers.get("x-mb-user", "")[:64]
+    return "".join(ch for ch in u if ch.isalnum() or ch in "-_")
 
 
 @app.post("/api/feedback")
@@ -143,8 +165,71 @@ async def feedback(fb: Feedback, request: Request):
     if fb.vote not in ("up", "down"):
         return JSONResponse({"error": "vote must be up or down"}, status_code=400)
     log_line("feedback", {"time": time.strftime("%Y-%m-%d %H:%M:%S"), "id": fb.id[:40],
-                          "vote": fb.vote, "comment": fb.comment[:1000]})
+                          "vote": fb.vote, "comment": fb.comment[:1000], "reasons": fb.reasons[:5]})
+    try:
+        import feedback as fbstore            # v3: logs/feedback.db, with the answer's full record
+        fbstore.record(fb.id[:40], fb.vote, fb.reasons, fb.comment, user_of(request), RECENT.get(fb.id[:40]))
+    except Exception as e:
+        print(f"[movie-buff] feedback store failed: {e!r}", flush=True)
     return JSONResponse({"ok": True})
+
+
+class FilmPref(BaseModel):
+    id: int
+    title: str = ""
+    signal: int              # 1 liked the film, -1 not for me, 0 undo
+    message_id: str = ""
+
+
+@app.post("/api/film")
+async def film_pref(fp: FilmPref, request: Request):
+    """v3: "I liked this film" - a film preference, kept apart from answer feedback (personal.py)."""
+    if not code_ok(request):
+        return JSONResponse({"error": "Wrong or missing access code."}, status_code=401)
+    user = user_of(request)
+    if not user or fp.signal not in (-1, 0, 1):
+        return JSONResponse({"error": "need a user id and signal -1, 0 or 1"}, status_code=400)
+    try:
+        import personal
+        personal.record_film(user, fp.id, fp.title[:200], fp.signal, "card", fp.message_id[:40])
+        return JSONResponse({"ok": True, "taste": personal.summary(user)})
+    except Exception as e:
+        print(f"[movie-buff] film preference failed: {e!r}", flush=True)
+        return JSONResponse({"error": "couldn't save that"}, status_code=500)
+
+
+@app.get("/api/taste")
+async def taste(request: Request):
+    if not code_ok(request):
+        return JSONResponse({"error": "Wrong or missing access code."}, status_code=401)
+    try:
+        import personal
+        return JSONResponse(personal.summary(user_of(request)))
+    except Exception:
+        return JSONResponse({})
+
+
+@app.get("/api/chats")
+async def chat_list(request: Request):
+    """v3: this browser's saved conversations, newest first (web/chats.py)."""
+    if not code_ok(request):
+        return JSONResponse({"error": "Wrong or missing access code."}, status_code=401)
+    return JSONResponse({"chats": chats.list_chats(user_of(request))})
+
+
+@app.get("/api/chats/{conv_id}")
+async def chat_open(conv_id: str, request: Request):
+    if not code_ok(request):
+        return JSONResponse({"error": "Wrong or missing access code."}, status_code=401)
+    c = chats.load_chat(user_of(request), conv_id)
+    return JSONResponse(c) if c else JSONResponse({"error": "No such chat."}, status_code=404)
+
+
+@app.delete("/api/chats/{conv_id}")
+async def chat_delete(conv_id: str, request: Request):
+    if not code_ok(request):
+        return JSONResponse({"error": "Wrong or missing access code."}, status_code=401)
+    return JSONResponse({"ok": chats.delete_chat(user_of(request), conv_id)})
 
 
 @app.get("/api/health")
@@ -172,8 +257,16 @@ async def chat(req: ChatRequest, request: Request):
     history = [{"role": t.role, "content": t.content}
                for t in req.history if t.role in ("user", "assistant") and t.content]
     history = history[-pipeline.MAX_HISTORY_MESSAGES:]
+    if hasattr(pipeline, "trim_history"):
+        history = pipeline.trim_history(history)
     rid = uuid.uuid4().hex[:12]
-    key = site_cache.answer_key(question, req.recent_titles, history)
+    conv_in = req.conv if pipeline.CONV_ON else None
+    if conv_in is not None and len(json.dumps(conv_in, default=str)) > 20000:
+        conv_in = None                     # a client sending junk gets a fresh conversation
+    user = user_of(request)
+    conv_id = request.headers.get("x-mb-conv", "")[:40]
+    utag = pipeline.user_tag(user) if hasattr(pipeline, "user_tag") else ""
+    key = site_cache.answer_key(question, req.recent_titles, history, conv_in, utag)
     hit = None if req.think else site_cache.get_answer(key)
 
     if hit:
@@ -190,6 +283,8 @@ async def chat(req: ChatRequest, request: Request):
                                      timings={"total_s": 0.0, "retrieve_s": 0.0, "first_text_s": 0.0}))
         log_line("requests", {"time": time.strftime("%Y-%m-%d %H:%M:%S"), "id": rid,
                               "question": question, "cached": True})
+        chats.save_turn(user, conv_id, question, done.get("answer", ""), src.get("films"),
+                        done.get("recent_titles"), done.get("conv"), rid, cached=True)
         return StreamingResponse(replay(), media_type="text/event-stream",
                                  headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
@@ -208,7 +303,8 @@ async def chat(req: ChatRequest, request: Request):
         def work():
             t0 = time.perf_counter()
             put(sse("status", stage="searching"))
-            prompt, hits = pipeline.prepare(question, req.recent_titles)
+            prompt, hits = pipeline.prepare(question, req.recent_titles, conv_in, user)
+            trace = pipeline.last_trace()
             retrieve_s = time.perf_counter() - t0
             src = dict(films=[pipeline.card(h) for h in hits], steps=pipeline.steps(hits),
                        alternatives=pipeline.alternatives(hits), retrieve_s=round(retrieve_s, 2))
@@ -233,20 +329,40 @@ async def chat(req: ChatRequest, request: Request):
                 {"ok": None, "flags": [], "checked": 0}
             done = dict(answer=final,
                         recent_titles=pipeline.next_recent_titles(hits, req.recent_titles),
+                        conv=pipeline.next_conv(conv_in, question, hits, final) if not cancel.is_set() else conv_in,
                         stopped=cancel.is_set(), check=checked, cached=False,
                         timings={"retrieve_s": round(retrieve_s, 2),
                                  "first_text_s": round(first, 2) if first else None,
                                  "generate_s": round(time.perf_counter() - t1, 2),
                                  "total_s": round(time.perf_counter() - t0, 2)})
             put(sse("done", id=rid, **done))
+            if final:
+                chats.save_turn(user, conv_id, question, final, src["films"], done["recent_titles"],
+                                done["conv"], rid)
             if final and not cancel.is_set() and not req.think and hits:
-                site_cache.put_answer(key, question, src, done)
+                site_cache.put_answer(key, question, src, done,
+                                      pipeline.last_ttl() if hasattr(pipeline, "last_ttl") else None)
+            RECENT[rid] = {"question": question, "conversation_id": conv_id, "films": done.get("recent_titles"),
+                           "stages": trace, "answer": final, "versions": pipeline.versions(),
+                           "prompt_chars": len(prompt)}
+            while len(RECENT) > RECENT_MAX:
+                RECENT.pop(next(iter(RECENT)))
+            plan_prefs = ((hits[0].get("_plan") or {}).get("preferences") if hits else None) or []
+            if user and plan_prefs:
+                try:
+                    import personal
+                    personal.record_stated(user, plan_prefs)     # "I hate jump scares" -> taste profile
+                except Exception:
+                    pass
             log_line("requests", {
                 "time": time.strftime("%Y-%m-%d %H:%M:%S"), "id": rid, "question": question,
                 "recent_titles": req.recent_titles, "history_turns": len(history) // 2,
                 "think": req.think, "films": [f"{c['title']} ({c['year']})" for c in src["films"]],
                 "steps": src["steps"], "timings": done["timings"], "answer": final,
-                "check": checked, "stopped": done["stopped"], "cached": False})
+                "check": checked, "stopped": done["stopped"], "cached": False,
+                "stages": trace, "versions": pipeline.versions(),
+                "conv_turns": len((conv_in or {}).get("turns") or []),
+                "answer_chars": len(final), "prompt_chars": len(prompt)})
 
         try:
             ahead = line.index(me)

@@ -1,0 +1,737 @@
+{
+ "about": "v3 analytic set (written 5 Oct 2026, before any TOOLS result). expect_tasks: tools the route must include; expect_films: films the route must be about; expect_in_context: strings the tool context must contain; expect_spec: fields the aggregate spec must have; expect_honest: the answer must not invent what the context lacks.",
+ "questions": [
+  {
+   "id": "a01",
+   "category": "factual",
+   "question": "Who directed Arrival?",
+   "expect_tasks": [
+    "facts"
+   ],
+   "expect_films": [
+    "Arrival"
+   ],
+   "expect_in_context": [
+    "Denis Villeneuve"
+   ],
+   "notes": "Names Denis Villeneuve in the first sentence."
+  },
+  {
+   "id": "a02",
+   "category": "factual",
+   "question": "Who composed the score for Interstellar?",
+   "expect_tasks": [
+    "facts"
+   ],
+   "expect_films": [
+    "Interstellar"
+   ],
+   "expect_in_context": [
+    "Hans Zimmer"
+   ],
+   "notes": "Names Hans Zimmer."
+  },
+  {
+   "id": "a03",
+   "category": "factual",
+   "question": "How long is The Irishman?",
+   "expect_tasks": [
+    "facts"
+   ],
+   "expect_films": [
+    "The Irishman"
+   ],
+   "expect_in_context": [
+    "209 min"
+   ],
+   "notes": "Gives the runtime, about 3.5 hours (209 minutes)."
+  },
+  {
+   "id": "a04",
+   "category": "factual",
+   "question": "Who was the cinematographer on Blade Runner 2049?",
+   "expect_tasks": [
+    "facts"
+   ],
+   "expect_films": [
+    "Blade Runner 2049"
+   ],
+   "expect_in_context": [
+    "Roger Deakins"
+   ],
+   "notes": "Names Roger Deakins."
+  },
+  {
+   "id": "a05",
+   "category": "factual",
+   "question": "When did Dune: Part Two come out?",
+   "expect_tasks": [
+    "facts"
+   ],
+   "expect_films": [
+    "Dune: Part Two"
+   ],
+   "expect_in_context": [
+    "2024"
+   ],
+   "notes": "Gives a 2024 release date."
+  },
+  {
+   "id": "a06",
+   "category": "factual",
+   "question": "Who stars in Gladiator?",
+   "expect_tasks": [
+    "facts"
+   ],
+   "expect_films": [
+    "Gladiator"
+   ],
+   "expect_in_context": [
+    "Russell Crowe"
+   ],
+   "notes": "Names Russell Crowe (and maybe Joaquin Phoenix); short answer."
+  },
+  {
+   "id": "a46",
+   "category": "factual",
+   "question": "What studio made Parasite?",
+   "expect_tasks": [
+    "facts"
+   ],
+   "expect_films": [
+    "Parasite"
+   ],
+   "expect_in_context": [
+    "Barunson"
+   ],
+   "notes": "Names Barunson E&A (and/or CJ Entertainment)."
+  },
+  {
+   "id": "a07",
+   "category": "detail",
+   "question": "Where was The Dark Knight filmed?",
+   "expect_tasks": [
+    "facts",
+    "sections"
+   ],
+   "expect_films": [
+    "The Dark Knight"
+   ],
+   "expect_in_context": [
+    "Chicago"
+   ],
+   "notes": "Says it was filmed mainly in Chicago (plus other places if in the context)."
+  },
+  {
+   "id": "a08",
+   "category": "detail",
+   "question": "How did they film the rotating hallway fight in Inception?",
+   "expect_tasks": [
+    "sections"
+   ],
+   "expect_films": [
+    "Inception"
+   ],
+   "expect_in_context": [
+    "hallway"
+   ],
+   "notes": "Explains the rotating set/corridor, from the production text."
+  },
+  {
+   "id": "a09",
+   "category": "detail",
+   "question": "What camera format did Oppenheimer use?",
+   "expect_tasks": [
+    "facts"
+   ],
+   "expect_films": [
+    "Oppenheimer"
+   ],
+   "expect_honest": true,
+   "notes": "The 2023 Wikipedia snapshot predates the film's production section; a good answer gives only what the context has and does not invent technical details."
+  },
+  {
+   "id": "a10",
+   "category": "detail",
+   "question": "How was the music for Joker composed?",
+   "expect_tasks": [
+    "sections"
+   ],
+   "expect_films": [
+    "Joker"
+   ],
+   "expect_in_context": [
+    "Hildur"
+   ],
+   "notes": "Mentions Hildur Guðnadóttir and how the score was written, from the context."
+  },
+  {
+   "id": "a11",
+   "category": "compare",
+   "question": "Compare the budgets of Dune and Dune: Part Two.",
+   "expect_tasks": [
+    "facts",
+    "compare"
+   ],
+   "expect_films": [
+    "Dune",
+    "Dune: Part Two"
+   ],
+   "expect_in_context": [
+    "Budget"
+   ],
+   "notes": "Gives both budgets with sources; says which was larger."
+  },
+  {
+   "id": "a12",
+   "category": "compare",
+   "question": "Which made more money, Jurassic Park or Jaws?",
+   "expect_tasks": [
+    "facts",
+    "compare"
+   ],
+   "expect_films": [
+    "Jurassic Park",
+    "Jaws"
+   ],
+   "expect_in_context": [
+    "gross"
+   ],
+   "notes": "Gives both worldwide grosses and says Jurassic Park made more (unadjusted); may note inflation."
+  },
+  {
+   "id": "a13",
+   "category": "compare",
+   "question": "Is The Godfather Part II longer than The Godfather?",
+   "expect_tasks": [
+    "facts",
+    "compare"
+   ],
+   "expect_films": [
+    "The Godfather",
+    "The Godfather Part II"
+   ],
+   "expect_in_context": [
+    "min"
+   ],
+   "notes": "Part II is longer (about 202 vs 175 minutes)."
+  },
+  {
+   "id": "a14",
+   "category": "compare",
+   "question": "Compare Alien and Aliens on budget, box office and ratings.",
+   "expect_tasks": [
+    "facts",
+    "compare"
+   ],
+   "expect_films": [
+    "Alien",
+    "Aliens"
+   ],
+   "expect_in_context": [
+    "Budget"
+   ],
+   "notes": "A side-by-side with numbers for both, sources named."
+  },
+  {
+   "id": "a15",
+   "category": "reviews",
+   "question": "What did audiences dislike about Napoleon?",
+   "expect_tasks": [
+    "facts",
+    "reviews"
+   ],
+   "expect_films": [
+    "Napoleon"
+   ],
+   "notes": "Uses the audience review analysis or reviews in the context; does not invent complaints."
+  },
+  {
+   "id": "a16",
+   "category": "reviews",
+   "question": "What did critics praise about Mad Max: Fury Road?",
+   "expect_tasks": [
+    "reviews",
+    "sections"
+   ],
+   "expect_films": [
+    "Mad Max: Fury Road"
+   ],
+   "expect_in_context": [
+    "critic"
+   ],
+   "notes": "Draws on the reception text: action, practical stunts, Theron's performance etc. only if present."
+  },
+  {
+   "id": "a17",
+   "category": "reviews",
+   "question": "How was Cats received?",
+   "expect_tasks": [
+    "reviews",
+    "sections"
+   ],
+   "expect_films": [
+    "Cats"
+   ],
+   "notes": "Negative critical reception, from the reception text."
+  },
+  {
+   "id": "a18",
+   "category": "reviews",
+   "question": "Why did critics like The Last Jedi more than fans did?",
+   "expect_tasks": [
+    "facts",
+    "reviews",
+    "sections"
+   ],
+   "expect_films": [
+    "Star Wars: The Last Jedi"
+   ],
+   "notes": "Separates critic and audience evidence; marks interpretation."
+  },
+  {
+   "id": "a19",
+   "category": "why",
+   "question": "Why did Barbie do so well?",
+   "expect_tasks": [
+    "facts",
+    "market",
+    "reviews"
+   ],
+   "expect_films": [
+    "Barbie"
+   ],
+   "expect_in_context": [
+    "Budget"
+   ],
+   "notes": "Uses the structured numbers (budget, gross), release context (Oppenheimer same weekend if present), and states uncertainty."
+  },
+  {
+   "id": "a20",
+   "category": "why",
+   "question": "Why did John Carter flop despite its huge budget?",
+   "expect_tasks": [
+    "facts",
+    "market",
+    "sections"
+   ],
+   "expect_films": [
+    "John Carter"
+   ],
+   "expect_in_context": [
+    "Budget"
+   ],
+   "notes": "Gross vs budget numbers with sources; reasons only from the context; uncertainty section."
+  },
+  {
+   "id": "a21",
+   "category": "why",
+   "question": "Why did Paranormal Activity make so much money?",
+   "expect_tasks": [
+    "facts",
+    "market",
+    "sections"
+   ],
+   "expect_films": [
+    "Paranormal Activity"
+   ],
+   "expect_in_context": [
+    "Budget"
+   ],
+   "notes": "Tiny budget vs gross (huge multiple); marketing/release story only from context."
+  },
+  {
+   "id": "a22",
+   "category": "why",
+   "question": "What made The Dark Knight work better than other superhero movies?",
+   "expect_tasks": [
+    "facts",
+    "market",
+    "sections"
+   ],
+   "expect_films": [
+    "The Dark Knight"
+   ],
+   "notes": "Evidence vs interpretation separated; no invented numbers."
+  },
+  {
+   "id": "a23",
+   "category": "why",
+   "question": "Why did Blade Runner 2049 lose money despite good reviews?",
+   "expect_tasks": [
+    "facts",
+    "market",
+    "sections"
+   ],
+   "expect_films": [
+    "Blade Runner 2049"
+   ],
+   "expect_in_context": [
+    "Budget"
+   ],
+   "notes": "Budget vs gross, reception, uncertainty."
+  },
+  {
+   "id": "a24",
+   "category": "why",
+   "question": "How did The Blair Witch Project do at the box office?",
+   "expect_tasks": [
+    "facts",
+    "market"
+   ],
+   "expect_films": [
+    "The Blair Witch Project"
+   ],
+   "expect_in_context": [
+    "gross"
+   ],
+   "notes": "Gross vs tiny budget with sources."
+  },
+  {
+   "id": "a25",
+   "category": "why",
+   "question": "Was Avatar's success driven more by the 3D, the director or the release timing?",
+   "expect_tasks": [
+    "facts",
+    "market",
+    "sections"
+   ],
+   "expect_films": [
+    "Avatar"
+   ],
+   "notes": "Weighs the factors with evidence; says causation cannot be proven."
+  },
+  {
+   "id": "a26",
+   "category": "career",
+   "question": "How has Christopher Nolan's style changed over time?",
+   "expect_tasks": [
+    "aggregate"
+   ],
+   "expect_in_context": [
+    "Christopher Nolan"
+   ],
+   "expect_spec": {
+    "task": "filmography"
+   },
+   "notes": "Uses the filmography table (years, genres, budgets, ratings, recurring keywords)."
+  },
+  {
+   "id": "a27",
+   "category": "career",
+   "question": "What themes appear throughout Denis Villeneuve's films?",
+   "expect_tasks": [
+    "aggregate"
+   ],
+   "expect_in_context": [
+    "Denis Villeneuve"
+   ],
+   "expect_spec": {
+    "task": "filmography"
+   },
+   "notes": "Uses recurring keywords/genres across his films; labels interpretation."
+  },
+  {
+   "id": "a28",
+   "category": "career",
+   "question": "Compare Steven Spielberg and James Cameron by box office and ratings.",
+   "expect_tasks": [
+    "aggregate"
+   ],
+   "expect_in_context": [
+    "Steven Spielberg",
+    "James Cameron"
+   ],
+   "expect_spec": {
+    "task": "filmography"
+   },
+   "notes": "Numbers for both from the tables."
+  },
+  {
+   "id": "a29",
+   "category": "career",
+   "question": "What changed between Ridley Scott's early and later films?",
+   "expect_tasks": [
+    "aggregate"
+   ],
+   "expect_in_context": [
+    "Ridley Scott"
+   ],
+   "expect_spec": {
+    "task": "filmography"
+   },
+   "notes": "Early vs later comparison from the table."
+  },
+  {
+   "id": "a30",
+   "category": "multihop",
+   "question": "Which science-fiction directors consistently made commercially successful movies on moderate budgets?",
+   "expect_tasks": [
+    "aggregate"
+   ],
+   "expect_in_context": [
+    "Directors ranked"
+   ],
+   "expect_spec": {
+    "task": "ranking",
+    "group_by": "director",
+    "metric": "roi"
+   },
+   "notes": "Lists directors from the ranking with counts and multiples; states the profit rule of thumb."
+  },
+  {
+   "id": "a31",
+   "category": "multihop",
+   "question": "Which directors had multiple profitable science-fiction movies during the 2010s?",
+   "expect_tasks": [
+    "aggregate"
+   ],
+   "expect_in_context": [
+    "Directors ranked"
+   ],
+   "expect_spec": {
+    "task": "ranking",
+    "group_by": "director",
+    "year_from": 2010,
+    "year_to": 2019
+   },
+   "notes": "Directors with >=2 profitable SF films 2010-2019, from the table."
+  },
+  {
+   "id": "a32",
+   "category": "multihop",
+   "question": "Why were horror movies unusually successful in 2017?",
+   "expect_tasks": [
+    "aggregate"
+   ],
+   "expect_in_context": [
+    "2017"
+   ],
+   "expect_spec": {
+    "task": "trend"
+   },
+   "notes": "Uses the by-year table and top 2017 horror films (It, Get Out, Split ...) if present; interpretation labelled."
+  },
+  {
+   "id": "a33",
+   "category": "multihop",
+   "question": "Which actors have the best track record in comedies?",
+   "expect_tasks": [
+    "aggregate"
+   ],
+   "expect_in_context": [
+    "Actors ranked"
+   ],
+   "expect_spec": {
+    "task": "ranking",
+    "group_by": "actor"
+   },
+   "notes": "From the ranking table, with its criteria."
+  },
+  {
+   "id": "a34",
+   "category": "multihop",
+   "question": "What low-budget horror movies made the most money relative to their budget?",
+   "expect_tasks": [
+    "aggregate"
+   ],
+   "expect_in_context": [
+    "Films ranked"
+   ],
+   "expect_spec": {
+    "task": "ranking",
+    "group_by": "film",
+    "metric": "roi"
+   },
+   "notes": "Lists films with budget, gross, multiple."
+  },
+  {
+   "id": "a35",
+   "category": "multihop",
+   "question": "Which animated films grossed the most in the 2010s?",
+   "expect_tasks": [
+    "aggregate"
+   ],
+   "expect_in_context": [
+    "Films ranked"
+   ],
+   "expect_spec": {
+    "task": "ranking",
+    "group_by": "film",
+    "metric": "gross",
+    "year_from": 2010,
+    "year_to": 2019
+   },
+   "notes": "Frozen II / Frozen / Incredibles 2 etc. from the table."
+  },
+  {
+   "id": "a36",
+   "category": "multihop",
+   "question": "What were the highest-grossing movies of 1997?",
+   "expect_tasks": [
+    "aggregate"
+   ],
+   "expect_in_context": [
+    "Titanic"
+   ],
+   "expect_spec": {
+    "task": "ranking",
+    "group_by": "film",
+    "metric": "gross"
+   },
+   "notes": "Titanic first, from the table."
+  },
+  {
+   "id": "a37",
+   "category": "current",
+   "question": "What major science-fiction movies are coming out soon?",
+   "expect_tasks": [
+    "current"
+   ],
+   "expect_in_context": [
+    "release dates can still move"
+   ],
+   "notes": "Lists upcoming SF films with dates, says data is from TMDB as of a date."
+  },
+  {
+   "id": "a38",
+   "category": "current",
+   "question": "What's playing in theaters right now?",
+   "expect_tasks": [
+    "current"
+   ],
+   "expect_in_context": [
+    "now playing"
+   ],
+   "notes": "From the now-playing list, with the date."
+  },
+  {
+   "id": "a39",
+   "category": "current",
+   "question": "What horror movies come out next month?",
+   "expect_tasks": [
+    "current"
+   ],
+   "notes": "Only films in the list; if none, says so."
+  },
+  {
+   "id": "a40",
+   "category": "current",
+   "question": "Any good new releases this year?",
+   "expect_tasks": [
+    "current"
+   ],
+   "notes": "From the recent list; does not invent films."
+  },
+  {
+   "id": "a41",
+   "category": "recommend",
+   "question": "What should I watch if I liked Arrival but disliked Tenet?",
+   "expect_absent": [
+    "Tenet"
+   ],
+   "notes": "Recommends films like Arrival, not Tenet; reasons tied to the request."
+  },
+  {
+   "id": "a42",
+   "category": "recommend",
+   "question": "Recommend a slow-burn sci-fi film like Ex Machina.",
+   "expect_absent": [
+    "Ex Machina"
+   ],
+   "notes": "Two or three films with one-line reasons."
+  },
+  {
+   "id": "a43",
+   "category": "recent",
+   "question": "Who directed Sinners?",
+   "expect_tasks": [
+    "facts"
+   ],
+   "expect_films": [
+    "Sinners"
+   ],
+   "expect_in_context": [
+    "Ryan Coogler"
+   ],
+   "notes": "Ryan Coogler, from the structured data."
+  },
+  {
+   "id": "a44",
+   "category": "recent",
+   "question": "What was the budget of Mission: Impossible - The Final Reckoning?",
+   "expect_tasks": [
+    "facts"
+   ],
+   "expect_in_context": [
+    "Budget"
+   ],
+   "notes": "Gives the budget with its source, or says it's not in the data."
+  },
+  {
+   "id": "a45",
+   "category": "honesty",
+   "question": "How much did The Cobalt Hour (1987) make at the box office?",
+   "expect_honest": true,
+   "notes": "The film does not exist; says it isn't in the database; no invented figures."
+  },
+  {
+   "id": "a47",
+   "category": "honesty",
+   "question": "What did critics say about Harbor of Glass (2003)?",
+   "expect_honest": true,
+   "notes": "Invented film; says it isn't in the database."
+  },
+  {
+   "id": "a48",
+   "category": "tot",
+   "question": "movie where a guy relives the same day over and over in a small town",
+   "notes": "Groundhog Day; v2 behaviour, no tool blocks."
+  },
+  {
+   "id": "a49",
+   "category": "tot",
+   "question": "that movie where a shark terrorizes a beach town - how much did it make?",
+   "expect_tasks": [
+    "facts"
+   ],
+   "expect_films": [
+    "Jaws"
+   ],
+   "expect_in_context": [
+    "gross"
+   ],
+   "notes": "Identifies Jaws and gives its gross with the source."
+  },
+  {
+   "id": "a50",
+   "category": "awards",
+   "question": "How many Oscars did Titanic win?",
+   "expect_tasks": [
+    "facts"
+   ],
+   "expect_films": [
+    "Titanic"
+   ],
+   "expect_in_context": [
+    "Academy Award"
+   ],
+   "notes": "11 Academy Awards if the context lists them; otherwise reports what the context shows."
+  },
+  {
+   "id": "a51",
+   "category": "awards",
+   "question": "Did Parasite win Best Picture?",
+   "expect_tasks": [
+    "facts"
+   ],
+   "expect_films": [
+    "Parasite"
+   ],
+   "expect_in_context": [
+    "Best Picture"
+   ],
+   "notes": "Yes, from the awards line."
+  }
+ ]
+}

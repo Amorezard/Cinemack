@@ -1,0 +1,705 @@
+{
+ "about": "v3 multi-turn retrieval set (written 4 Oct 2026, before any CONV result). Earlier turns are scripted (films given), so each case tests only the graded follow-up. expect_absent: films that must not come back.",
+ "questions": [
+  {
+   "id": "m01",
+   "source": "multiturn",
+   "split": "mt",
+   "category": "pronoun",
+   "turns": [
+    {
+     "user": "Tell me about The Departed.",
+     "films": [
+      "The Departed (2006)"
+     ],
+     "assistant": "The Departed (2006) is Martin Scorsese's Boston crime thriller."
+    },
+    "Who directed it?"
+   ],
+   "expect_retrieved": [
+    "The Departed"
+   ]
+  },
+  {
+   "id": "m02",
+   "source": "multiturn",
+   "split": "mt",
+   "category": "ordinal",
+   "turns": [
+    {
+     "user": "Recommend some 80s sci-fi movies",
+     "films": [
+      "Blade Runner (1982)",
+      "The Terminator (1984)",
+      "Aliens (1986)"
+     ],
+     "assistant": "Try **Aliens** (1986) for action, **Blade Runner** (1982) for atmosphere, and **The Terminator** (1984) for a lean chase."
+    },
+    "Tell me more about the second one"
+   ],
+   "expect_retrieved": [
+    "Blade Runner"
+   ],
+   "expect_absent": [
+    "Aliens"
+   ]
+  },
+  {
+   "id": "m03",
+   "source": "multiturn",
+   "split": "mt",
+   "category": "sequel",
+   "turns": [
+    {
+     "user": "What's Toy Story about?",
+     "films": [
+      "Toy Story (1995)"
+     ]
+    },
+    "Is the third one any good?"
+   ],
+   "expect_retrieved": [
+    "Toy Story 3"
+   ]
+  },
+  {
+   "id": "m11",
+   "source": "multiturn",
+   "split": "mt",
+   "category": "sequel",
+   "turns": [
+    {
+     "user": "Tell me about Toy Story",
+     "films": [
+      "Toy Story (1995)"
+     ]
+    },
+    "what about the sequel?"
+   ],
+   "expect_retrieved": [
+    "Toy Story 2"
+   ]
+  },
+  {
+   "id": "m29",
+   "source": "multiturn",
+   "split": "mt",
+   "category": "sequel",
+   "turns": [
+    {
+     "user": "Tell me about The Matrix",
+     "films": [
+      "The Matrix (1999)"
+     ]
+    },
+    "Is the sequel worth watching?"
+   ],
+   "expect_retrieved": [
+    "The Matrix Reloaded"
+   ]
+  },
+  {
+   "id": "m30",
+   "source": "multiturn",
+   "split": "mt",
+   "category": "sequel",
+   "turns": [
+    {
+     "user": "Tell me about Back to the Future Part II",
+     "films": [
+      "Back to the Future Part II (1989)"
+     ]
+    },
+    "And the original?"
+   ],
+   "expect_retrieved": [
+    "Back to the Future"
+   ]
+  },
+  {
+   "id": "m28",
+   "source": "multiturn",
+   "split": "mt",
+   "category": "pronoun",
+   "turns": [
+    {
+     "user": "best Pixar movies?",
+     "films": [
+      "Up (2009)",
+      "WALL·E (2008)",
+      "Ratatouille (2007)"
+     ],
+     "assistant": "**WALL·E** (2008) is my top pick, followed by **Up** (2009) and **Ratatouille** (2007)."
+    },
+    "how did it end?"
+   ],
+   "expect_retrieved": [
+    "WALL·E"
+   ]
+  },
+  {
+   "id": "m25",
+   "source": "multiturn",
+   "split": "mt",
+   "category": "ordinal",
+   "turns": [
+    {
+     "user": "Recommend a thoughtful sci-fi film",
+     "films": [
+      "Arrival (2016)",
+      "Interstellar (2014)",
+      "Ex Machina (2015)"
+     ],
+     "assistant": "Try **Arrival** (2016), **Ex Machina** (2015) or **Interstellar** (2014)."
+    },
+    "How long is the last one?"
+   ],
+   "expect_retrieved": [
+    "Interstellar"
+   ]
+  },
+  {
+   "id": "m26",
+   "source": "multiturn",
+   "split": "mt",
+   "category": "ordinal",
+   "turns": [
+    {
+     "user": "Recommend a thoughtful sci-fi film",
+     "films": [
+      "Arrival (2016)",
+      "Interstellar (2014)",
+      "Ex Machina (2015)"
+     ],
+     "assistant": "Try **Arrival** (2016), **Ex Machina** (2015) or **Interstellar** (2014)."
+    },
+    "Who's in the middle one?"
+   ],
+   "expect_retrieved": [
+    "Ex Machina"
+   ]
+  },
+  {
+   "id": "m04",
+   "source": "multiturn",
+   "split": "mt",
+   "category": "back_ref",
+   "turns": [
+    {
+     "user": "Tell me about Alien.",
+     "films": [
+      "Alien (1979)"
+     ],
+     "assistant": "Alien (1979) is Ridley Scott's sci-fi horror film."
+    },
+    {
+     "user": "Any other sci-fi horror like it?",
+     "films": [
+      "Event Horizon (1997)",
+      "The Thing (1982)",
+      "Pitch Black (2000)"
+     ],
+     "assistant": "Try **Event Horizon** (1997), **The Thing** (1982) and **Pitch Black** (2000)."
+    },
+    "Going back to the first film I asked about, who directed it?"
+   ],
+   "expect_retrieved": [
+    "Alien"
+   ],
+   "expect_absent": [
+    "Event Horizon"
+   ]
+  },
+  {
+   "id": "m05",
+   "source": "multiturn",
+   "split": "mt",
+   "category": "back_ref",
+   "turns": [
+    {
+     "user": "Tell me about The Matrix.",
+     "films": [
+      "The Matrix (1999)"
+     ],
+     "assistant": "The Matrix (1999) follows a hacker who learns his world is a simulation."
+    },
+    {
+     "user": "Who directed Inception?",
+     "films": [
+      "Inception (2010)"
+     ],
+     "assistant": "Christopher Nolan directed Inception (2010)."
+    },
+    "When did the movie we talked about before Inception come out?"
+   ],
+   "expect_retrieved": [
+    "The Matrix"
+   ],
+   "expect_absent": [
+    "Inception"
+   ]
+  },
+  {
+   "id": "m06",
+   "source": "multiturn",
+   "split": "mt",
+   "category": "back_ref",
+   "turns": [
+    {
+     "user": "what's the movie where a poor family secretly works for a rich family one by one",
+     "films": [
+      "Flodder (1986)",
+      "Poltergeist (1982)",
+      "Richie Rich (1994)"
+     ],
+     "assistant": "That might be **Flodder** (1986), a Dutch comedy about an antisocial family moved into a wealthy neighbourhood."
+    },
+    {
+     "user": "none of those, it's a Korean film that won Best Picture",
+     "films": [
+      "Parasite (2019)",
+      "Slither (2006)"
+     ],
+     "assistant": "That's **Parasite** (2019), Bong Joon Ho's Best Picture winner. Not to be confused with *Slither* (2006)."
+    },
+    "tell me about the first movie you suggested"
+   ],
+   "expect_retrieved": [
+    "Flodder"
+   ],
+   "note": "1 Oct demo failure, first half"
+  },
+  {
+   "id": "m07",
+   "source": "multiturn",
+   "split": "mt",
+   "category": "back_ref",
+   "turns": [
+    {
+     "user": "what's the movie where a poor family secretly works for a rich family one by one",
+     "films": [
+      "Flodder (1986)",
+      "Poltergeist (1982)",
+      "Richie Rich (1994)"
+     ],
+     "assistant": "That might be **Flodder** (1986), a Dutch comedy about an antisocial family moved into a wealthy neighbourhood."
+    },
+    {
+     "user": "none of those, it's a Korean film that won Best Picture",
+     "films": [
+      "Parasite (2019)",
+      "Slither (2006)"
+     ],
+     "assistant": "That's **Parasite** (2019), Bong Joon Ho's Best Picture winner. Not to be confused with *Slither* (2006)."
+    },
+    {
+     "user": "tell me about the first movie",
+     "films": [
+      "Parasite (2019)"
+     ],
+     "assistant": "**Parasite** (2019) follows the Kim family..."
+    },
+    "no, I mean the one from earlier, the Dutch one"
+   ],
+   "expect_retrieved": [
+    "Flodder"
+   ],
+   "expect_absent": [
+    "Parasite"
+   ],
+   "note": "1 Oct demo failure, second half"
+  },
+  {
+   "id": "m27",
+   "source": "multiturn",
+   "split": "mt",
+   "category": "back_ref",
+   "turns": [
+    {
+     "user": "Tell me about Casablanca",
+     "films": [
+      "Casablanca (1942)"
+     ]
+    },
+    {
+     "user": "What about Vertigo?",
+     "films": [
+      "Vertigo (1958)"
+     ]
+    },
+    {
+     "user": "And Psycho?",
+     "films": [
+      "Psycho (1960)"
+     ]
+    },
+    {
+     "user": "Is Rear Window good?",
+     "films": [
+      "Rear Window (1954)"
+     ]
+    },
+    {
+     "user": "Tell me about North by Northwest",
+     "films": [
+      "North by Northwest (1959)"
+     ]
+    },
+    "Go back to the very first film we discussed. What year was it released?"
+   ],
+   "expect_retrieved": [
+    "Casablanca"
+   ],
+   "expect_absent": [
+    "North by Northwest"
+   ],
+   "note": "long conversation"
+  },
+  {
+   "id": "m08",
+   "source": "multiturn",
+   "split": "mt",
+   "category": "compare",
+   "turns": [
+    {
+     "user": "Tell me about Alien",
+     "films": [
+      "Alien (1979)"
+     ]
+    },
+    "Compare it with Aliens"
+   ],
+   "expect_retrieved": [
+    "Alien",
+    "Aliens"
+   ]
+  },
+  {
+   "id": "m09",
+   "source": "multiturn",
+   "split": "mt",
+   "category": "compare",
+   "turns": [
+    {
+     "user": "Tell me about The Godfather",
+     "films": [
+      "The Godfather (1972)"
+     ]
+    },
+    {
+     "user": "How does The Godfather Part II compare?",
+     "films": [
+      "The Godfather Part II (1974)",
+      "The Godfather (1972)"
+     ]
+    },
+    "Which of the two is longer?"
+   ],
+   "expect_retrieved": [
+    "The Godfather",
+    "The Godfather Part II"
+   ]
+  },
+  {
+   "id": "m10",
+   "source": "multiturn",
+   "split": "mt",
+   "category": "compare",
+   "turns": [
+    {
+     "user": "Who directed Jurassic Park?",
+     "films": [
+      "Jurassic Park (1993)"
+     ]
+    },
+    {
+     "user": "And Jaws?",
+     "films": [
+      "Jaws (1975)"
+     ]
+    },
+    "Which of them made more money?"
+   ],
+   "expect_retrieved": [
+    "Jurassic Park",
+    "Jaws"
+   ]
+  },
+  {
+   "id": "m12",
+   "source": "multiturn",
+   "split": "mt",
+   "category": "compare",
+   "turns": [
+    {
+     "user": "Tell me about Frozen",
+     "films": [
+      "Frozen (2013)"
+     ]
+    },
+    "What about Moana?"
+   ],
+   "expect_retrieved": [
+    "Moana"
+   ]
+  },
+  {
+   "id": "m13",
+   "source": "multiturn",
+   "split": "mt",
+   "category": "switch",
+   "turns": [
+    {
+     "user": "Tell me about Jurassic Park",
+     "films": [
+      "Jurassic Park (1993)"
+     ]
+    },
+    "Who directed The Shawshank Redemption?"
+   ],
+   "expect_retrieved": [
+    "The Shawshank Redemption"
+   ],
+   "expect_absent": [
+    "Jurassic Park"
+   ]
+  },
+  {
+   "id": "m14",
+   "source": "multiturn",
+   "split": "mt",
+   "category": "switch",
+   "turns": [
+    {
+     "user": "Tell me about Up",
+     "films": [
+      "Up (2009)"
+     ]
+    },
+    "Is The Dark Knight worth watching?"
+   ],
+   "expect_retrieved": [
+    "The Dark Knight"
+   ],
+   "expect_absent": [
+    "Up"
+   ]
+  },
+  {
+   "id": "m15",
+   "source": "multiturn",
+   "split": "mt",
+   "category": "switch",
+   "turns": [
+    {
+     "user": "Who stars in Gladiator?",
+     "films": [
+      "Gladiator (2000)"
+     ]
+    },
+    "What's the movie where a man with short-term memory loss tattoos clues on his body?"
+   ],
+   "expect_retrieved": [
+    "Memento"
+   ],
+   "expect_absent": [
+    "Gladiator"
+   ]
+  },
+  {
+   "id": "m16",
+   "source": "multiturn",
+   "split": "mt",
+   "category": "switch",
+   "turns": [
+    {
+     "user": "Tell me about Arrival",
+     "films": [
+      "Arrival (2016)"
+     ]
+    },
+    "Who directed Whiplash?"
+   ],
+   "expect_retrieved": [
+    "Whiplash"
+   ],
+   "expect_absent": [
+    "Arrival"
+   ]
+  },
+  {
+   "id": "m24",
+   "source": "multiturn",
+   "split": "mt",
+   "category": "preference",
+   "turns": [
+    {
+     "user": "Tell me about Hereditary",
+     "films": [
+      "Hereditary (2018)"
+     ]
+    },
+    "I hate jump scares. Is it full of them?"
+   ],
+   "expect_retrieved": [
+    "Hereditary"
+   ]
+  },
+  {
+   "id": "m17",
+   "source": "multiturn",
+   "split": "mt",
+   "category": "correction",
+   "turns": [
+    {
+     "user": "movie where a guy keeps reliving the same day",
+     "films": [
+      "Edge of Tomorrow (2014)"
+     ],
+     "assistant": "That sounds like **Edge of Tomorrow** (2014), where a soldier relives the same battle."
+    },
+    "no, it's a comedy with a weatherman in a small town in winter"
+   ],
+   "expect_retrieved": [
+    "Groundhog Day"
+   ],
+   "expect_absent": [
+    "Edge of Tomorrow"
+   ]
+  },
+  {
+   "id": "m18",
+   "source": "multiturn",
+   "split": "mt",
+   "category": "correction",
+   "turns": [
+    {
+     "user": "film about a boy who befriends an alien",
+     "films": [
+      "E.T. the Extra-Terrestrial (1982)"
+     ],
+     "assistant": "That's **E.T. the Extra-Terrestrial** (1982)."
+    },
+    "not that one, the alien is a giant metal robot that eats metal, and it's animated"
+   ],
+   "expect_retrieved": [
+    "The Iron Giant"
+   ],
+   "expect_absent": [
+    "E.T. the Extra-Terrestrial"
+   ]
+  },
+  {
+   "id": "m19",
+   "source": "multiturn",
+   "split": "mt",
+   "category": "correction",
+   "turns": [
+    {
+     "user": "what's the movie where a shark terrorizes a beach town",
+     "films": [
+      "Jaws (1975)"
+     ],
+     "assistant": "That's **Jaws** (1975)."
+    },
+    "no, it's newer, a surfer is stuck on a rock near the shore while a shark circles her"
+   ],
+   "expect_retrieved": [
+    "The Shallows"
+   ],
+   "expect_absent": [
+    "Jaws"
+   ]
+  },
+  {
+   "id": "m20",
+   "source": "multiturn",
+   "split": "mt",
+   "category": "correction",
+   "turns": [
+    {
+     "user": "movie about a man stranded alone growing potatoes to survive",
+     "films": [
+      "Cast Away (2000)"
+     ],
+     "assistant": "That might be **Cast Away** (2000)."
+    },
+    "no, he's an astronaut left behind on Mars"
+   ],
+   "expect_retrieved": [
+    "The Martian"
+   ],
+   "expect_absent": [
+    "Cast Away"
+   ]
+  },
+  {
+   "id": "m21",
+   "source": "multiturn",
+   "split": "mt",
+   "category": "correction",
+   "turns": [
+    {
+     "user": "movie where toys come alive",
+     "films": [
+      "Toy Story (1995)"
+     ],
+     "assistant": "That's **Toy Story** (1995)."
+    },
+    "not Toy Story, it's live action and the toys are action-figure soldiers with military microchips fighting monster toys"
+   ],
+   "expect_retrieved": [
+    "Small Soldiers"
+   ],
+   "expect_absent": [
+    "Toy Story"
+   ]
+  },
+  {
+   "id": "m22",
+   "source": "multiturn",
+   "split": "mt",
+   "category": "correction",
+   "turns": [
+    {
+     "user": "a movie where a kid is left home alone at Christmas",
+     "films": [
+      "Home Alone (1990)"
+     ],
+     "assistant": "That's **Home Alone** (1990)."
+    },
+    "no, the one where he gets on the wrong plane and ends up in New York"
+   ],
+   "expect_retrieved": [
+    "Home Alone 2: Lost in New York"
+   ],
+   "expect_absent": [
+    "Home Alone"
+   ]
+  },
+  {
+   "id": "m23",
+   "source": "multiturn",
+   "split": "mt",
+   "category": "correction",
+   "turns": [
+    {
+     "user": "movie where a group of strangers wake up trapped somewhere",
+     "films": [
+      "Saw (2004)",
+      "Escape Room (2019)",
+      "The Belko Experiment (2016)"
+     ],
+     "assistant": "Maybe **Saw** (2004)? Or **Escape Room** (2019)."
+    },
+    "neither, it's from the 90s, they're in a maze of cube-shaped rooms and some rooms have deadly traps"
+   ],
+   "expect_retrieved": [
+    "Cube"
+   ],
+   "expect_absent": [
+    "Saw"
+   ]
+  }
+ ]
+}

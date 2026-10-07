@@ -43,7 +43,7 @@ RAG_DIR = Path(__file__).resolve().parent.parent
 PATH = RAG_DIR / "results" / "site_cache.sqlite"
 ENABLED = os.environ.get("SITE_CACHE", "1") != "0" and os.environ.get("MOVIE_BUFF_MOCK") != "1"
 MAX_ROWS = 5000                 # per table; least recently used rows go first
-ENV_SKIP = {"NUM_BATCH"}        # settings that change speed, not results
+ENV_SKIP = {"NUM_BATCH", "VEC_MEM", "KEEP_ALIVE"}   # settings that change speed, not results
 
 _lock = threading.Lock()
 _db = None
@@ -86,7 +86,7 @@ def fingerprint():
         return _fp
     h = hashlib.md5()
     names = set()
-    for name in ("retrieve.py", "chat.py", "answer_style.py"):
+    for name in ("retrieve.py", "chat.py", "answer_style.py", "conv.py", "tools.py", "personal.py"):
         p = RAG_DIR / name
         if p.exists():
             src = p.read_bytes()
@@ -96,6 +96,9 @@ def fingerprint():
         k = n.decode()
         if k not in ENV_SKIP:
             h.update(f"{k}={os.environ.get(k, '')};".encode())
+    cfg = RAG_DIR / "config.yaml"          # settings file (mbconfig.py); the shell's values are hashed above
+    if cfg.exists():
+        h.update(cfg.read_bytes())
     for db in ("movies.db", "wiki.db"):
         p = RAG_DIR / db
         if p.exists():
@@ -103,7 +106,7 @@ def fingerprint():
             h.update(f"{db}:{st.st_size}:{int(st.st_mtime)};".encode())
     try:
         import ollama
-        info = ollama.show("movie-buff")
+        info = ollama.show(os.environ.get("ANSWER_MODEL", "movie-buff"))
         mod = info.get("modified_at") if isinstance(info, dict) else getattr(info, "modified_at", None)
         h.update(str(mod).encode())
     except Exception:
@@ -124,6 +127,10 @@ def _conn():
             _db.execute(f"""CREATE TABLE IF NOT EXISTS {t} (
                 key TEXT PRIMARY KEY, fp TEXT, question TEXT, a TEXT, b TEXT,
                 created REAL, used REAL, reused INTEGER DEFAULT 0)""")
+            # v3: time-sensitive rows (now playing, upcoming) expire; NULL = never.
+            cols = {r[1] for r in _db.execute(f"PRAGMA table_info({t})")}
+            if "expires" not in cols:
+                _db.execute(f"ALTER TABLE {t} ADD COLUMN expires REAL")
         _db.commit()
     return _db
 
@@ -139,7 +146,8 @@ def _get(table, key):
     try:
         with _lock:
             db = _conn()
-            row = db.execute(f"SELECT a, b FROM {table} WHERE key = ?", (key,)).fetchone()
+            row = db.execute(f"SELECT a, b FROM {table} WHERE key = ? AND (expires IS NULL OR expires > ?)",
+                             (key, time.time())).fetchone()
             if row:
                 db.execute(f"UPDATE {table} SET used = ?, reused = reused + 1 WHERE key = ?",
                            (time.time(), key))
@@ -150,17 +158,18 @@ def _get(table, key):
         return None
 
 
-def _put(table, key, question, a, b):
+def _put(table, key, question, a, b, ttl=None):
+    """ttl: seconds until the row expires (None = kept until evicted or the code changes)."""
     if not ENABLED:
         return
     try:
         now = time.time()
         with _lock:
             db = _conn()
-            db.execute(f"INSERT OR REPLACE INTO {table} (key, fp, question, a, b, created, used, reused) "
-                       f"VALUES (?, ?, ?, ?, ?, ?, ?, 0)",
+            db.execute(f"INSERT OR REPLACE INTO {table} (key, fp, question, a, b, created, used, reused, expires) "
+                       f"VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)",
                        (key, fingerprint(), question, json.dumps(a, default=str),
-                        json.dumps(b, default=str), now, now))
+                        json.dumps(b, default=str), now, now, (now + ttl) if ttl else None))
             db.execute(f"DELETE FROM {table} WHERE key IN (SELECT key FROM {table} "
                        f"ORDER BY used DESC LIMIT -1 OFFSET ?)", (MAX_ROWS,))
             db.commit()
@@ -170,15 +179,32 @@ def _put(table, key, question, a, b):
 
 # ------------------------------------------------------------ retrieval
 
-def retrieval_key(question, recent_titles):
+def _conv_text(conv):
+    """v3: the conversation as the planner sees it ('' for none). With CONV=1 any question
+    can lean on the conversation ("what about Barbie?" has no pronoun), so it is part of
+    the key whenever there is one; a first question still matches across conversations."""
+    if not conv:
+        return ""
+    try:
+        import conv as _conv
+        return _conv.digest(conv)
+    except Exception:
+        return json.dumps(conv, sort_keys=True, default=str)
+
+
+def retrieval_key(question, recent_titles, conv=None, tag=""):
+    """tag: anything else the prompt depends on (v3: the person's taste profile version)."""
     recent = list(recent_titles or []) if refers_back(question) else []
+    ct = _conv_text(conv)
+    if ct or tag:
+        return _key("retrieval", normalize_question(question), recent, ct, tag)
     return _key("retrieval", normalize_question(question), recent)
 
 
-def get_retrieval(question, recent_titles):
+def get_retrieval(question, recent_titles, conv=None, tag=""):
     """(prompt, hits) for this question, or None. The prompt is rewritten to carry
     this question's own wording."""
-    got = _get("retrieval", retrieval_key(question, recent_titles))
+    got = _get("retrieval", retrieval_key(question, recent_titles, conv, tag))
     if not got:
         return None
     (prompt, asked), hits = got
@@ -188,17 +214,20 @@ def get_retrieval(question, recent_titles):
     return prompt, hits
 
 
-def put_retrieval(question, recent_titles, prompt, hits):
+def put_retrieval(question, recent_titles, prompt, hits, conv=None, tag="", ttl=None):
     notes = (hits[0].get("_notes") if hits else None) or {}
     if not hits or "plan" not in notes:     # found nothing, or the planner failed
         return
     clean = [{k: v for k, v in h.items() if k != "_cached"} for h in hits]
-    _put("retrieval", retrieval_key(question, recent_titles), question, [prompt, question], clean)
+    _put("retrieval", retrieval_key(question, recent_titles, conv, tag), question, [prompt, question], clean, ttl)
 
 
 # ------------------------------------------------------------ answers
 
-def answer_key(question, recent_titles, history):
+def answer_key(question, recent_titles, history, conv=None, tag=""):
+    ct = _conv_text(conv)
+    if ct or tag:
+        return _key("answer", normalize_question(question), list(recent_titles or []), history, ct, tag)
     return _key("answer", normalize_question(question), list(recent_titles or []), history)
 
 
@@ -206,8 +235,8 @@ def get_answer(key):
     return _get("answers", key)
 
 
-def put_answer(key, question, src, done):
-    _put("answers", key, question, src, done)
+def put_answer(key, question, src, done, ttl=None):
+    _put("answers", key, question, src, done, ttl)
 
 
 # ------------------------------------------------------------ command line
