@@ -10,3 +10,10 @@ results/llm_cache.sqlite
 results/llm_cache.sqlite
 models/
 results/*.sqlite*
+# public copy (v81_public_export.py)
+*.sqlite
+*.env
+!*lock*.env
+inbox/
+facts.db
+sets/sealed_*
