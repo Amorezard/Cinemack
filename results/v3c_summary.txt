@@ -1,0 +1,12 @@
+v3c summary  Wed Oct  7 09:18:29 AM EDT 2026
+passes        tune     check
+locked v2     74/115     18/33
+cross_llm 10  70/115     15/33
+cross only    65/115     12/33
+
+timing, 20 TREC questions, no cache
+  time_lock_trec   total 123.0s   rerank 63.70s on 16
+  time_cl10_trec   total 50.7s   rerank 20.19s on 16
+  time_cross_trec  total 35.8s   rerank 4.22s on 16
+base cross-encoder/ms-marco-MiniLM-L-6-v2: dev hit@1 among 8 = 0.549 (206 groups); training on 3929
+epoch 1: dev hit@1 = 0.665

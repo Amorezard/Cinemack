@@ -16,6 +16,39 @@ How a question is answered:
    Wikipedia passages and picks the match.
 4. **Answer**: the chat model answers from the top films' records and Wikipedia details.
 
+## v3 (branch `v3`, from tag `v2.0-lock`)
+
+v3 keeps the v2 tip-of-the-tongue pipeline as it is and adds what it couldn't do. Every part has its
+own switch in `config.yaml`, and each starts **off** until its experiment says to turn it on
+(`run_v3a.sh`, `run_v3b.sh`; decision rules are written at the top of each script).
+
+| Switch | File | What it adds |
+|---|---|---|
+| `CONV` | `conv.py` | The planner sees the conversation: earlier questions, every film so far (in order, with turn numbers, rejected ones marked), the start of the last answer, and stated tastes. It resolves "the one from earlier", "compare that with Barbie", "their budgets" and "no, it's Korean". A first question gets exactly the v2 prompt. |
+| `TOOLS` | `tools.py`, `chat.py` | A rule-based router picks tools per question: structured facts (budget/gross from 3 sources with conflicts shown, crew, runtime, awards, ratings), side-by-side comparisons, market context (release window, genre-year baseline, director record, franchise), Wikipedia Production/Reception/Box office passages, review analysis, careers and rankings (SQL from a small LLM spec), and now playing/upcoming. "Why" questions get an answer format that keeps evidence and interpretation apart. |
+| `PERSONAL` | `personal.py` | Film likes/dislikes (card buttons, kept apart from answer feedback) and stated tastes become an interpretable profile. Recommendations are re-ranked for the person, with a "why it fits you" line each. |
+| `PARALLEL` | `retrieve.py` | The question's own searches run while the planner writes. Results are the same. |
+| `RERANK_MODEL` | `retrieve.py` | A smaller re-ranker model (latency experiment). |
+
+New data lives in `facts.db` (`facts_db.py`). `movies.db` and `wiki.db` are unchanged.
+
+```bash
+export TMDB_API_KEY=...
+python fetch_tmdb.py catalog && python fetch_tmdb.py current   # TMDB details, credits, reviews, current films
+python fetch_wikidata.py                                        # awards, box office, cost
+python wiki_sections.py build --corpus <corpus.jsonl.zip>       # Production / Reception / ... passages
+python wiki_sections.py infobox && python wiki_sections.py embed
+python tools.py build                                           # best money figure per film, MovieLens stats
+python reviews_analyze.py --films 800                           # audience + critic aspects (llama3.2)
+python fetch_tmdb.py refresh                                    # later: only what is stale (daily/weekly/monthly)
+python tools.py try "why did Jaws do so well?"                  # show the route and the data, no answer
+```
+
+Evaluation: `stage_scores.py` (retrieval, now also multi-turn `sets/multiturn.json` with `expect_absent`)
+and `eval_v3.py` (`sets/analytic.json`: route, data in context, answers + judge). Feedback:
+`python feedback.py stats|list|review|export` (`logs/feedback.db`; only reviewed rows are ever exported).
+Experiments: `summarize.py eval` (flat passages vs summary-first) and `personal.py eval` (MovieLens leave-out).
+
 ## Quick start (a machine that already has the data)
 
 ```bash
@@ -124,6 +157,8 @@ two runs question by question.
 
 ## Data and licences
 
-Film records: TMDB (via the Kaggle "TMDB movies dataset"); this product uses the TMDB API but
-is not endorsed or certified by TMDB. Wikipedia text: the TREC Tip-of-the-Tongue 2023 corpus,
-CC BY-SA. Film links: Wikidata (CC0).
+Film records: TMDB (via the Kaggle "TMDB movies dataset", and in v3 the TMDB API: details, credits,
+user reviews, current and upcoming films); this product uses the TMDB API but is not endorsed or
+certified by TMDB. Wikipedia text: the TREC Tip-of-the-Tongue 2023 corpus, CC BY-SA. Film links,
+awards, box office and cost: Wikidata (CC0). Audience ratings: MovieLens (F. Maxwell Harper and
+Joseph A. Konstan, 2015, ACM TiiS 5(4)), used under the GroupLens licence.

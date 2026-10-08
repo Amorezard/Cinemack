@@ -1,0 +1,39 @@
+v3f summary  Wed Oct  7 02:41:18 PM EDT 2026
+GPU free MiB: 1326
+
+##### DATA (before -> after)
+  films                          31,478   ->  films                          32,463
+  films outside the catalogue    1,175   ->  films outside the catalogue    2,160
+  films with budget and gross    11,663   ->  films with budget and gross    11,831
+  films with a gross             16,380   ->  films with a gross             16,784
+  award rows                     22,923   ->  award rows                     23,594
+  films with awards              5,651   ->  films with awards              5,935
+  films with analysed reviews    208   ->  films with analysed reviews    208
+  review aspects                 5,473   ->  review aspects                 5,473
+
+##### CONTEXT WINDOW EXPERIMENT
+ctx_lock  (pass rate per check; n = questions with that check)
+category     n   route   films    data    spec  absent  prompt  prep s  ans s  grnd   hon   src   inf   pass
+detail       4     4/4     4/4     2/3       -       -    6858     0.1      -  4.50  5.00  5.00     -    4/4
+compare      4     3/4     3/4     4/4       -       -    8793     0.1      -  4.50  5.00  5.00  1.00    3/4
+reviews      4     3/4     3/4     1/1       -       -    4844     0.0  181.2  3.50  5.00  5.00  4.00    2/4
+why          7     7/7     7/7     5/5       -       -    9184     0.1  277.8  5.00  5.00  5.00  4.71    7/7
+career       4     4/4       -     4/4     4/4       -    4250     0.1      -  5.00  5.00  5.00  4.50    4/4
+ALL         23   21/23   17/19   16/17     4/4       -    7099     0.1  229.5  4.57  5.00  5.00  4.29  20/23
+ctx_16k  (pass rate per check; n = questions with that check)
+category     n   route   films    data    spec  absent  prompt  prep s  ans s  grnd   hon   src   inf   pass
+detail       4     4/4     4/4     3/3       -       -   11638    17.9   79.5  5.00  5.00  5.00     -    4/4
+compare      4     3/4     3/4     4/4       -       -   14469    24.4   99.5  4.50  5.00  5.00  1.00    3/4
+reviews      4     3/4     3/4     1/1       -       -    7322    19.7  131.9  4.00  5.00  5.00  4.00    3/4
+why          7     7/7     7/7     5/5       -       -   14041    21.0  258.3  5.00  5.00  5.00  4.71    7/7
+career       4     4/4       -     4/4     4/4       -    4250    11.9  226.9  4.50  5.00  5.00  4.50    3/4
+ALL         23   21/23   17/19   17/17     4/4       -   10826    19.2  172.1  4.65  5.00  5.00  4.29  20/23
+  a08 detail    data False->True  verdict pass->pass  How did they film the rotating hallway fight in Inception?
+  a16 reviews   data True->True  verdict fail->pass  What did critics praise about Mad Max: Fury Road?
+  a27 career    data True->True  verdict pass->fail  What themes appear throughout Denis Villeneuve's films?
+
+##### DECISION
+# ctx experiment: locked pass 20/23 grounding 4.57 data 16; 16k pass 20/23 grounding 4.65 data 17; rule (pass +2, grounding and data not lower): FAIL
+
+##### GPU
+=== GPU: only 1326 MiB free - GPU fine-tuning skipped (needs ~8 GB; another user's job holds the rest)

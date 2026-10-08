@@ -7,3 +7,6 @@ data/
 wiki.db
 vec_cache/
 results/llm_cache.sqlite
+results/llm_cache.sqlite
+models/
+results/*.sqlite*

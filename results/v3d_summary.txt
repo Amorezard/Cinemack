@@ -1,0 +1,31 @@
+v3d summary  Tue Oct  6 10:41:49 PM EDT 2026
+22229 MiB, 23028 MiB
+
+##### PERSONAL
+Hybrid weight sweep: 300 MovieLens users; weights chosen on 150, reported on the other 150
+Signals min-max scaled per user. (content, neighbours, popularity) weights.
+Top 5 on the choosing half:
+  (0.25, 2, 0.5)  recall@10 0.347
+  (0.25, 4, 0.5)  recall@10 0.347
+  (0.5, 4, 1)  recall@10 0.347
+  (0.25, 2, 0.25)  recall@10 0.347
+  (0.5, 4, 0.5)  recall@10 0.347
+Held-out half, recall@10:
+  popularity                   0.314
+  content                      0.258
+  neighbours                   0.414
+  hybrid (0.25, 2, 0.5)        0.420
+Decision rule: beats popularity and content, within 0.02 of neighbours -> PASS: PERSONAL=1 PERSONAL_W=0.25,2,0.5
+Note: MovieLens neighbours come from the same ratings, so 'neighbours' and any mix leaning on it are optimistic.
+(5s)
+
+##### PLAN_ROUTE: passes (locked -> route)
+  tune       74/115 -> 73/115  (-1)
+  check      18/33 -> 16/33  (-2)
+  multiturn  30/30 -> 30/30  (+0)
+  analytic L1 locked: {'route': '44/46', 'data': '37/38', 'spec': '11/11'}  route: {'route': '38/46', 'data': '35/38', 'spec': '11/11'}
+
+##### TIMING (no cache): mean prepare s per question
+  time_lock1   n=19  prepare   39.4 s   plan   35.7 s
+  time_route   n=19  prepare    2.9 s   plan    1.9 s
+  time_lock2   n=19  prepare   41.2 s   plan   37.3 s

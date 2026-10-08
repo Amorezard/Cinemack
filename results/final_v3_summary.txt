@@ -1,0 +1,30 @@
+SEALED RUN  Wed Oct  7 05:31:30 PM EDT 2026
+date: Wed Oct  7 02:41:18 PM EDT 2026
+git: v3.0-lock-dirty 1333b32589eff19c50db316867ffbde3f6207295
+v2 arm: CONV=0 TOOLS=0 PERSONAL=0 PARALLEL=0 PLAN_ROUTE=0
+v3 arm: CONV=1 TOOLS=1 PERSONAL=1 PERSONAL_W=0.25,2,0.5 PARALLEL=0 PLAN_ROUTE=0 
+8bf9a104161d8a37ec0e86c7866fe5e3  retrieve.py
+50a0f521ec07e9cb9291e5ba775fdd73  chat.py
+579b69316464683c020d55f89e95aa9b  conv.py
+949fd9cbb8f3025119afcf0454cba6a9  tools.py
+148514e1e76258be6c9929d55b219510  config.yaml
+363fb0f678ce8aedaae7388d7b2ce80d  sets/final.json
+a56caa45d6a372b8debaff3eeab374aa  sets/sealed_v3_an.json
+4b2be51a6680bc4badddf140d90b5fba  sets/sealed_v3_mt.json
+  Model
+    architecture        qwen35     
+    parameters          27.3B      
+    context length      262144     
+    embedding length    5120       
+    quantization        Q4_K_M     
+    requires            0.32.12    
+
+memory.used [MiB], memory.total [MiB]
+21702 MiB, 23028 MiB
+
+sealed retrieval (final)     v2 15/38   v3 15/38   (+0)
+    OWN-FINAL              v2 0/1  v3 0/1
+    TREC-FINAL             v2 15/37  v3 15/37
+sealed multi-turn (new)      v2 8/10   v3 9/10   (+1)
+    SEALEDMT-MT            v2 8/10  v3 9/10
+

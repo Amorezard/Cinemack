@@ -1,0 +1,40 @@
+v3e summary  Wed Oct  7 09:32:26 AM EDT 2026
+21614 MiB, 23028 MiB
+
+##### CONTEXT WINDOW
+Context window use (num_ctx 8192; 900 tokens kept for the answer; tokens ~ characters / 3.6)
+
+analysis questions (eval files)    n= 468  median   1242  p90   2655  max   2952 tokens  over 7292 (no room to answer): 0
+                                   tool data hit the TOOL_CHARS 9000 budget (something cut): 2 of 331
+site: prompt only                  (none)
+site: prompt + history (worst case) (none)
+
+Upper bound by design: tool data 9000 + history 6000 + film records and instructions ~6000 characters = ~5833 tokens, + 900 for the answer = ~6733 of 8192.
+Reading: if 'over' is 0 and p90 sits well below the limit, 8k is enough for these questions and a
+16k window would only matter if TOOL_CHARS / HISTORY_CHARS were raised (more context per answer).
+
+##### TRAINING DATA
+    15 results/preference_pairs.jsonl
+    45 results/sft_examples.jsonl
+    60 total
+
+##### DATA
+  section passages             160,547
+  section vectors              160,547
+  reviews                      27,026
+  films with analysed reviews  208
+  review aspects               5,473
+
+##### P4 RE-RANKER (CPU)
+v3c summary  Wed Oct  7 09:18:29 AM EDT 2026
+passes        tune     check
+locked v2     74/115     18/33
+cross_llm 10  70/115     15/33
+cross only    65/115     12/33
+
+timing, 20 TREC questions, no cache
+  time_lock_trec   total 123.0s   rerank 63.70s on 16
+  time_cl10_trec   total 50.7s   rerank 20.19s on 16
+  time_cross_trec  total 35.8s   rerank 4.22s on 16
+base cross-encoder/ms-marco-MiniLM-L-6-v2: dev hit@1 among 8 = 0.549 (206 groups); training on 3929
+epoch 1: dev hit@1 = 0.665
