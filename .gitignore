@@ -21,3 +21,10 @@ results/v3eval_*.json
 results/*.jsonl
 results/review_label_sample.csv
 results/chunk_context_sample.json
+# public copy (v81_public_export.py)
+*.sqlite
+*.env
+!*lock*.env
+inbox/
+facts.db
+sets/sealed_*
