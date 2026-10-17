@@ -8,6 +8,7 @@ straight into training.
                                                           final context size, answer, versions)
     python feedback.py list [--down] [--new]        what came in
     python feedback.py review <id> accept|reject [note]   a person decides what it is worth
+    python feedback.py list --auto                  with the semantic filter's verdict (like_filter.py)
     python feedback.py stats                        dislike rate by reason, route, version, intent
     python feedback.py export                       ONLY accepted rows -> results/feedback_curated.jsonl
     python feedback.py pairs [v3eval files ...]     training data (6 Oct), from reviewed votes + judged answers:
@@ -52,6 +53,15 @@ def conn():
           stages_json text, route_json text, prompt_chars integer, answer text, versions_json text,
           created_at text, updated_at text, status text default 'new', reviewer_note text);
         create index if not exists answers_status on answers(status, vote);""")
+        # v4 (14 Oct): the prompt the answer was built from (context + question), the chat history
+        # sent with it and the fact-check result - so a liked answer can become a training example
+        # in the real RAG format - and the semantic filter's verdict (like_filter.py).
+        have = {r[1] for r in c.execute("pragma table_info(answers)")}
+        for col in ("prompt", "history_json", "check_json", "auto_status", "auto_reasons", "auto_scores",
+                    "filter_version", "filtered_at"):
+            if col not in have:
+                c.execute(f"alter table answers add column {col} text")
+        c.commit()
         _C["conn"] = c
     return _C["conn"]
 
@@ -77,13 +87,19 @@ def record(message_id, vote, reasons=(), comment="", user_id="", request=None):
     plan = (stages.get("plan") or {})
     reasons = [x for x in (reasons or []) if x in REASONS][:5]
     old = c.execute("select created_at from answers where message_id = ?", (message_id,)).fetchone()
-    c.execute("""insert or replace into answers values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+    cols = ("message_id", "conversation_id", "user_id", "vote", "reasons_json", "comment", "question",
+            "contextualized_query", "intent", "films_json", "stages_json", "route_json", "prompt_chars", "answer",
+            "versions_json", "created_at", "updated_at", "status", "reviewer_note", "prompt", "history_json",
+            "check_json")
+    # A changed vote replaces the row, so any earlier filter verdict (auto_*) is cleared with it.
+    c.execute(f"insert or replace into answers ({','.join(cols)}) values ({','.join('?' * len(cols))})",
               (message_id, r.get("conversation_id"), user_id, vote, json.dumps(reasons), (comment or "")[:1000],
                r.get("question"), plan.get("search_query") or stages.get("merged_description"),
                plan.get("intent"), json.dumps(r.get("films") or []),
                json.dumps({k: v for k, v in stages.items() if k != "plan"}, default=str),
                json.dumps((stages.get("tools") or {}).get("route"), default=str), r.get("prompt_chars"),
-               r.get("answer"), json.dumps(r.get("versions") or {}), old[0] if old else now(), now(), "new", None))
+               r.get("answer"), json.dumps(r.get("versions") or {}), old[0] if old else now(), now(), "new", None,
+               r.get("prompt"), json.dumps(r.get("history") or []), json.dumps(r.get("check"), default=str)))
     c.commit()
     return True
 
@@ -102,11 +118,16 @@ def cmd_list(args):
         where.append("vote = 'down'")
     if "--new" in args:
         where.append("status = 'new'")
+    if "--auto" in args:
+        where.append("auto_status is not null")
     for r in _rows(" and ".join(where) or "1=1", a)[:50]:
-        print(f"{r['message_id']}  {r['vote']:4s} {r['status']:8s} {r['intent'] or '-':10s} "
+        print(f"{r['message_id']}  {r['vote']:4s} {r['status']:8s} {(r.get('auto_status') or '-'):12s} "
+              f"{r['intent'] or '-':10s} "
               f"{','.join(json.loads(r['reasons_json'] or '[]')) or '-':30s} {(r['question'] or '')[:60]}")
         if r["comment"]:
             print(f"      comment: {r['comment'][:120]}")
+        if r.get("auto_reasons"):
+            print(f"      filter: {r['auto_reasons'][:120]}")
 
 
 def cmd_review(args):
@@ -167,6 +188,17 @@ def _judged(files):
     return out
 
 
+def messages_of(r):
+    """The messages the answer model saw: earlier turns, then the full prompt (or the question)."""
+    hist = []
+    try:
+        hist = [m for m in json.loads(r.get("history_json") or "[]")
+                if isinstance(m, dict) and m.get("role") in ("user", "assistant") and m.get("content")]
+    except ValueError:
+        pass
+    return hist + [{"role": "user", "content": r.get("prompt") or r["question"]}]
+
+
 def cmd_pairs(args):
     """Training data from what people and the judge said - never from raw votes.
       1. reviewed feedback: an accepted thumbs-down with a corrected answer ("better: ...") gives
@@ -182,13 +214,15 @@ def cmd_pairs(args):
     for r in _rows("status = 'accepted'"):
         note = (r.get("reviewer_note") or "").strip()
         if r["vote"] == "down" and note.lower().startswith("better:") and r.get("answer"):
-            pairs.append({"prompt": r["question"], "chosen": note[7:].strip(), "rejected": r["answer"],
+            pairs.append({"prompt": r.get("prompt") or r["question"], "chosen": note[7:].strip(), "rejected": r["answer"],
                           "source": "feedback", "message_id": r["message_id"],
                           "reasons": json.loads(r["reasons_json"] or "[]"), "off_policy": False})
         elif r["vote"] == "up" and r.get("answer"):
-            sft.append({"messages": [{"role": "user", "content": r["question"]},
-                                     {"role": "assistant", "content": r["answer"]}],
-                        "source": "feedback", "message_id": r["message_id"]})
+            # v4: the real prompt (context + question) and history when stored; the bare question
+            # only for rows recorded before 14 Oct (marked, so training can leave them out).
+            sft.append({"messages": messages_of(r) + [{"role": "assistant", "content": r["answer"]}],
+                        "source": "feedback", "message_id": r["message_id"],
+                        "rag_prompt": bool(r.get("prompt"))})
     judged = _judged(args)
     for qid, rows in sorted(judged.items()):
         good = sorted((x for x in rows if x["verdict"] == "pass"), key=lambda x: -x["score"])

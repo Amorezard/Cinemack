@@ -56,17 +56,23 @@ if not MOCK:
     # counters, the gate decision) so every request log line says where the time went.
     # The server answers one question at a time (gpu_lock), so one module-level slot is enough.
     _TRACE = {"last": None}
-    _TAKES_TRACE = "trace" in inspect.signature(chat.retrieve).parameters
+    # 8 Oct fix: keep the real retrieve() before the patch below replaces chat.retrieve.
+    # Calling chat.retrieve here (as before) called this wrapper itself -> RecursionError on
+    # every live question (the site had only been tested in mock mode since 5 Oct).
+    _retrieve_orig = getattr(chat.retrieve, "_mb_orig", chat.retrieve)
+    _TAKES_TRACE = "trace" in inspect.signature(_retrieve_orig).parameters
 
     def _retrieve_logged(*a, **kw):
         if _TAKES_TRACE:
             tr = {}
             kw["trace"] = tr
             _TRACE["last"] = tr
-        return chat.retrieve(*a, **kw)
+        return _retrieve_orig(*a, **kw)
 
-    if "explain" in inspect.signature(chat.retrieve).parameters:
-        chat.build_prompt.__globals__["retrieve"] = functools.partial(_retrieve_logged, explain=True)
+    if "explain" in inspect.signature(_retrieve_orig).parameters:
+        _patched = functools.partial(_retrieve_logged, explain=True)
+        _patched._mb_orig = _retrieve_orig      # a second import of this module finds the real one
+        chat.build_prompt.__globals__["retrieve"] = _patched
     _BUILD_TAKES_CONV = "conv" in inspect.signature(chat.build_prompt).parameters
     CONV_ON = bool(getattr(chat._R, "CONV", False)) and _BUILD_TAKES_CONV
 else:

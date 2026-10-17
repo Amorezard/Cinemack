@@ -1,0 +1,23 @@
+Confidence model (logistic regression), fitted on 8562 tune question-runs, checked on 2384 check runs
+weights (standardised features; + raises confidence): bias +0.98, d1 -2.30, gap -0.74, reranked +0.06, agree +0.57, log_pool -0.35, identify -0.35
+check: Brier 0.233 (always predicting the base rate: 0.250); expected calibration error 0.142
+calibration on check:
+  p 0.0-0.1:  109 questions, predicted 0.07, actually right 0.60
+  p 0.1-0.2:  291 questions, predicted 0.16, actually right 0.49
+  p 0.2-0.3:  360 questions, predicted 0.25, actually right 0.23
+  p 0.3-0.4:  334 questions, predicted 0.35, actually right 0.34
+  p 0.4-0.5:  317 questions, predicted 0.45, actually right 0.31
+  p 0.5-0.6:  134 questions, predicted 0.55, actually right 0.26
+  p 0.6-0.7:  135 questions, predicted 0.64, actually right 0.22
+  p 0.7-0.8:  205 questions, predicted 0.75, actually right 0.63
+  p 0.8-0.9:  222 questions, predicted 0.85, actually right 0.82
+  p 0.9-1.0:  277 questions, predicted 0.97, actually right 0.96
+thresholds on check:
+  answer when p >= 0.3: answers 68.1% of questions, right 52.6%
+  answer when p >= 0.4: answers 54.1% of questions, right 57.4%
+  answer when p >= 0.5: answers 40.8% of questions, right 66.0%
+  answer when p >= 0.6: answers 35.2% of questions, right 72.3%
+  answer when p >= 0.7: answers 29.5% of questions, right 82.0%
+  answer when p >= 0.8: answers 20.9% of questions, right 89.8%
+  answer when p >= 0.9: answers 11.6% of questions, right 95.7%
+Limitation: tune/check questions are the sets the pipeline was tuned on; the calibration is the point, the absolute accuracy is optimistic.

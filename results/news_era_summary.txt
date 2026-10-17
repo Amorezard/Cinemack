@@ -1,0 +1,15 @@
+Era x stance: does a film's side on a theme matter more when that theme dominates the news? (2026-10-15, ne1)
+success = return relative to films of the same genre and year (news.py); era = z-score of the theme's share of that year's headlines within each kind of source; heavy / light = top / bottom third of the era z of that theme's films.
+effect = (critical films, heavy - light years) - (celebratory films, heavy - light years), in log return; +0.69 would mean critical films gained about twice as much relative to their peers.
+Rule (written before results): an effect counts only if its 95% CI excludes 0 and every cell has 30+ films.
+
+theme         n films   crit hi/lo   cel hi/lo   effect             95% CI  verdict
+war              1945   559/601     100/81     -0.073  [-0.557, +0.424]  no evidence
+terrorism         219    65/57        8/16     +0.197  [-1.240, +1.894]  too few films per cell (<30): no evidence
+economy           184    57/60        4/2      +1.505  [-0.788, +4.472]  too few films per cell (<30): no evidence
+politics          276    92/90        4/4      +0.854  [-0.921, +2.456]  too few films per cell (<30): no evidence
+disease            98    29/30        7/5      +0.291  [-1.459, +1.992]  too few films per cell (<30): no evidence
+disaster          368    92/96       32/29     -0.362  [-1.111, +0.376]  too few films per cell (<30): no evidence
+space             275    55/53       39/40     +0.079  [-0.739, +0.947]  no evidence
+technology        345   101/105      19/10     +0.265  [-0.522, +1.189]  too few films per cell (<30): no evidence
+civil_rights      392    82/76       49/57     +0.732  [-0.144, +1.576]  no evidence

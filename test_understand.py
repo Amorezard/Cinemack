@@ -97,8 +97,11 @@ def run(question, recent=None):
 def graded(titles, years, expect, expect_year=None):
     if not expect:
         return not titles
-    got = list(zip(map(norm, titles), years))
-    return all(any(t == norm(e) and (not expect_year or y == expect_year) for t, y in got)
+    # 16 Oct: compare years as 4-character text on both sides, so an expect_year written as a
+    # number (1991) or text ("1991") grades the same (the 15 Oct nickname runs failed on this).
+    ey = str(expect_year)[:4] if expect_year else None
+    got = list(zip(map(norm, titles), (str(y or "")[:4] for y in years)))
+    return all(any(t == norm(e) and (not ey or y == ey) for t, y in got)
                for e in expect)
 
 

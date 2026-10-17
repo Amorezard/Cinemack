@@ -24,6 +24,7 @@ in a plot synopsis.
           people     filmography / career stats / recurring keywords         SQL
           aggregate  rankings and trends across many films ("which directors...") SQL from an LLM spec
           current    now playing / upcoming / announced, by date and genre   SQL (fetch_tmdb.py current)
+          perf       v5: the box-office model's expectation and its factors   SQL (performance.py fit)
 
 Every line handed to the answer model carries a source tag ([TMDB], [Wikipedia infobox],
 [Wikidata], [Wikipedia: Reception], [TMDB user reviews], [MovieLens]) and, for data that
@@ -52,6 +53,26 @@ TOOL_CHARS = int(os.environ.get("TOOL_CHARS", "9000"))    # all tool blocks toge
 SECTION_N = int(os.environ.get("SECTION_N", "3"))
 SECTION_CHARS = int(os.environ.get("SECTION_CHARS", "650"))
 PROFIT_X = 2.5        # gross >= 2.5 x budget counts as profitable (rule of thumb, stated in answers)
+# v4 (14 Oct) switches, each off until its run in run_v4.sh says otherwise:
+#   NEWS       news at release (news.py): "news" task for news questions, and with every "why" question
+#   SUCCESS    the fixed success definition: money / reception / recognition measures computed against
+#              films of the same genre and year, plus an "evidence is thin" line under 10 analysed reviews
+#   ROUTE_FIX  comparison wording ("X vs Y", "which made more") finds both films even when retrieval
+#              returned only one; a named film with no route gets its facts
+NEWS = os.environ.get("NEWS", "0") == "1"
+SUCCESS = os.environ.get("SUCCESS", "0") == "1"
+ROUTE_FIX = os.environ.get("ROUTE_FIX", "0") == "1"
+EVIDENCE_MIN = 10
+# v5 (15 Oct evening) switches:
+#   PERF           the box-office model's block (performance.py fit) for "why" and hit/flop questions
+#   CRITIC_SCORES  Rotten Tomatoes / Metacritic / CinemaScore as numbers (money_extra.py critics) in the
+#                  reviews and success blocks
+#   MONEY_REAL     budget and gross in today's dollars (money_extra.py real) in the facts block
+PERF = os.environ.get("PERF", "0") == "1"
+CRITIC_SCORES = os.environ.get("CRITIC_SCORES", "0") == "1"
+MONEY_REAL = os.environ.get("MONEY_REAL", "0") == "1"
+R_PERF = re.compile(r"\b(hit|flop\w*|bomb\w*|success\w*|do(es)? well|did (well|badly|poorly)|perform\w*|"
+                    r"expect\w*|under-?perform\w*|over-?perform\w*|disappoint\w*|exceed\w*|surpris\w*)\b", re.I)
 
 _DB = {"conn": None, "tried": False}
 
@@ -103,6 +124,13 @@ R_PEOPLE = _W(r"\b(career|filmograph\w*|track record|over (time|the years)|(earl
               r"style (changed|evolved|develop\w*)|throughout (his|her|their)|body of work|directors?|actors?|actresses|"
               r"filmmakers?|directed by|starring)\b|\b[A-Z][a-z]+(?: [A-Z][a-z]+)*'s (films|movies|work|career|filmography)\b"
               r"|\bcompare [A-Z][a-z]+ [A-Z][a-z]+ (and|with|to|vs\.?) [A-Z][a-z]+ [A-Z][a-z]+\b")
+R_NEWS = _W(r"\b(news|headlines?|current events|zeitgeist|world events|cultural moment|political climate|"
+            r"national mood|what was (going on|happening)|at the time|the times|timing|"
+            r"(during|amid|after|before|right after|in the wake of) (the |a )?(war|pandemic|covid|recession|"
+            r"election|attacks?|9/11|strike|crisis|depression|lockdown)|9/11|september 11|pandemic|covid|"
+            r"recession|real[- ]world events?)\b")
+R_COMPARE = _W(r"\b(compare\w*|comparison|versus|vs\.?|better than|worse than|differ\w*|"
+               r"which (one |film |movie )?(made|earned|cost|did|was|is|had)|both)\b")
 R_AGG = _W(r"\b(which|what|who|top|most|least|highest|lowest|best|worst)\b.{0,60}\b(directors?|actors?|actresses|"
            r"filmmakers?|studios?|genres?|years?|movies|films)\b.{0,80}\b(most|best|highest|lowest|consistently|"
            r"multiple|profitable|successful|track record|budgets?|box office|gross\w*|rated|money|records?|"
@@ -140,6 +168,19 @@ def route(question, plan, hits):
     if about and not auto_facts and not (R_MONEY.search(q) or R_FACTS.search(q) or R_WHY.search(q)
                                          or R_REVIEWS.search(q) or R_AWARDS.search(q)):
         about = []
+    if ROUTE_FIX and R_COMPARE.search(q) and intent in ("named_film", "other"):
+        # 7 Oct sealed set: compare questions got the compare route 0/3 times, because the second
+        # film was not among retrieve()'s 3 hits. Take every film the planner named, from facts.db
+        # when retrieval missed it.
+        have = {(h.get("title") or "").casefold() for h in about}
+        for t in (plan or {}).get("films") or []:
+            title = t.get("title") if isinstance(t, dict) else t
+            if title and title.casefold() not in have:
+                extra = facts_hits([title], year=(t.get("year") if isinstance(t, dict) else None))
+                if extra:
+                    about.append(extra[0])
+                    have.add(extra[0]["title"].casefold())
+        about = about[:3]
     if about:
         tasks.append("facts")
         if len(about) > 1:
@@ -147,6 +188,14 @@ def route(question, plan, hits):
         why = bool(R_WHY.search(q))
         if why:
             tasks += ["market", "sections", "reviews"]
+            if SUCCESS:
+                tasks.append("success")
+            if PERF:
+                tasks.append("perf")
+            if NEWS:
+                tasks.append("news")
+        elif NEWS and R_NEWS.search(q):
+            tasks += ["news", "sections"]
         else:
             if R_REVIEWS.search(q):
                 tasks += ["reviews", "sections"]
@@ -154,6 +203,10 @@ def route(question, plan, hits):
                 tasks.append("sections")
             if R_MONEY.search(q) and len(about) == 1:
                 tasks.append("market")
+            if SUCCESS and (R_MONEY.search(q) or R_REVIEWS.search(q)) and R_COMPARE.search(q):
+                tasks.append("success")
+            if PERF and R_PERF.search(q):
+                tasks.append("perf")
     else:
         why = False
     seen, out = set(), []
@@ -167,7 +220,7 @@ def route(question, plan, hits):
 
 def _section_kinds(q, why):
     kinds = []
-    if why or R_MONEY.search(q):
+    if why or R_MONEY.search(q) or (NEWS and R_NEWS.search(q)):
         kinds += ["box_office", "release"]
     if why or R_REVIEWS.search(q):
         kinds += ["reception"]
@@ -204,7 +257,9 @@ def money(fid):
     return out
 
 
-SRC = {"tmdb": "TMDB", "wikipedia_infobox": "Wikipedia infobox", "wikidata": "Wikidata"}
+SRC = {"tmdb": "TMDB", "wikipedia_infobox": "Wikipedia infobox", "wikidata": "Wikidata",
+       "wikipedia_infobox_fx": "Wikipedia infobox, converted to USD at that year's rate",
+       "wikidata_fx": "Wikidata, converted to USD at that year's rate"}
 
 
 def usd(v):
@@ -279,6 +334,44 @@ def ml_line(fid):
     return None
 
 
+def real_line(fid):
+    """Budget and gross in today's dollars (money_extra.py real), or None."""
+    c = db()
+    try:
+        r = c.execute("select budget_real, gross_real, year, base_year from money_real where tmdb_id = ?", (fid,)).fetchone()
+    except sqlite3.Error:
+        return None
+    if not r or not (r[0] or r[1]) or r[2] == r[3]:
+        return None
+    bits = ([f"budget {usd(r[0])}"] if r[0] else []) + ([f"gross {usd(r[1])}"] if r[1] else [])
+    return f"In {r[3]} dollars (adjusted with the US consumer price index from {r[2]}): " + ", ".join(bits) + " [computed]"
+
+
+def critic_line(fid):
+    """Critics' scores stated in the film's Wikipedia reception text (money_extra.py critics), or None."""
+    c = db()
+    try:
+        r = c.execute("select rt_pct, rt_n, rt_avg, mc_score, mc_n, cinemascore, snapshot from critic_scores "
+                      "where tmdb_id = ?", (fid,)).fetchone()
+    except sqlite3.Error:
+        return None
+    if not r:
+        return None
+    rt_pct, rt_n, rt_avg, mc, mc_n, cs, snap = r
+    bits = []
+    if rt_pct is not None:
+        bits.append(f"Rotten Tomatoes {rt_pct:.0f}% positive" + (f" of {rt_n:,} reviews" if rt_n else "")
+                    + (f", average {rt_avg:g}/10" if rt_avg is not None else ""))
+    if mc is not None:
+        bits.append(f"Metacritic {mc:.0f}/100" + (f" from {mc_n} critics" if mc_n else ""))
+    if cs:
+        bits.append(f"CinemaScore (opening-night audiences) {cs}")
+    if not bits:
+        return None
+    when = f"as stated on Wikipedia, {str(snap)[:7]}" if snap else "as stated on Wikipedia"
+    return "Critics' scores: " + "; ".join(bits) + f" [Wikipedia: Reception, {when}]"
+
+
 def facts_block(fid, short=False):
     """The film's structured facts as tagged lines, or None if facts.db lacks it."""
     r = film_row(fid)
@@ -306,6 +399,10 @@ def facts_block(fid, short=False):
     if "roi" in m:
         lines.append(f"Gross / budget: {m['roi']:.1f}x (break-even is roughly {PROFIT_X}x once marketing and "
                      f"the theaters' share are counted - a rule of thumb, not data)")
+    if MONEY_REAL:
+        rl = real_line(fid)
+        if rl:
+            lines.append(rl)
     cr, cast = crew(fid)
     for job, label in (("Director", "Director"), ("Screenplay", "Screenplay"), ("Writer", "Writer"),
                        ("Novel", "Based on novel by"), ("Director of Photography", "Cinematographer"),
@@ -490,7 +587,11 @@ def reviews_block(fid, title):
                          + (f' ("{qs[0]}")' if qs else ""))
         src = "TMDB user reviews" if st == "audience" else "Wikipedia: Reception"
         lines.append(f"{label}, {n} analysed - " + "; ".join(parts) + f" [{src}, aspects by Movie Buff]")
-    if not lines:
+    if CRITIC_SCORES:
+        cl = critic_line(fid)
+        if cl:
+            lines.insert(0, cl)
+    if not [x for x in lines if not x.startswith("Critics' scores")]:
         n = c.execute("select count(*) from reviews where tmdb_id = ?", (fid,)).fetchone()[0]
         if n:
             ex = c.execute("select content, rating from reviews where tmdb_id = ? order by length(content) "
@@ -498,6 +599,78 @@ def reviews_block(fid, title):
             lines.append(f"{n} TMDB user reviews (not yet analysed); e.g. " + " | ".join(
                 f"{'(' + str(rt) + '/10) ' if rt else ''}{' '.join(t.split())[:220]}" for t, rt in ex) + " [TMDB user reviews]")
     return (f"{title} - what reviewers said\n" + "\n".join(lines)) if lines else None
+
+
+# ================================================================== success (v4, SUCCESS=1)
+def _peers(c, fid, year, genre):
+    """Films of the same first genre and year (or decade when the year has < 10) with money data."""
+    for lo, hi in ((year, year), ((year // 10) * 10, (year // 10) * 10 + 9)):
+        rows = c.execute("""select f.tmdb_id, m.roi, f.vote_average, f.vote_count from films f
+            join money m on m.tmdb_id = f.tmdb_id where f.year between ? and ? and f.genres_json like ?""",
+                         (lo, hi, f'["{genre}"%')).fetchall()
+        if len(rows) >= 10:
+            return rows, (str(lo) if lo == hi else f"the {lo}s")
+    return [], None
+
+
+def _pct(values, v):
+    vals = [x for x in values if x is not None]
+    if not vals or v is None:
+        return None
+    return round(100 * sum(1 for x in vals if x < v) / len(vals))
+
+
+def success_block(fid, title):
+    """The fixed success definition (Future Work, 8 Oct): each measure computed in code against
+    similar films, so the answer says which measure it means instead of the model judging 'success'."""
+    c = db()
+    r = film_row(fid)
+    if not r:
+        return None
+    year, genres, va, vc = r[2], json.loads(r[6] or "[]"), r[10], r[11]
+    lines = [f"{title} - success by Movie Buff's fixed measures (computed, not opinion)"]
+    m = money(fid)
+    peers, label = _peers(c, fid, year or 0, genres[0]) if (genres and year) else ([], None)
+    roi = m.get("roi")
+    if roi:
+        verdict = ("lost money even before marketing costs" if roi < 1 else
+                   f"below the ~{PROFIT_X}x break-even (studios keep roughly half of ticket sales; marketing is "
+                   f"not in the budget)" if roi < PROFIT_X else f"profitable by the {PROFIT_X}x rule of thumb")
+        p = _pct([x[1] for x in peers], roi)
+        lines.append(f"Money: gross {roi:.1f}x budget - {verdict}"
+                     + (f"; higher than {p}% of {len(peers)} {genres[0].lower()} films of {label}" if p is not None else "")
+                     + " [TMDB / Wikipedia / Wikidata, computed]")
+    elif m.get("gross"):
+        lines.append("Money: gross known but no budget, so no return on budget [computed]")
+    else:
+        lines.append("Money: no box-office figures stored")
+    if va and vc and vc >= 50:
+        p = _pct([x[2] for x in peers if (x[3] or 0) >= 50], va)
+        lines.append(f"Reception: TMDB {va:.1f}/10 from {vc:,} votes"
+                     + (f", higher than {p}% of {label}'s {genres[0].lower()} films" if p is not None else "")
+                     + " [TMDB, computed]")
+    try:
+        asp = c.execute("select source_type, sum(pos), sum(neg), max(n_reviews) from film_aspects where tmdb_id = ? "
+                        "group by source_type", (fid,)).fetchall()
+    except sqlite3.Error:
+        asp = []
+    for st, pos, neg, n in asp:
+        if pos or neg:
+            who = "Audience reviews" if st == "audience" else "Critics (Wikipedia reception text)"
+            lines.append(f"{who}: {100 * pos / (pos + neg):.0f}% of aspect mentions positive, {n} analysed"
+                         + (f" - fewer than {EVIDENCE_MIN}: thin evidence, say so" if st == "audience" and n < EVIDENCE_MIN
+                            else "") + " [aspects by Movie Buff]")
+    if CRITIC_SCORES:
+        cl = critic_line(fid)
+        if cl:
+            lines.append(cl)
+    aw = c.execute("select sum(status = 'won'), sum(status = 'nominated') from awards where tmdb_id = ?", (fid,)).fetchone()
+    if aw and (aw[0] or aw[1]):
+        lines.append(f"Recognition: {aw[0] or 0} wins, {aw[1] or 0} nominations [Wikidata]")
+    else:
+        lines.append("Recognition: no awards listed [Wikidata]")
+    lines.append("Staying power: not measured (no weekly box-office figures stored)")
+    return "\n".join(lines)
 
 
 # ================================================================== people + aggregates
@@ -914,6 +1087,30 @@ def run(question, hits, plan, q_text=None):
             b = reviews_block(h["id"], h["title"])
             if b:
                 blocks.append(("reviews", b))
+    if "success" in rt["tasks"]:
+        for h in films[:2]:
+            b = success_block(h["id"], h["title"])
+            if b:
+                blocks.append(("success", b))
+    if "perf" in rt["tasks"]:
+        for h in films[:2]:
+            try:
+                import performance as _perf
+                b = _perf.performance_block(h["id"], h["title"], db())
+            except Exception as e:  # noqa: BLE001 - a missing model must not lose the answer
+                print(f"[tools] performance block failed: {e!r}", file=sys.stderr)
+                b = None
+            if b:
+                blocks.append(("perf", b))
+    if "news" in rt["tasks"] and films:
+        try:
+            import news as _news
+            b = _news.news_block(films[0]["id"], films[0]["title"], db())
+        except Exception as e:  # noqa: BLE001 - news data missing must not lose the answer
+            print(f"[tools] news block failed: {e!r}", file=sys.stderr)
+            b = None
+        if b:
+            blocks.append(("news", b))
     if "sections" in rt["tasks"]:
         for h in films[:2]:
             b = sections_block(h["id"], h["title"], q_vec, rt["kinds"],
@@ -965,6 +1162,8 @@ def run(question, hits, plan, q_text=None):
         style = "reviews"
     elif "current" in tasks:
         style = "current"
+    elif "news" in tasks:
+        style = "news"
     elif films and tasks <= {"facts"}:
         style = "fact"
     else:
@@ -986,9 +1185,13 @@ def build(facts_path=None, movielens_zip="data/movielens/ml-latest-small.zip"):
           gross real, gross_src text, gross_alt text, roi real, conflict integer);""")
     films = {fid: rd for fid, rd in conn.execute("select tmdb_id, release_date from films")}
     cand = {}
-    for fid, field, v, cur, src in conn.execute("select tmdb_id, field, value_num, currency, source from facts "
-                                                "where field in ('budget','revenue','box_office')"):
+    for fid, field, v, cur, src, vt in conn.execute("select tmdb_id, field, value_num, currency, source, value_text "
+                                                    "from facts where field in ('budget','revenue','box_office')"):
         if cur != "USD" or not v or v < 1000:
+            continue
+        # 16 Oct: an empty infobox field holding only the editors' hint <!-- ... e.g. "$11.6 million" ... -->
+        # is not a figure (12 US-dollar rows; the same hint in pounds is skipped by money_extra.py convert).
+        if vt and "<!--" in vt and not re.search(r"\d", re.sub(r"<!--.*?(?:-->|$)", "", vt, flags=re.S)):
             continue
         key = "budget" if field == "budget" else "gross"
         cand.setdefault(fid, {}).setdefault(key, []).append((v, src))

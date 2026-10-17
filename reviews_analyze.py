@@ -13,6 +13,14 @@ reviews) but often found it slow ('the three hours drag')" and every part of tha
     python reviews_analyze.py aggregate             # rebuild film_aspects from what is done
     python reviews_analyze.py show "Oppenheimer"
 
+v4 (14 Oct):
+  - The 300-token output cap cut answers off mid-JSON (8 Oct finding: llama3.2 malformed JSON stopped the
+    analysis at 208 films; temperature 0 made every retry identical). Now REVIEW_NUM_PREDICT (700) and a
+    retry with twice the room when the JSON does not parse.
+  - REVIEW_FILTER=1 (default when review_quality.db exists): only reviews review_filter.py marks usable are
+    analysed and counted (aggregate drops aspects from unusable ones).
+  - REVIEW_FILMS_MAX no longer defaults to 200 (that cap was for the CPU-only week); 0 = no cap.
+
 Design choices:
   - A fixed aspect list (the brief's: acting, pacing, writing, cinematography, soundtrack,
     characters, ending, originality, emotional impact, humor, action, visual effects, plus
@@ -26,6 +34,7 @@ Design choices:
 """
 import argparse
 import json
+import os
 import re
 import sqlite3
 import sys
@@ -35,6 +44,7 @@ import urllib.request
 import facts_db as F
 
 VERSION = "ra1"
+NUM_PREDICT = int(os.environ.get("REVIEW_NUM_PREDICT", "700"))
 ASPECTS = ["acting", "pacing", "writing", "story", "cinematography", "soundtrack", "characters", "ending",
            "originality", "emotional impact", "humor", "action", "visual effects", "direction"]
 SCHEMA = {"type": "object", "properties": {
@@ -55,20 +65,65 @@ SYSTEM_CRITIC = (
     "audience scores. At most 6 aspects. Reply with JSON only.")
 
 
+STATS = {"ok": 0, "salvaged": 0, "lost": 0}
+_OBJ = re.compile(r"\{[^{}]*\}")
+
+
+def salvage(raw):
+    """Complete aspect objects from a cut-off or whitespace-flooded answer (14 Oct: llama3.2 sometimes
+    pads structured output with hundreds of blank lines until it hits num_predict, so the JSON never
+    closes; the objects written before that are still fine)."""
+    items = []
+    for m in _OBJ.finditer(raw or ""):
+        try:
+            d = json.loads(m.group(0))
+        except ValueError:
+            continue
+        if isinstance(d, dict) and {"aspect", "sentiment", "quote"} <= set(d):
+            items.append(d)
+    return {"aspects": items}
+
+
 def call(url, model, system, text):
-    body = json.dumps({"model": model, "stream": False, "format": SCHEMA, "keep_alive": "30m",
-                       "options": {"temperature": 0, "num_predict": 300},
-                       "messages": [{"role": "system", "content": system},
-                                    {"role": "user", "content": text}]}).encode()
-    for attempt in range(3):
+    """{"aspects": [...]} or None. A stop on runs of blank lines ends the padding early; a reply that
+    still does not parse is salvaged; only an empty salvage is retried, once, with more room."""
+    n_pred = NUM_PREDICT
+    for attempt in range(2):
+        body = json.dumps({"model": model, "stream": False, "format": SCHEMA, "keep_alive": "30m",
+                           "options": {"temperature": 0, "num_predict": n_pred, "stop": ["\n\n\n\n", "\t\t\t\t"]},
+                           "messages": [{"role": "system", "content": system},
+                                        {"role": "user", "content": text}]}).encode()
         try:
             req = urllib.request.Request(url + "/api/chat", body, {"Content-Type": "application/json"})
             with urllib.request.urlopen(req, timeout=180) as r:
-                return json.loads(json.load(r)["message"]["content"])
-        except Exception as e:  # noqa: BLE001
+                raw = json.load(r)["message"]["content"]
+        except Exception as e:  # noqa: BLE001 - network / server error
             print(f"  retry {attempt + 1}: {str(e)[:100]}", file=sys.stderr)
             time.sleep(3 * (attempt + 1))
+            continue
+        try:
+            out = json.loads(raw)
+            STATS["ok"] += 1
+            return out
+        except ValueError:
+            got = salvage(raw)
+            if got["aspects"]:
+                STATS["salvaged"] += 1
+                return got
+            n_pred *= 2
+    STATS["lost"] += 1
     return None
+
+
+def usable():
+    """Review ids review_filter.py marks usable, or None (filter off / not built)."""
+    if os.environ.get("REVIEW_FILTER", "1") != "1":
+        return None
+    try:
+        import review_filter
+        return review_filter.usable_ids()
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def _flat(s):
@@ -90,15 +145,20 @@ def verified(text, items):
     return out
 
 
-def work_items(conn, films, kinds, per_film, critic_passages):
+def work_items(conn, films, kinds, per_film, critic_passages, ok=None):
     done = {r[0] for r in conn.execute("select review_id from review_done where version = ?", (VERSION,))}
     ids = [r[0] for r in conn.execute("select tmdb_id from films order by vote_count desc limit ?", (films,))]
     items = []
     for fid in ids:
         if "audience" in kinds:
+            n = 0
             for rid, content in conn.execute("select review_id, content from reviews where tmdb_id = ? "
-                                             "and length(content) > 200 order by created_at desc limit ?",
-                                             (fid, per_film)):
+                                             "and length(content) > 200 order by created_at desc", (fid,)):
+                if ok is not None and rid not in ok:
+                    continue
+                n += 1
+                if n > per_film:
+                    break
                 if rid not in done:
                     items.append(("audience", fid, rid, content[:1800]))
         if "critic" in kinds:
@@ -114,6 +174,9 @@ def aggregate(conn, fids=None):
     where = "" if fids is None else f"where tmdb_id in ({','.join(str(int(f)) for f in fids)})"
     rows = conn.execute(f"select tmdb_id, source_type, aspect, sentiment, quote, review_id from review_aspects "
                         f"{where}").fetchall()
+    ok = usable()
+    if ok is not None:                     # audience aspects only from usable reviews; critic passages always
+        rows = [r for r in rows if r[1] != "audience" or r[5] in ok]
     agg, nrev = {}, {}
     for fid, st, asp, sen, q, rid in rows:
         a = agg.setdefault((fid, st, asp), {"pos": 0, "neg": 0, "mixed": 0, "quotes": []})
@@ -124,7 +187,8 @@ def aggregate(conn, fids=None):
     # n_reviews counts every analysed item, including those with no verified aspect.
     for fid, st, rid in conn.execute(f"select r.tmdb_id, 'audience', d.review_id from review_done d join reviews r "
                                      f"on r.review_id = d.review_id {where.replace('tmdb_id', 'r.tmdb_id')}"):
-        nrev.setdefault((fid, st), set()).add(rid)
+        if ok is None or rid in ok:
+            nrev.setdefault((fid, st), set()).add(rid)
     if fids is None:
         conn.execute("delete from film_aspects")
     else:
@@ -143,7 +207,7 @@ def main():
     ap.add_argument("title", nargs="?")
     ap.add_argument("--facts")
     ap.add_argument("--films", type=int, default=1500, help="most-voted films to cover")
-    ap.add_argument("--per-film", type=int, default=5, help="audience reviews per film")
+    ap.add_argument("--per-film", type=int, default=25, help="audience reviews per film (usable ones, newest first)")
     ap.add_argument("--critic-passages", type=int, default=3)
     ap.add_argument("--kinds", default="audience,critic")
     ap.add_argument("--model", default="llama3.2")
@@ -163,10 +227,13 @@ def main():
         return
     # 5 Oct: another user's job holds 20 of the A10's 23 GB, so models run on the CPU. Cap the work
     # (REVIEW_FILMS_MAX, default 200) so the run finishes; resumable, so raise it later to continue.
-    import os
-    films = min(a.films, int(os.environ.get("REVIEW_FILMS_MAX", "200")))
-    items = work_items(conn, films, a.kinds.split(","), a.per_film, a.critic_passages)
-    print(f"{len(items):,} texts to analyse with {a.model} (version {VERSION})")
+    cap = int(os.environ.get("REVIEW_FILMS_MAX", "0"))
+    films = min(a.films, cap) if cap else a.films
+    ok = usable()
+    items = work_items(conn, films, a.kinds.split(","), a.per_film, a.critic_passages, ok)
+    print(f"{len(items):,} texts to analyse with {a.model} (version {VERSION}; "
+          f"{'review filter on: ' + format(len(ok), ',') + ' usable reviews' if ok is not None else 'no review filter'}, "
+          f"num_predict {NUM_PREDICT})")
     t0, kept, touched = time.time(), 0, set()
     for i, (st, fid, rid, text) in enumerate(items, 1):
         res = call(a.ollama, a.model, SYSTEM_AUDIENCE if st == "audience" else SYSTEM_CRITIC, text)
@@ -182,7 +249,8 @@ def main():
             aggregate(conn, touched)
             touched = set()
             rate = i / max(time.time() - t0, 1e-6)
-            print(f"  {i:,}/{len(items):,}  {rate:.2f}/s  aspects kept {kept:,}  "
+            print(f"  {i:,}/{len(items):,}  {rate:.2f}/s  aspects kept {kept:,}  replies ok {STATS['ok']:,} "
+                  f"salvaged {STATS['salvaged']:,} lost {STATS['lost']:,}  "
                   f"eta {(len(items) - i) / max(rate, 1e-6) / 60:.0f} min", flush=True)
     conn.commit()
     print(f"film_aspects rows: {aggregate(conn)}")

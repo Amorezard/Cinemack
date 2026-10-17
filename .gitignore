@@ -10,3 +10,14 @@ results/llm_cache.sqlite
 results/llm_cache.sqlite
 models/
 results/*.sqlite*
+live_model.yaml
+adapter.env
+builds/
+models/
+
+# 16 Oct: per-run outputs stay out of git (summaries and logs are kept)
+results/stage_scores_*.json
+results/v3eval_*.json
+results/*.jsonl
+results/review_label_sample.csv
+results/chunk_context_sample.json

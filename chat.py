@@ -148,6 +148,15 @@ CURRENT_HOW = ("How to answer: list the films from the current/upcoming data tha
                "release dates can still change. Don't add films that are not in the list.")
 
 
+# v4: news questions (tools.NEWS=1). The news block itself repeats the key rule.
+NEWS_HOW = ("How to answer: first say briefly what was in the news when the film came out, from the headlines "
+            "above with their dates and sources. Then say whether there is evidence of a connection to how the "
+            "film did: a STATED link only if a source above states it (quote it); otherwise call it a coincidence "
+            "of topics, and give the cross-film figure if it is above to say how much such coincidences matter in "
+            "general. Never claim the news caused the film's success or failure unless a source says so. Keep "
+            "the film's own numbers (budget, gross) with their sources.")
+
+
 def _v3_prompt(question, hits, tool, amb_line):
     context = "\n\n---\n\n".join(context_for(h) for h in hits)
     blocks = "\n\n".join(b for _k, b in tool.get("blocks") or [])
@@ -158,7 +167,7 @@ def _v3_prompt(question, hits, tool, amb_line):
         parts.append(f"Structured data from Movie Buff's database (sources in brackets):\n\n{blocks}")
     style = tool.get("style")
     styled = {"analysis": ANALYSIS_HOW, "current": CURRENT_HOW, "ranking": RANKING_HOW, "reviews": REVIEWS_HOW,
-              "fact": FACT_HOW}
+              "fact": FACT_HOW, "news": NEWS_HOW}
     how = styled.get(style) or (f"{HOW_TO_ANSWER}\n\n{DATA_NOTE}\n\n{NO_HEDGING}" if blocks
                                 else f"{HOW_TO_ANSWER}\n\n{NO_HEDGING}")
     return "\n\n".join(parts) + f"""
@@ -363,6 +372,53 @@ def ask(history, thinking_on):
           f"{time.perf_counter() - t0:.1f}s total]\n")
 
     return "".join(answer).strip()
+
+
+# ------------------------------------------------ v4 (15 Oct): answer-side switches
+# SPOILERS=1: unless the question asks for the ending / twist / spoilers, the prompt tells the model to
+#             keep endings and twists out (the persona says so too; this makes it explicit per question).
+# WIKI_CREDIT=1: wiki_credit(hits) gives a sources line with each film's Wikipedia link and the CC BY-SA
+#             credit; the website appends it after the answer (added in code, never written by the model).
+SPOILERS = _os_c.environ.get("SPOILERS", "0") == "1"
+WIKI_CREDIT = _os_c.environ.get("WIKI_CREDIT", "0") == "1"
+_R_ENDING = __import__("re").compile(r"\b(end|ending|ends|endings|twist|twists|spoil\w*|final scene|last scene|"
+                                     r"how does it (end|finish)|what happens at the end|who (dies|survives|wins)|"
+                                     r"who is the killer|reveal\w*)\b", __import__("re").I)
+SPOILER_LINE = ("Spoilers: the question does not ask how the film ends, so do not reveal the ending, major twists or "
+                "who dies, even if the information above contains them. If it matters, say there is a twist without "
+                "giving it away.")
+_build_prompt_core = build_prompt
+
+
+def build_prompt(question, k=3, recent_titles=None, conv=None, user=None):  # noqa: F811 - v4 wrapper
+    # same signature as the core: web/pipeline.py checks it for the `user` parameter
+    question = _R.expand_aliases(question) if hasattr(_R, "expand_aliases") else question
+    prompt, hits = _build_prompt_core(question, k=k, recent_titles=recent_titles, conv=conv, user=user)
+    if SPOILERS and hits and not _R_ENDING.search(question):
+        prompt = f"{prompt}\n\n{SPOILER_LINE}"
+    return prompt, hits
+
+
+def wiki_credit(hits, n=3):
+    """'Sources: [Title](url); ... (Wikipedia, CC BY-SA)' for the films whose Wikipedia text the
+    answer had, or "" (WIKI_CREDIT off, no wiki.db, no linked pages)."""
+    if not WIKI_CREDIT or not hits:
+        return ""
+    import sqlite3 as _sq
+    path = _os_c.environ.get("WIKI_DB") or _os_c.path.join(_os_c.path.dirname(_os_c.path.abspath(__file__)), "wiki.db")
+    if not _os_c.path.exists(path):
+        return ""
+    try:
+        c = _sq.connect(f"file:{path}?mode=ro", uri=True)
+        out = []
+        for h in hits[:n]:
+            row = c.execute("select title, url from pages where film_id = ? limit 1", (h.get("id"),)).fetchone()
+            if row and row[1]:
+                out.append(f"[{row[0]}]({row[1]})")
+        c.close()
+    except _sq.Error:
+        return ""
+    return ("\n\n*Sources: " + "; ".join(out) + " (Wikipedia, CC BY-SA). Film data from TMDB.*") if out else ""
 
 
 def main():

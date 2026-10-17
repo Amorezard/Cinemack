@@ -1,0 +1,22 @@
+Review quality filter rf1, 2026-10-15T05:51:08+00:00
+Reviews checked: 27,812
+Passed every check: 21,550 (77.5%)
+Films with any review: 12,598; with 1+ passing review: 11,177; with 10+ passing reviews (enough to make claims): 91
+
+check               fails (any)  first reason
+short                     3,516         3,516
+not_english                  23            20
+swearing                  2,385         2,288
+duplicate                    15            11
+copy_paste                   70            56
+generic_extreme             563           251
+rating_mismatch              63            46
+early_extreme                26            18
+burst                         0             0
+one_note_author              19            13
+shouting                     14             7
+links                        26            22
+political                    25            14
+
+'fails (any)' counts every review failing that check (a review can fail several);
+'first reason' counts each failed review once, at its first failing check in the order above.

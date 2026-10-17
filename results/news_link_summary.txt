@@ -1,0 +1,19 @@
+News at release vs box-office success (2026-10-14, version nw2)
+success = log(gross / budget) minus the median of films of the same first genre and year (5+ films; else the same genre and decade);
+window = release date +/- 30 days; control = the same window 6 months before and after;
+resonance = mean similarity of the film's 5 closest headlines in the window minus the controls'.
+
+ALL films: Spearman rho(resonance, success) = +0.079  95% CI [+0.059, +0.098]  permutation p = 0.001  (n = 10,188)
+  war           films touching it: rho(theme share lift, success) = +0.009 [-0.033, +0.054] p = 0.705 (n = 1,961)
+  terrorism     films touching it: rho(theme share lift, success) = -0.008 [-0.092, +0.094] p = 0.898 (n = 404)
+  economy       films touching it: rho(theme share lift, success) = +0.003 [-0.132, +0.138] p = 0.960 (n = 230)
+  politics      films touching it: rho(theme share lift, success) = +0.087 [-0.023, +0.212] p = 0.148 (n = 288)
+  disease       films touching it: rho(theme share lift, success) = -0.047 [-0.212, +0.140] p = 0.583 (n = 146)
+  disaster      films touching it: rho(theme share lift, success) = +0.069 [-0.001, +0.179] p = 0.126 (n = 460)
+  space         films touching it: rho(theme share lift, success) = +0.058 [-0.054, +0.172] p = 0.335 (n = 319)
+  technology    films touching it: rho(theme share lift, success) = -0.098 [-0.192, +0.005] p = 0.056 (n = 371)
+  crime         films touching it: rho(theme share lift, success) = -0.002 [-0.038, +0.035] p = 0.890 (n = 2,818)
+  civil_rights  films touching it: rho(theme share lift, success) = -0.008 [-0.097, +0.080] p = 0.868 (n = 446)
+
+films whose own Wikipedia box office / release / reception text names a news event: 4,018
+Reading: a CI that includes 0 means no reliable link across films; a film's related headlines are then a coincidence of topics unless a source states the link.

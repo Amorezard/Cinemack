@@ -185,7 +185,9 @@ def run_case(turns, expect, expect_year, absent=None):
     trace["filters"] = R.parse_filters(last)     # the question's year/genre filter
     ranks = {s: (rank_of(trace[s], expect, expect_year) if s in trace else "n/a")
              for s in STAGES}
-    years = [str(r[2] or "")[:4] for r in trace.get("final", [])]
+    # 16 Oct: years from the same hits as the titles (was trace["final"]; if that list is missing or
+    # differs, zip(titles, years) silently pairs titles with the wrong years or with none).
+    years = [str(h.get("release_year") or "")[:4] for h in hits]
     passed = T.graded(titles, years, expect, expect_year)
     leaked = [x for x in (absent or []) if any(T.norm(x) == T.norm(t) for t in titles)]
     if leaked:

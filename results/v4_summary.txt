@@ -1,0 +1,101 @@
+v4 summary  Thu Oct 15 03:23:30 AM EDT 2026
+
+--- reviews
+Review quality filter rf1, 2026-10-15T05:51:08+00:00
+Reviews checked: 27,812
+Passed every check: 21,550 (77.5%)
+Films with any review: 12,598; with 1+ passing review: 11,177; with 10+ passing reviews (enough to make claims): 91
+
+check               fails (any)  first reason
+
+--- contextual chunks (sample)
+Contextual chunk enrichment, sample test (2026-10-15, version cc1, model llama3.2)
+films in sample: 3,134 (14,101 passages); questions: 140 (tune + check sets, single-turn, film in sample)
+Random distractors are easier than the full 24,854-film index; compare plain vs contextual, not with stage_scores numbers.
+
+retriever         hit@1  hit@5  hit@20    MRR found@100
+vector_plain      0.371  0.557   0.650  0.460     0.836
+vector_ctx        0.400  0.571   0.679  0.484     0.879
+keyword_plain     0.207  0.379   0.429  0.279     0.529
+keyword_ctx       0.236  0.379   0.443  0.303     0.564
+fused_plain       0.371  0.521   0.650  0.443     0.757
+fused_ctx         0.364  0.514   0.693  0.439     0.807
+
+rule (fused hit@5 +0.02 and MRR not lower): hit@5 -0.007, MRR -0.004 -> FAIL: keep plain passages
+
+--- news
+News at release vs box-office success (2026-10-14, version nw2)
+success = log(gross / budget) minus the median of films of the same first genre and year (5+ films; else the same genre and decade);
+window = release date +/- 30 days; control = the same window 6 months before and after;
+resonance = mean similarity of the film's 5 closest headlines in the window minus the controls'.
+
+ALL films: Spearman rho(resonance, success) = +0.079  95% CI [+0.059, +0.098]  permutation p = 0.001  (n = 10,188)
+  war           films touching it: rho(theme share lift, success) = +0.009 [-0.033, +0.054] p = 0.705 (n = 1,961)
+  terrorism     films touching it: rho(theme share lift, success) = -0.008 [-0.092, +0.094] p = 0.898 (n = 404)
+  economy       films touching it: rho(theme share lift, success) = +0.003 [-0.132, +0.138] p = 0.960 (n = 230)
+  politics      films touching it: rho(theme share lift, success) = +0.087 [-0.023, +0.212] p = 0.148 (n = 288)
+  disease       films touching it: rho(theme share lift, success) = -0.047 [-0.212, +0.140] p = 0.583 (n = 146)
+  disaster      films touching it: rho(theme share lift, success) = +0.069 [-0.001, +0.179] p = 0.126 (n = 460)
+  space         films touching it: rho(theme share lift, success) = +0.058 [-0.054, +0.172] p = 0.335 (n = 319)
+  technology    films touching it: rho(theme share lift, success) = -0.098 [-0.192, +0.005] p = 0.056 (n = 371)
+  crime         films touching it: rho(theme share lift, success) = -0.002 [-0.038, +0.035] p = 0.890 (n = 2,818)
+  civil_rights  films touching it: rho(theme share lift, success) = -0.008 [-0.097, +0.080] p = 0.868 (n = 446)
+
+films whose own Wikipedia box office / release / reception text names a news event: 4,018
+Reading: a CI that includes 0 means no reliable link across films; a film's related headlines are then a coincidence of topics unless a source states the link.
+
+--- contextual chunks: stage_scores passes (tune, check)
+  lock   tune None  check None
+  ctx    tune None  check None
+  ctxkw  tune None  check None
+
+--- news (answers + judge)
+  v4_news_off    {'pass': 8, 'judged': 8, 'grounded': 4.88, 'route': (0, 8), 'data': (0, 8), 'cats': {'news': [8, 8]}}
+  v4_news_on     {'pass': 8, 'judged': 8, 'grounded': 5.0, 'route': (8, 8), 'data': (8, 8), 'cats': {'news': [8, 8]}}
+  v4_why_lock    {'pass': 7, 'judged': 7, 'grounded': 5.0, 'route': (7, 7), 'data': (5, 5), 'cats': {'why': [7, 7]}}
+  v4_why_news    {'pass': 7, 'judged': 7, 'grounded': 5.0, 'route': (7, 7), 'data': (5, 5), 'cats': {'why': [7, 7]}}
+
+--- success / route fix (why+compare+reviews answers; level 1 on all analytic)
+  lock  answers {'pass': 13, 'judged': 15, 'grounded': 4.6, 'route': (13, 15), 'data': (10, 10), 'cats': {'compare': [3, 4], 'reviews': [3, 4], 'why': [7, 7]}}
+        L1 {'pass': 0, 'judged': 0, 'grounded': None, 'route': (44, 46), 'data': (37, 38), 'cats': {'factual': [0, 0], 'detail': [0, 0], 'compare': [0, 0], 'reviews': [0, 0], 'why': [0, 0], 'career': [0, 0], 'multihop': [0, 0], 'current': [0, 0], 'recommend': [0, 0], 'recent': [0, 0], 'honesty': [0, 0], 'tot': [0, 0], 'awards': [0, 0]}}
+  succ  answers {'pass': 13, 'judged': 15, 'grounded': 4.47, 'route': (13, 15), 'data': (10, 10), 'cats': {'compare': [3, 4], 'reviews': [3, 4], 'why': [7, 7]}}
+        L1 {'pass': 0, 'judged': 0, 'grounded': None, 'route': (44, 46), 'data': (37, 38), 'cats': {'factual': [0, 0], 'detail': [0, 0], 'compare': [0, 0], 'reviews': [0, 0], 'why': [0, 0], 'career': [0, 0], 'multihop': [0, 0], 'current': [0, 0], 'recommend': [0, 0], 'recent': [0, 0], 'honesty': [0, 0], 'tot': [0, 0], 'awards': [0, 0]}}
+  rfix  answers {'pass': 13, 'judged': 15, 'grounded': 4.6, 'route': (13, 15), 'data': (10, 10), 'cats': {'compare': [3, 4], 'reviews': [3, 4], 'why': [7, 7]}}
+        L1 {'pass': 0, 'judged': 0, 'grounded': None, 'route': (44, 46), 'data': (37, 38), 'cats': {'factual': [0, 0], 'detail': [0, 0], 'compare': [0, 0], 'reviews': [0, 0], 'why': [0, 0], 'career': [0, 0], 'multihop': [0, 0], 'current': [0, 0], 'recommend': [0, 0], 'recent': [0, 0], 'honesty': [0, 0], 'tot': [0, 0], 'awards': [0, 0]}}
+  both  answers {'pass': 13, 'judged': 15, 'grounded': 4.47, 'route': (13, 15), 'data': (10, 10), 'cats': {'compare': [3, 4], 'reviews': [3, 4], 'why': [7, 7]}}
+        L1 {'pass': 0, 'judged': 0, 'grounded': None, 'route': (44, 46), 'data': (37, 38), 'cats': {'factual': [0, 0], 'detail': [0, 0], 'compare': [0, 0], 'reviews': [0, 0], 'why': [0, 0], 'career': [0, 0], 'multihop': [0, 0], 'current': [0, 0], 'recommend': [0, 0], 'recent': [0, 0], 'honesty': [0, 0], 'tot': [0, 0], 'awards': [0, 0]}}
+
+--- timings, 20 TREC questions, no cache (mean total s, two repeats)
+  lock   [12.9, 15.6]
+  par    [12.6, 13.6]
+  route  [14.3, 18.7]
+
+--- re-ranker (GPU)
+v3c summary  Thu Oct 15 01:46:24 AM EDT 2026
+passes        tune     check
+locked v2     74/115     18/33
+cross_llm 10  70/115     15/33
+cross only    65/115     12/33
+
+timing, 20 TREC questions, no cache
+  time_lock_trec   total 123.0s   rerank 63.70s on 16
+  time_cl10_trec   total 14.3s   rerank 6.98s on 14
+  time_cross_trec  total 9.9s   rerank 1.33s on 14
+base cross-encoder/ms-marco-MiniLM-L-6-v2: dev hit@1 among 8 = 0.549 (206 groups); training on 3929
+epoch 1: dev hit@1 = 0.665
+base BAAI/bge-reranker-v2-m3: dev hit@1 among 8 = 0.626 (206 groups); training on 3929
+
+--- confidence
+Confidence model (logistic regression), fitted on 8562 tune question-runs, checked on 2384 check runs
+weights (standardised features; + raises confidence): bias +0.98, d1 -2.30, gap -0.74, reranked +0.06, agree +0.57, log_pool -0.35, identify -0.35
+check: Brier 0.233 (always predicting the base rate: 0.250); expected calibration error 0.142
+  answer when p >= 0.3: answers 68.1% of questions, right 52.6%
+  answer when p >= 0.4: answers 54.1% of questions, right 57.4%
+  answer when p >= 0.5: answers 40.8% of questions, right 66.0%
+  answer when p >= 0.6: answers 35.2% of questions, right 72.3%
+  answer when p >= 0.7: answers 29.5% of questions, right 82.0%
+  answer when p >= 0.8: answers 20.9% of questions, right 89.8%
+  answer when p >= 0.9: answers 11.6% of questions, right 95.7%
+Limitation: tune/check questions are the sets the pipeline was tuned on; the calibration is the point, the absolute accuracy is optimistic.
+
+--- nicknames (ALIASES): alias set off 0/15 -> on 0/15; with ALIASES=1 tune 73/115 check 18/33

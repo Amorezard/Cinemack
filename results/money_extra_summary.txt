@@ -1,0 +1,40 @@
+money_extra report 2026-10-17T01:09:34+00:00
+films with budget AND gross: 12,228 (361 of them only thanks to a converted figure; 11,867 with US-dollar figures alone)
+  converted rows from wikidata_fx: 821 films
+  converted rows from wikipedia_infobox_fx: 985 films
+today's dollars (2024): 11,307 films with both
+critic scores from Wikipedia reception text: 10,878 films (Rotten Tomatoes 8,401, Metacritic 7,406, CinemaScore 3,008)
+
+Conversions to check by eye (20 random):
+  The Guilty (2018) budget: $0.6M  <- = 500,000 EUR at the 2018 average rate (1.181 USD per EUR)
+  The Olive Tree (2016) budget: $4.6M  <- = 4,200,000 EUR at the 2016 average rate (1.107 USD per EUR)
+  Kwaidan (1965) budget: $0.9M  <- = 320,000,000 JPY at the 1965 average rate (0.002778 USD per JPY)
+  A Hard Day's Night (1964) budget: $0.5M  <- £189,000<ref name="walker">Alexander Walker, ''Hollywood, England'', Stein and Day, 1974 p. 241</ref><br />{{nowrap|(~US
+  Neon Genesis Evangelion: Death and Rebirth (1997) box_office: $15.5M  <- {{¥|1.87 billion}}<ref name="merumo" /> = 1,870,000,000 JPY at the 1997 average rate (0.008265 USD per JPY)
+  Big Game (2014) budget: $11.3M  <- = 8,500,000 EUR at the 2014 average rate (1.329 USD per EUR)
+  Ankhon Dekhi (2014) box_office: $0.2M  <- = 11,100,000 INR at the 2014 average rate (0.01639 USD per INR)
+  Rosencrantz & Guildenstern Are Dead (1991) budget: $4.3M  <- £2.43 million<ref name="org">{{cite web|url=https://www2.bfi.org.uk/sites/bfi.org.uk/files/downloads/bfi-back-to-the-fut
+  Gamera vs. Barugon (1966) budget: $0.2M  <- ¥80 million{{sfn|Galbraith IV|1998|p=74}} = 80,000,000 JPY at the 1966 average rate (0.002778 USD per JPY)
+  Kraken (2025) box_office: $13.1M  <- = 1,100,000,000 RUB at the 2025 average rate (0.01195 USD per RUB)
+  I'm Losing It (2018) box_office: $10.1M  <- = 633,525,106 RUB at the 2018 average rate (0.01596 USD per RUB)
+  The Accidental Spy (2001) budget: $25.6M  <- HK$200 Million = 200,000,000 HKD at the 2001 average rate (0.1282 USD per HKD)
+  Brassed Off (1996) budget: $4.4M  <- £2.8 million<ref name = "icon">{{Citation | first = Alexander | last = Walker | title = Icons in the Fire: The Rise and 
+  The Wind That Shakes the Barley (2006) budget: $8.2M  <- €6.5 million<ref name="element">{{cite web|url=http://elementpictures.ie/film/|title=Film – The Wind That Shakes The Bar
+  Pete's Dragon (2016) box_office: $0.0M  <- = 15,652 EUR at the 2016 average rate (1.107 USD per EUR)
+  Roadgames (1981) budget: $2.0M  <- A$1.75 million{{Sfn|Stratton|1990|pages=261-62}} = 1,750,000 AUD at the 1981 average rate (1.149 USD per AUD)
+  Modesty Blaise (1966) budget: $2.8M  <- = 1,000,000 GBP at the 1966 average rate (2.8 USD per GBP)
+  Into the Labyrinth (2019) budget: $4.5M  <- €4 million (est.){{cn|date=June 2020}} = 4,000,000 EUR at the 2019 average rate (1.119 USD per EUR)
+  The Man Who Could Cheat Death (1959) budget: $0.2M  <- [[Pound sterling|GBP]] £84,000 = 84,000 GBP at the 1959 average rate (2.8 USD per GBP)
+  Resident Evil: Degeneration (2008) box_office: $0.4M  <- Japan: {{¥|43 million}}<ref name="cinematoday">{{cite news |title=土屋アンナ、映画『バイオハザード ダムネーション』主題歌を書き下ろし！ |url=https://www.c
+
+Critic scores to check by eye (10 random):
+  54 (1998): RT 15.0% of 67 | MC None | CinemaScore C  <- , the film holds an approval rating of 15%, based on 67 reviews, and an average rating of 4.10/10. T
+  Timmy Failure: Mistakes Were Made (2020): RT None% of None | MC 60.0 | CinemaScore None  <- 
+  Footloose (1984): RT None% of None | MC 42.0 | CinemaScore None  <- 
+  The Salvation (2014): RT 72.0% of 78 | MC 64.0 | CinemaScore None  <- , "The Salvation" has a rating of 72% rating based on 78 reviews, with an average rating of 6.4/10. 
+  Freeway (1996): RT 77.0% of 43 | MC 61.0 | CinemaScore None  <- , the film holds an approval rating of 77% based on 43 reviews. The website's critical consensus rea
+  The Second Mother (2015): RT 97.0% of 87 | MC 82.0 | CinemaScore None  <- , the film has a 97% approval rating based on 87 reviews, with an average rating of 8/10. The site's
+  Saw II (2005): RT None% of None | MC None | CinemaScore B+  <- 
+  Ready to Rumble (2000): RT 22.0% of 72 | MC 23.0 | CinemaScore None  <-  rating of 22% based on 72 reviews, with an average score of 4/10. Its consensus states, "Humor at i
+  The Boss Baby (2017): RT None% of None | MC 50.0 | CinemaScore A-  <- 
+  Youth in Revolt (2009): RT 66.0% of 172 | MC None | CinemaScore None  <-  reports that 66% of critics have given the film a positive review based on 172 reviews, with an ave

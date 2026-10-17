@@ -1,0 +1,185 @@
+{
+ "about": "v4 (15 Oct): nickname / abbreviation questions for ALIASES=1 (aliases.py), written before any alias run. stage_scores format. 15 Oct evening: expect_year written as text ('1991'); test_understand.graded compares the year as text, so the 15 Oct 02:31 runs scored 0/15 both ways regardless of retrieval.",
+ "questions": [
+  {
+   "id": "al01",
+   "source": "own",
+   "split": "aliases",
+   "turns": [
+    "Who directed T2?"
+   ],
+   "expect_retrieved": [
+    "Terminator 2: Judgment Day"
+   ],
+   "expect_year": "1991"
+  },
+  {
+   "id": "al02",
+   "source": "own",
+   "split": "aliases",
+   "turns": [
+    "Is LOTR worth watching?"
+   ],
+   "expect_retrieved": [
+    "The Lord of the Rings: The Fellowship of the Ring"
+   ],
+   "expect_year": "2001"
+  },
+  {
+   "id": "al03",
+   "source": "own",
+   "split": "aliases",
+   "turns": [
+    "What year did ESB come out?"
+   ],
+   "expect_retrieved": [
+    "The Empire Strikes Back"
+   ],
+   "expect_year": "1980"
+  },
+  {
+   "id": "al04",
+   "source": "own",
+   "split": "aliases",
+   "turns": [
+    "Who is in BTTF?"
+   ],
+   "expect_retrieved": [
+    "Back to the Future"
+   ],
+   "expect_year": "1985"
+  },
+  {
+   "id": "al05",
+   "source": "own",
+   "split": "aliases",
+   "turns": [
+    "How long is EEAAO?"
+   ],
+   "expect_retrieved": [
+    "Everything Everywhere All at Once"
+   ],
+   "expect_year": "2022"
+  },
+  {
+   "id": "al06",
+   "source": "own",
+   "split": "aliases",
+   "turns": [
+    "Who composed the music for Fury Road?"
+   ],
+   "expect_retrieved": [
+    "Mad Max: Fury Road"
+   ],
+   "expect_year": "2015"
+  },
+  {
+   "id": "al07",
+   "source": "own",
+   "split": "aliases",
+   "turns": [
+    "Who played the villain in Rocky 4?"
+   ],
+   "expect_retrieved": [
+    "Rocky IV"
+   ],
+   "expect_year": "1985"
+  },
+  {
+   "id": "al08",
+   "source": "own",
+   "split": "aliases",
+   "turns": [
+    "What was the budget of Godfather 2?"
+   ],
+   "expect_retrieved": [
+    "The Godfather Part II"
+   ],
+   "expect_year": "1974"
+  },
+  {
+   "id": "al09",
+   "source": "own",
+   "split": "aliases",
+   "turns": [
+    "Who directed Shawshank?"
+   ],
+   "expect_retrieved": [
+    "The Shawshank Redemption"
+   ],
+   "expect_year": "1994"
+  },
+  {
+   "id": "al10",
+   "source": "own",
+   "split": "aliases",
+   "turns": [
+    "Who is in the cast of Kill Bill 2?"
+   ],
+   "expect_retrieved": [
+    "Kill Bill: Vol. 2"
+   ],
+   "expect_year": "2004"
+  },
+  {
+   "id": "al11",
+   "source": "own",
+   "split": "aliases",
+   "turns": [
+    "How long is Infinity War?"
+   ],
+   "expect_retrieved": [
+    "Avengers: Infinity War"
+   ],
+   "expect_year": "2018"
+  },
+  {
+   "id": "al12",
+   "source": "own",
+   "split": "aliases",
+   "turns": [
+    "Who directed Phantom Menace?"
+   ],
+   "expect_retrieved": [
+    "Star Wars: Episode I - The Phantom Menace"
+   ],
+   "expect_year": "1999"
+  },
+  {
+   "id": "al13",
+   "source": "own",
+   "split": "aliases",
+   "turns": [
+    "Who plays the villain in Dark Knight Rises?"
+   ],
+   "expect_retrieved": [
+    "The Dark Knight Rises"
+   ],
+   "expect_year": "2012"
+  },
+  {
+   "id": "al14",
+   "source": "own",
+   "split": "aliases",
+   "turns": [
+    "Who directed Wrath of Khan?"
+   ],
+   "expect_retrieved": [
+    "Star Trek II: The Wrath of Khan"
+   ],
+   "expect_year": "1982"
+  },
+  {
+   "id": "al15",
+   "source": "own",
+   "split": "aliases",
+   "turns": [
+    "Who directed Alien 3?"
+   ],
+   "expect_retrieved": [
+    "Alien³"
+   ],
+   "expect_year": "1992"
+  }
+ ]
+}

@@ -50,6 +50,12 @@ try:
 except ImportError:
     pass
 
+# v4 (14 Oct): MOCK=fake|replay|record runs every model call through mock_llm.py (no GPU needed).
+import os as _os_mock
+if _os_mock.environ.get("MOCK", "off").lower() not in ("", "off", "0"):
+    import mock_llm as _mock_llm
+    _mock_llm.install()
+
 import os as _os_m
 EMBED_MODEL = _os_m.environ.get("EMBED_MODEL", "mxbai-embed-large")
 QUERY_PREFIX = "Represent this sentence for searching relevant passages: "
@@ -258,6 +264,7 @@ import hashlib as _hashlib_w
 import math as _math_w
 WIKI = _os_w.environ.get("WIKI", "1") != "0"
 WIKI_KW = _os_w.environ.get("WIKI_KW", "1") != "0"
+WIKI_CTX_KW = _os_w.environ.get("WIKI_CTX_KW", "0") == "1"     # v4: keyword list over contextual chunks
 WIKI_DB = _os_w.environ.get("WIKI_DB", "")          # default: wiki.db next to movies.db
 WIKI_KINDS = tuple(k for k in _os_w.environ.get("WIKI_KINDS", "plot,lead").split(",") if k)
 # Generated descriptions (wiki_enrich.py, kind 'question'). They read like the user's
@@ -337,7 +344,8 @@ def _attach_wiki(conn, db_path):
         return
     if path not in _WIKI_STATE:
         names = {r[0] for r in conn.execute("SELECT name FROM wiki.sqlite_master")}
-        _WIKI_STATE[path] = {"vec": {"vec_chunks", "chunks"} <= names, "fts": "wiki_fts" in names}
+        _WIKI_STATE[path] = {"vec": {"vec_chunks", "chunks"} <= names, "fts": "wiki_fts" in names,
+                             "ctx_fts": "wiki_ctx_fts" in names}
     conn._wiki = _WIKI_STATE[path]
 
 
@@ -611,10 +619,13 @@ def wiki_keyword_ranking(conn, text, n=100):
     match = _fts_query(text)
     if not match:
         return []
+    # v4: WIKI_CTX_KW=1 searches wiki_ctx_fts (chunk_context.py fts: the same text plus each
+    # passage's model-written context line, topics and keywords) instead of wiki_fts.
+    table = "wiki_ctx_fts" if (WIKI_CTX_KW and _wiki_has(conn, "ctx_fts")) else "wiki_fts"
     try:
         return [r[0] for r in conn.execute(
-            "SELECT rowid FROM wiki.wiki_fts WHERE wiki_fts MATCH ? "
-            "ORDER BY bm25(wiki_fts, 3.0, 1.0) LIMIT ?", (match, n))]
+            f"SELECT rowid FROM wiki.{table} WHERE {table} MATCH ? "
+            f"ORDER BY bm25({table}, 3.0, 1.0) LIMIT ?", (match, n))]
     except sqlite3.OperationalError:
         return []
 
@@ -1157,7 +1168,8 @@ SWITCHES = {"RERANK_CAP": RERANK_CAP, "SOFT_FILTERS": SOFT_FILTERS,
             "SOFT_FIT_SLOTS": SOFT_FIT_SLOTS, "UNKNOWN_FILM": UNKNOWN_FILM,
             "MULTI_FILM": MULTI_FILM, "HYDE": HYDE, "HYBRID": HYBRID, "RERANK_N": RERANK_N,
             "RERANK_CHARS": RERANK_CHARS, "GUESS_WIDE": GUESS_WIDE,
-            "WIKI": WIKI, "WIKI_KW": WIKI_KW, "WIKI_KINDS": ",".join(WIKI_KINDS),
+            "WIKI": WIKI, "WIKI_KW": WIKI_KW, "WIKI_CTX_KW": WIKI_CTX_KW,
+            "ALIASES": _os_m.environ.get("ALIASES", "0"), "DYM": _os_m.environ.get("DYM", "0"), "WIKI_KINDS": ",".join(WIKI_KINDS),
             "WIKI_Q": WIKI_Q, "WIKI_QSTYLES": ",".join(WIKI_QSTYLES), "WIKI_EXACT": WIKI_EXACT, "RERANK": _os_w.environ.get("RERANK", "auto"),
             "RERANK_AGREE": RERANK_AGREE, "RERANK_GAP": RERANK_GAP, "RERANK_ENGINE": RERANK_ENGINE,
             "RRF_WEIGHTS": RRF_WEIGHTS, "RRF_K": RRF_K_ENV,
@@ -2473,6 +2485,55 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
         return hits
     finally:
         conn.close()
+
+
+
+# ------------------------------------------------ v4 (15 Oct): nicknames + "did you mean" around retrieve()
+# ALIASES=1: the question is rewritten first by aliases.py ("T2" -> "T2 (Terminator 2: Judgment Day, 1991)"),
+#            so the planner, title matching and keyword search see the catalogue title.
+# DYM=1:     for a description ("identify") whose top two films are within DYM_GAP of each other and the
+#            planner did not already flag it, hits[0]["_ambiguous"] names both, and the answer prompt
+#            (chat.py amb_line) answers for the first and asks which one they meant.
+# Both are wrappers, so every caller (chat.py, stage_scores.py, eval_v3.py, the website) gets them,
+# and with both off retrieve() is exactly the v3 function.
+ALIASES = _os_m.environ.get("ALIASES", "0") == "1"
+DYM = _os_m.environ.get("DYM", "0") == "1"
+DYM_GAP = float(_os_m.environ.get("DYM_GAP", "0.02"))
+_retrieve_core = retrieve
+
+
+def expand_aliases(question):
+    if not ALIASES or not question:
+        return question
+    try:
+        import aliases as _aliases
+        return _aliases.expand(question)
+    except Exception:  # noqa: BLE001 - alias table missing: the question as typed
+        return question
+
+
+def _did_you_mean(hits):
+    if not DYM or len(hits or []) < 2 or hits[0].get("_ambiguous"):
+        return
+    plan = hits[0].get("_plan") or LAST.get("plan") or {}
+    if plan.get("intent") != "identify":
+        return
+    d0, d1 = hits[0].get("distance"), hits[1].get("distance")
+    if d0 is None or d1 is None or abs(d1 - d0) >= DYM_GAP:
+        return
+    name = lambda h: f"{h['title']} ({h.get('release_year') or '?'})"  # noqa: E731
+    hits[0]["_ambiguous"] = [name(hits[0]), name(hits[1])]
+    LAST["did_you_mean"] = hits[0]["_ambiguous"]
+
+
+def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=False,  # noqa: F811
+             trace=None, conv=None):
+    """v4 wrapper around _retrieve_core (same signature: web/pipeline.py inspects it for trace/explain)."""
+    question = expand_aliases(question)
+    hits = _retrieve_core(question, k=k, db_path=db_path, recent_titles=recent_titles, explain=explain,
+                          trace=trace, conv=conv)
+    _did_you_mean(hits)
+    return hits
 
 
 if __name__ == "__main__":

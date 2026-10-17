@@ -1,0 +1,29 @@
+{
+  "about": "v4 (14 Oct): questions for the news-at-release engine (news.py, NEWS=1). Written before any news data was fetched. Films chosen because Wikipedia documents (or clearly does not document) a link between news events and the release; n06 and n08 are controls where a stated link at release is not expected, so a good answer calls topic matches coincidence.",
+  "questions": [
+    {"id": "n01", "category": "news", "question": "Did anything happening in the news help The China Syndrome at the box office?",
+     "expect_tasks": ["news"], "expect_films": ["The China Syndrome"], "expect_in_context": ["News around the release"],
+     "notes": "Says what was in the news; calls a link 'stated' only if a quoted source states it (e.g. the Three Mile Island accident, if the context has it); no causal claim from headlines alone."},
+    {"id": "n02", "category": "news", "question": "Was Wag the Dog's success connected to what was in the news at the time?",
+     "expect_tasks": ["news"], "expect_films": ["Wag the Dog"], "expect_in_context": ["News around the release"],
+     "notes": "Separates headlines that match the film's topic from a link a source states; gives the film's own box-office numbers with sources."},
+    {"id": "n03", "category": "news", "question": "How did the September 11 attacks affect Zoolander's release and box office?",
+     "expect_tasks": ["news"], "expect_films": ["Zoolander"], "expect_in_context": ["News around the release"],
+     "notes": "Uses only what the context says about 9/11 and the film; says plainly if the context does not state an effect."},
+    {"id": "n04", "category": "news", "question": "Did the news around Black Hawk Down's release play a role in how it did?",
+     "expect_tasks": ["news"], "expect_films": ["Black Hawk Down"], "expect_in_context": ["News around the release"],
+     "notes": "Mentions the news at release from the headlines with dates; does not claim causation unless a source states it."},
+    {"id": "n05", "category": "news", "question": "Was Tenet hurt by what was going on in the world when it came out?",
+     "expect_tasks": ["news"], "expect_films": ["Tenet"], "expect_in_context": ["News around the release"],
+     "notes": "Uses the pandemic only as far as the context documents it; keeps numbers with sources."},
+    {"id": "n06", "category": "news", "question": "What was in the news when Jaws came out, and did it matter for the film?",
+     "expect_tasks": ["news"], "expect_films": ["Jaws"], "expect_in_context": ["News around the release"],
+     "notes": "Control: lists news of the time; without a stated link, calls any topic match a coincidence and uses the cross-film figure if given."},
+    {"id": "n07", "category": "news", "question": "Did the political climate help or hurt Collateral Damage?",
+     "expect_tasks": ["news"], "expect_films": ["Collateral Damage"], "expect_in_context": ["News around the release"],
+     "notes": "States the release timing and any documented delay only if the context has it; no invented causes."},
+    {"id": "n08", "category": "news", "question": "Was Contagion's box office linked to news events when it was released?",
+     "expect_tasks": ["news"], "expect_films": ["Contagion"], "expect_in_context": ["News around the release"],
+     "notes": "Control: the 2020 pandemic is after the 2011 release; must not present later events as news at release."}
+  ]
+}

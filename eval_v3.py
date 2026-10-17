@@ -92,6 +92,7 @@ def run_one(q, answers):
     res = {"id": q["id"], "category": q["category"], "question": q["question"], "notes": q.get("notes", ""),
            "hits": titles, "route": route, "blocks": [(k, len(b)) for k, b in tool.get("blocks") or []],
            "style": tool.get("style"), "prompt_chars": len(prompt), "context": ctx,
+           "prompt": prompt,          # v4: the exact prompt, so judged answers can become training examples
            "timing": {"prepare_s": round(prep_s, 2), "plan_ms": trace.get("plan_ms"),
                       "search_ms": trace.get("search_ms"), "rerank_ms": trace.get("rerank_ms"),
                       "retrieve_ms": trace.get("total_ms"), "tools_ms": (tool.get("ms") or {}).get("total"),

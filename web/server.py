@@ -325,6 +325,15 @@ async def chat(req: ChatRequest, request: Request):
                 put(sse(kind, text=text))
 
             final = "".join(answer).strip()
+            if final and not cancel.is_set() and not getattr(pipeline, "MOCK", False):
+                try:                                   # v4 WIKI_CREDIT=1: sources line added in code
+                    import chat as _chat
+                    credit = _chat.wiki_credit(hits) if hasattr(_chat, "wiki_credit") else ""
+                except Exception:  # noqa: BLE001
+                    credit = ""
+                if credit:
+                    put(sse("token", text=credit))
+                    final += credit
             checked = pipeline.check(final, hits, question) if not cancel.is_set() else \
                 {"ok": None, "flags": [], "checked": 0}
             done = dict(answer=final,
@@ -342,9 +351,13 @@ async def chat(req: ChatRequest, request: Request):
             if final and not cancel.is_set() and not req.think and hits:
                 site_cache.put_answer(key, question, src, done,
                                       pipeline.last_ttl() if hasattr(pipeline, "last_ttl") else None)
+            # v4: the prompt itself, the history sent with it and the fact check, so a liked answer
+            # can become a training example in the real RAG format (feedback.py, like_filter.py).
             RECENT[rid] = {"question": question, "conversation_id": conv_id, "films": done.get("recent_titles"),
                            "stages": trace, "answer": final, "versions": pipeline.versions(),
-                           "prompt_chars": len(prompt)}
+                           "prompt_chars": len(prompt), "prompt": prompt[:40000],
+                           "history": [{"role": m["role"], "content": m["content"][:4000]} for m in history[-6:]],
+                           "check": checked}
             while len(RECENT) > RECENT_MAX:
                 RECENT.pop(next(iter(RECENT)))
             plan_prefs = ((hits[0].get("_plan") or {}).get("preferences") if hits else None) or []

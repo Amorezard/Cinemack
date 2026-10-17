@@ -14,6 +14,10 @@ every script that imports retrieve see the same settings.
     MB_CONFIG=/path/other.yaml   use another file
     MB_CONFIG=none               ignore config files entirely (code defaults + shell only)
 
+v4 (14 Oct): live_model.yaml (next to config.yaml, not in git), written by rebuild_adapter.sh when a
+new adapter passes its test, overrides config.yaml for the keys it holds (ANSWER_MODEL); the shell
+still wins over both. Delete the file (or `rebuild_adapter.sh rollback`) to go back to config.yaml.
+
 The file format is a small subset of YAML: `KEY: value` lines, optionally grouped under
 section lines (`search:`) that are only for reading. Comments start with #. Keys are the
 upper-case variable names; values are single words or numbers (quotes optional).
@@ -23,6 +27,7 @@ import re
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_PATH = os.path.join(HERE, "config.yaml")
+LIVE_PATH = os.environ.get("MB_LIVE", os.path.join(HERE, "live_model.yaml"))
 
 _LINE = re.compile(r"^\s*([A-Z][A-Z0-9_]*)\s*:\s*(.*?)\s*$")
 _SECTION = re.compile(r"^[a-z][a-z0-9_]*\s*:\s*$")
@@ -87,10 +92,13 @@ def apply():
         return applied
     p = path()
     path_used = p or ""
-    for k, v in load(p).items():
+    vals = {k: (v, "config") for k, v in load(p).items()}
+    if p and LIVE_PATH and os.path.exists(LIVE_PATH):          # MB_CONFIG=none skips it too
+        vals.update({k: (v, "live_model.yaml") for k, v in load(LIVE_PATH).items()})
+    for k, (v, src) in vals.items():
         if k in os.environ:
             applied[k] = (os.environ[k], "shell")
         else:
             os.environ[k] = v
-            applied[k] = (v, "config")
+            applied[k] = (v, src)
     return applied

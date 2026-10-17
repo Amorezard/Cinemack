@@ -54,12 +54,35 @@ answers:
 
 v3:
   # Each v3 switch is off until its run says otherwise (decision rules in run_v3a.sh / run_v3b.sh).
-  CONV: 1                           # conversation-aware planner (conv.py); run_v3a.sh
-  TOOLS: 1                          # router + structured tools + analysis answers (tools.py); run_v3b.sh
-  PERSONAL: 1                       # taste profile + explained recommendations (personal.py); run_v3b.sh
-  PERSONAL_W: 0.25,2,0.5          # personal.py sweep, 6 Oct (held-out recall@10 0.420)
-  PARALLEL: 0                       # question-only searches during planning (same results); run_v3b.sh
+  # 8 Oct: set to the values the sealed v3 run used (run_final_v3.sh V3_ENV).
+  CONV: 1                           # conversation-aware planner (conv.py); run_v3a.sh: multiturn 19 -> 26/30, ADOPTED
+  TOOLS: 1                          # router + structured tools + analysis answers (tools.py); v3.1b lock, ADOPTED
+  PERSONAL: 1                       # taste profile + explained recommendations (personal.py); run_v3d.sh sweep, ADOPTED
+  PERSONAL_W: "0.25,2,0.5"          # content, neighbours, popularity weights (personal.py sweep)
+  PARALLEL: 1                       # question-only searches during planning (same results); 15 Oct: ON for the demo (gain within noise, not by rule)
   # RERANK_MODEL: movie-buff        # re-ranker model; default = ANSWER_MODEL; run_v3b.sh tries smaller ones
   SPEC_MODEL: llama3.2              # fills the query spec for ranking/trend/career questions (TOOLS=1)
   TOOL_CHARS: 9000                  # all tool blocks together, ~2.3k tokens of the 8k context
   HISTORY_CHARS: 6000               # website: conversation history sent to the answer model
+
+v4:
+  # 14 Oct, GPU free again. Each switch stays off until its run_v4.sh rule passes (rules at the top of run_v4.sh).
+  NEWS: 1                           # 15 Oct ON (user choice, rule not passed): news at release + corpus test (news.py) for news and "why" questions
+  SUCCESS: 1                        # 15 Oct ON (user choice, rule not passed): fixed success measures vs films of the same genre and year (tools.success_block)
+  ROUTE_FIX: 1                      # 15 Oct ON (user choice, rule not passed): comparison wording finds both films (sealed set: compare route 0/3)
+  WIKI_CTX_KW: 0                    # keyword list over contextual chunks (chunk_context.py fts)
+  # WIKI_KINDS: plot_c,lead_c       # contextual chunk vectors (chunk_context.py); set in search: if adopted
+  REVIEW_FILTER: 1                  # review analysis uses only reviews review_filter.py marks usable
+  ALIASES: 1                        # 15 Oct ON (user choice; test set unmeasured): nicknames / abbreviations expanded before search (aliases.py build first)
+  DYM: 1                            # 15 Oct ON (untested on real data): "did you mean": two close films for a description -> answer + ask
+  SPOILERS: 1                       # 15 Oct ON (untested on real data): keep endings and twists out unless the question asks for them
+  WIKI_CREDIT: 1                    # 15 Oct ON (untested on real data): website appends Wikipedia links + CC BY-SA credit after the answer
+  # MOCK: off                       # off | fake | replay | record (mock_llm.py); leave off on the server
+  # The adapter rebuild (rebuild_adapter.sh) does not change this file: a promoted adapter is named in
+  # live_model.yaml (ANSWER_MODEL), which overrides the ANSWER_MODEL above.
+
+v5:
+  # 15 Oct evening. Off until run_v5.sh's rules pass (rules at the top of run_v5.sh).
+  PERF: 0                           # box-office model block (performance.py fit) for why / hit-or-flop questions
+  CRITIC_SCORES: 1                  # Rotten Tomatoes / Metacritic / CinemaScore numbers (money_extra.py critics)
+  MONEY_REAL: 1                     # budget and gross in today's dollars (money_extra.py real)

@@ -1,0 +1,87 @@
+v5 summary  Thu Oct 15 09:05:04 PM EDT 2026
+
+--- money + critic scores
+money_extra report 2026-10-16T00:38:19+00:00
+films with budget AND gross: 12,265 (396 of them only thanks to a converted figure; 11,869 with US-dollar figures alone)
+  converted rows from wikidata_fx: 821 films
+  converted rows from wikipedia_infobox_fx: 1,185 films
+today's dollars (2024): 11,344 films with both
+critic scores from Wikipedia reception text: 10,878 films (Rotten Tomatoes 8,401, Metacritic 7,406, CinemaScore 3,008)
+
+Conversions to check by eye (20 random):
+
+--- box-office model
+Box-office performance model pf2 (lightgbm), fitted 2026-10-16T00:38:26+00:00
+target: log(gross / budget); films with budget and gross: 11,050 (train <= 2015: 8,762; test 2016-2019: 1,501; 2020-2023: 787)
+
+held-out 2016-2019      mean abs error (log)  typical miss   Spearman
+  genre median (baseline)         1.430          x 4.18       +0.143
+  linear, before release          1.338          x 3.81       +0.430
+  trees, before, no context       1.262          x 3.53       +0.468
+  trees, before release           1.265          x 3.54       +0.473
+  trees, + reception              1.062          x 2.89       +0.691
+  trees, + reception + news       1.053          x 2.87       +0.700
+
+2020-2023 (pandemic years, reported separately):
+  before   MAE 1.446  Spearman +0.398
+  after    MAE 1.293  Spearman +0.584
+  news     MAE 1.295  Spearman +0.584
+  before_no_context MAE 1.445  Spearman +0.402
+
+before - genre baseline: -0.165 [-0.197, -0.133] (negative = model better)
+before - linear:         -0.074 [-0.098, -0.049]
+with release context - without (pf1): +0.003 [-0.004, +0.010]  -> release context adds measurable information: no
+news - reception only:   -0.009 [-0.016, -0.002]  -> news adds measurable information: YES
+
+release-context features (mean effect size, rank among all before-release features): days to the nearest big holiday 0.052 (#10), same-weekend competition's budgets 0.046 (#12), how this genre usually does in this month 0.025 (#17), big releases the same weekend 0.020 (#20), same-genre films within two weeks 0.018 (#21), horror release vs Halloween 0.018 (#22), big releases in the 10 days before 0.017 (#24), years since the previous film in the series 0.014 (#28), same-genre films in the month before 0.013 (#32), same author's earlier adaptations 0.008 (#38), adapted from a book / comic 0.003 (#41), same author's recent adaptations' returns 0.002 (#42), same author's adaptations in the past year 0.001 (#47), sequel 15+ years later 0.000 (#50)
+reasons stated in Wikipedia box office / release / reception text, share of films citing each:
+  well below expectation (n=2754): audience (who it was for / unfamiliar) 1%, budget / costs 7%, competition 1%, fatigue / saturation 0%, international / China 1%, marketing 2%, pandemic / streaming 3%, rating (R / PG-13) 0%, release timing 3%, reviews / word of mouth 6%, runtime 0%, star / cast 1%
+  well above expectation (n=2789): audience (who it was for / unfamiliar) 0%, budget / costs 1%, competition 1%, fatigue / saturation 0%, international / China 2%, marketing 2%, pandemic / streaming 2%, rating (R / PG-13) 0%, release timing 3%, reviews / word of mouth 7%, runtime 0%, star / cast 2%
+  about as expected (n=4111): audience (who it was for / unfamiliar) 1%, budget / costs 4%, competition 1%, fatigue / saturation 0%, international / China 2%, marketing 3%, pandemic / streaming 2%, rating (R / PG-13) 0%, release timing 3%, reviews / word of mouth 6%, runtime 0%, star / cast 1%
+most influential (before): running time 0.205, lead actors' earlier returns 0.155, budget 0.148, director's earlier returns 0.085, the franchise's earlier returns 0.085, comedy genre 0.079, drama genre 0.077, US production 0.075
+most influential (after): positive share of review comments 0.323, CinemaScore grade 0.231, budget 0.225, TMDB rating 0.220, lead actors' earlier returns 0.150, release year 0.136, English-language 0.123, drama genre 0.094
+most influential (news): positive share of review comments 0.327, CinemaScore grade 0.231, budget 0.224, TMDB rating 0.224, lead actors' earlier returns 0.153, English-language 0.125, release year 0.112, comedy genre 0.094
+
+rule (a) MAE >= 5% below baseline with CI excluding 0: PASS (11.6% lower)
+rule (b) Spearman >= 0.30: PASS
+rule (c) answers: run eval_v3 --category why --answers PERF=0 vs PERF=1 (run_v5.sh perfeval)
+model part of the rule: PASS
+
+Limits: films with both budget and gross are mostly wide releases with Wikipedia/TMDB coverage, so the model describes those, not every film. Budgets are reported figures (marketing not included). Contributions are associations across films, not causes.
+
+--- news era x stance
+Era x stance: does a film's side on a theme matter more when that theme dominates the news? (2026-10-15, ne1)
+success = return relative to films of the same genre and year (news.py); era = z-score of the theme's share of that year's headlines within each kind of source; heavy / light = top / bottom third of the era z of that theme's films.
+effect = (critical films, heavy - light years) - (celebratory films, heavy - light years), in log return; +0.69 would mean critical films gained about twice as much relative to their peers.
+Rule (written before results): an effect counts only if its 95% CI excludes 0 and every cell has 30+ films.
+
+theme         n films   crit hi/lo   cel hi/lo   effect             95% CI  verdict
+war              1945   559/601     100/81     -0.073  [-0.557, +0.424]  no evidence
+terrorism         219    65/57        8/16     +0.197  [-1.240, +1.894]  too few films per cell (<30): no evidence
+economy           184    57/60        4/2      +1.505  [-0.788, +4.472]  too few films per cell (<30): no evidence
+politics          276    92/90        4/4      +0.854  [-0.921, +2.456]  too few films per cell (<30): no evidence
+disease            98    29/30        7/5      +0.291  [-1.459, +1.992]  too few films per cell (<30): no evidence
+disaster          368    92/96       32/29     -0.362  [-1.111, +0.376]  too few films per cell (<30): no evidence
+space             275    55/53       39/40     +0.079  [-0.739, +0.947]  no evidence
+technology        345   101/105      19/10     +0.265  [-0.522, +1.189]  too few films per cell (<30): no evidence
+civil_rights      392    82/76       49/57     +0.732  [-0.144, +1.576]  no evidence
+
+--- recent films
+recent films (from 2023) not yet in the catalogue: 0
+  Wikipedia lookups none: 848
+  Wikipedia lookups ok: 1,333
+added to the catalogue: 2,181 (1,333 with Wikipedia text)
+    2023: 381
+    2024: 576
+    2025: 504
+    2026: 711
+
+--- nicknames (years fixed): off 0/15 -> on 0/15 (rule: +5)
+
+--- answers + judge, why / compare / reviews
+  v5_an_off   {'pass': 15, 'judged': 15, 'grounded': 5.0, 'cats': {'compare': [4, 4], 'reviews': [4, 4], 'why': [7, 7]}}
+  v5_an_perf  {'pass': 15, 'judged': 15, 'grounded': 4.87, 'cats': {'compare': [4, 4], 'reviews': [4, 4], 'why': [7, 7]}}
+  v5_an_all   {'pass': 15, 'judged': 15, 'grounded': 4.87, 'cats': {'compare': [4, 4], 'reviews': [4, 4], 'why': [7, 7]}}
+
+PERF: model part PASS; answers FAIL -> keep PERF=0
+CRITIC_SCORES + MONEY_REAL: ADOPT

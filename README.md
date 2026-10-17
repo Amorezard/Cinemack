@@ -49,6 +49,31 @@ and `eval_v3.py` (`sets/analytic.json`: route, data in context, answers + judge)
 `python feedback.py stats|list|review|export` (`logs/feedback.db`; only reviewed rows are ever exported).
 Experiments: `summarize.py eval` (flat passages vs summary-first) and `personal.py eval` (MovieLens leave-out).
 
+## v4 (from 14 Oct; GPU free again)
+
+`run_v4.sh` runs everything below with decision rules written before the results; every new
+behaviour is a switch in `config.yaml` (`v4:`), off until its rule passes.
+
+| Piece | File | What it does |
+|---|---|---|
+| Contextual chunks | `chunk_context.py` | Jackson Higgins' method: llama3.2 writes a context line, topics and keywords for every Wikipedia passage; the passage is embedded and keyword-indexed with them (`WIKI_KINDS=plot_c,lead_c`, `WIKI_CTX_KW=1`). The text shown to the models is unchanged. A sample test (per-retriever hit@k / MRR, plain vs contextual) decides whether the full ~25k-call run happens. |
+| Liked-answer filter | `like_filter.py` | Screens thumbs-up answers before they can become training data: relevance to the question, grounding in the answer's own context, numbers not in the context, the user's next message correcting it, duplicates, contradicting thumbs-down, one browser's share, optional llama3.2 check. `auto_accept` / `needs_review` / `auto_reject`; thresholds calibrated on judged answers (`calibrate`). |
+| Nightly adapter rebuild | `rebuild_adapter.sh`, `adapter_data.py`, `train_adapter.py` | Each night: filter likes, build the training set (persona + written + liked + corrected + distilled, minus anything older than 90 days or overlapping an evaluation set), skip unless 50+ new examples, train the LoRA, `ollama create movie-buff-aYYYYMMDD`, test against the live model (analytic answers + judge, retrieval check set), promote through `live_model.yaml` only if it wins, keep the newest 3 adapters and remove the rest. Settings in `adapter.env`. |
+| News at release | `news.py` | NYT Archive front pages + Wikipedia event lists around each film's release; related headlines, topic overlap vs control windows, news themes, links the film's own Wikipedia text states, and a corpus-wide test of whether on-topic news goes with box-office return relative to similar films (`NEWS=1`). |
+| Success measures | `tools.py` | Money / reception / recognition measured against films of the same genre and year, plus a thin-evidence line under 10 analysed reviews (`SUCCESS=1`). |
+| Route fix | `tools.py` | Comparison wording finds both films even when retrieval returned one (`ROUTE_FIX=1`). |
+| Review pipeline | `review_filter.py`, `reviews_analyze.py` | Small-model troll/spam check after the rule checks; review analysis uses only usable reviews and no longer truncates its JSON (`REVIEW_NUM_PREDICT`). |
+| Mock client | `mock_llm.py` | `MOCK=replay` replays recorded model calls from `results/llm_cache.sqlite`, `MOCK=fake` fakes the rest, so the pipeline runs on a laptop without Ollama. |
+
+```bash
+python news.py fetch --source wiki --from 1925 && python news.py embed && python news.py films && python news.py analyze
+python news.py show "Jaws"                         # the block the answer model sees
+python like_filter.py run && python like_filter.py report
+bash rebuild_adapter.sh dry                        # the nightly steps without training
+bash rebuild_adapter.sh list | rollback            # adapters built, and going back one
+MOCK=fake python mb.py ask "that movie with the shark"
+```
+
 ## Quick start (a machine that already has the data)
 
 ```bash
@@ -154,11 +179,14 @@ two runs question by question.
 | `build_db.py`, `fetch_credits.py`, `rebuild_embeddings.py`, `build_plot_vectors.py`, `build_fts.py` | TMDB database |
 | `stage_scores.py`, `compare_stage.py`, `judge.py`, `factcheck.py` | Evaluation |
 | `run_e*.sh` | The experiments, each writing `results/eN_summary.txt` |
+| `run_v4.sh` | v4 steps and their decision rules (`results/v4_summary.txt`) |
 
 ## Data and licences
 
 Film records: TMDB (via the Kaggle "TMDB movies dataset", and in v3 the TMDB API: details, credits,
 user reviews, current and upcoming films); this product uses the TMDB API but is not endorsed or
 certified by TMDB. Wikipedia text: the TREC Tip-of-the-Tongue 2023 corpus, CC BY-SA. Film links,
-awards, box office and cost: Wikidata (CC0). Audience ratings: MovieLens (F. Maxwell Harper and
+awards, box office and cost: Wikidata (CC0). News headlines (v4): The New York Times Archive API
+("Data provided by The New York Times"; headline, abstract, date and link only) and Wikipedia's dated
+event lists (CC BY-SA). Audience ratings: MovieLens (F. Maxwell Harper and
 Joseph A. Konstan, 2015, ACM TiiS 5(4)), used under the GroupLens licence.
