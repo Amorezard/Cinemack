@@ -42,10 +42,24 @@ Added 23 Sep 2026:
              and reopening a chat restores its conversation state.
   /how       the How It Works page (how.html); /api/stats serves
              ../results/site_stats.json for its numbers, if present.
+  v6 (20 Oct) film cards carry posters, runtime, critic scores, IMDb rating and the person's own
+             choice (web/film_info.py, from facts.db tables filled by fetch_v6_data.py);
+             GET /api/film/{id} feeds the film panel; POST /api/film takes a `choice`
+             (liked / not / unseen / want / "") for the four labelled taste buttons;
+             the sources event carries the planner's `intent` so the page can offer
+             follow-up chips; /about holds the TMDB, Wikipedia and IMDb credits.
+  v6 (21 Oct) accounts (web/accounts.py): sign up / log in / log out / delete, a session cookie,
+             and "keep this browser's history" on sign-up. Everything per person is keyed by
+             user_of(): the account ("acct<id>") when signed in, else the browser id.
+             Settings and onboarding (web/user_prefs.py): style lines added to the answer prompt,
+             genre / year / runtime limits applied in code to recommendations.
+             Memory (web/memory.py): a notepad of facts the person told Movie Buff, in every
+             prompt; X-MB-Private: 1 = a private chat (not saved, nothing remembered or used).
 """
 
 import asyncio
 import hmac
+import hashlib
 import json
 import os
 import threading
@@ -55,16 +69,83 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import List, Optional
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 import pipeline
 import chats
+import film_info
+import links          # v6 (20 Oct night): trailer / review / box-office / where-to-watch links
+import accounts
+import user_prefs
+import memory
 
 import sys
 if str(pipeline.RAG_DIR) not in sys.path:      # feedback.py / personal.py live next to chat.py
     sys.path.insert(0, str(pipeline.RAG_DIR))
+
+# v6: recommendations obey each person's genre / year / runtime limits before the prompt is built,
+# and a search cached for one set of limits is never reused for another.
+user_prefs.install(getattr(pipeline, "chat", None))
+if hasattr(pipeline, "user_tag") and not getattr(pipeline.user_tag, "_mb_v6", False):
+    _orig_user_tag = pipeline.user_tag
+
+    def _user_tag_v6(user):
+        base = _orig_user_tag(user)
+        try:
+            ft = user_prefs.filter_tag(user_prefs.load(user)["settings"]) if user else ""
+        except Exception:  # noqa: BLE001
+            ft = ""
+        try:                                   # 21 Oct: the planner sees the person's films, so they key the search
+            pb = user_prefs.past_films_block(user) if (user and PLAN_PAST) else ""
+        except Exception:  # noqa: BLE001
+            pb = ""
+        if pb:
+            ft = f"{ft}|p{hashlib.sha1(pb.encode()).hexdigest()[:8]}"
+        return f"{base}|{ft}" if ft else base
+    _user_tag_v6._mb_v6 = True
+    pipeline.user_tag = _user_tag_v6
+
+# 21 Oct: the answer length setting is also a hard cap (Ollama num_predict) on the answer itself. pipeline.py
+# builds the answer's options with _opts() (no argument; the warm-up passes its own num_predict), so the cap is
+# added there for the one question being answered. Thinking mode is never capped.
+if hasattr(pipeline, "_opts") and not getattr(pipeline._opts, "_mb_cap", False):
+    _orig_opts = pipeline._opts
+
+    def _opts_capped(extra=None):
+        o = _orig_opts(extra)
+        n = user_prefs.CURRENT.get("num_predict")
+        if n and extra is None and "num_predict" not in (o or {}):
+            o = dict(o or {}, num_predict=n)
+        return o
+    _opts_capped._mb_cap = True
+    pipeline._opts = _opts_capped
+
+PLAN_PAST = os.environ.get("PLAN_PAST", "1") == "1"      # the person's films in the planner's prompt (web only)
+
+
+def _request_context(prefs, user, private):
+    """21 Oct: per-person settings that reach tools.py (money / critic lines) and the planner (their films)
+    for the one question being answered. Returns a function that clears them again."""
+    mods = []
+    try:
+        import tools as _tools
+        _tools.REQUEST["hide"] = user_prefs.tools_hide(prefs)
+        mods.append(lambda: _tools.REQUEST.update(hide=set()))
+    except Exception:  # noqa: BLE001 - MOCK mode has no tools.py
+        pass
+    try:
+        import retrieve as _R
+        _R.PERSON["block"] = user_prefs.past_films_block(user) if (user and PLAN_PAST and not private) else ""
+        mods.append(lambda: _R.PERSON.update(block=""))
+    except Exception:  # noqa: BLE001
+        pass
+
+    def clear():
+        for f in mods:
+            f()
+    return clear
 
 HERE = Path(__file__).resolve().parent
 MAX_QUESTION_CHARS = 2000
@@ -131,6 +212,23 @@ def how():
     return FileResponse(HERE / "how.html", headers={"Cache-Control": "no-store"})
 
 
+@app.get("/about")
+def about():
+    return FileResponse(HERE / "about.html", headers={"Cache-Control": "no-store"})
+
+
+STATIC = HERE / "static"
+
+
+@app.get("/static/{name}")
+def static_file(name: str):
+    """web/static/: the TMDB logo for the About page. Plain file names only."""
+    p = (STATIC / name).resolve()
+    if p.parent != STATIC.resolve() or not p.is_file():
+        return JSONResponse({"error": "not found"}, status_code=404)
+    return FileResponse(p, headers={"Cache-Control": "max-age=86400"})
+
+
 @app.get("/api/stats")
 def stats():
     try:
@@ -151,11 +249,30 @@ RECENT = {}
 RECENT_MAX = 2000
 
 
-def user_of(request):
-    """Anonymous browser id from the page (localStorage), for the taste profile and the
-    per-user feedback cap. Not an account; nothing personal is stored with it."""
+def browser_of(request):
+    """Anonymous browser id from the page (localStorage)."""
     u = request.headers.get("x-mb-user", "")[:64]
     return "".join(ch for ch in u if ch.isalnum() or ch in "-_")
+
+
+def account_of(request):
+    """v6: the signed-in account (session cookie), or None."""
+    try:
+        return accounts.account_for(request.cookies.get(accounts.COOKIE, ""))
+    except Exception as e:  # noqa: BLE001
+        print(f"[movie-buff] session check failed: {e!r}", flush=True)
+        return None
+
+
+def user_of(request):
+    """The key all per-person data is stored under: "acct<id>" when signed in (v6), otherwise the
+    anonymous browser id, for the taste profile, chats, settings, memory and the feedback cap."""
+    a = account_of(request)
+    return accounts.user_key(a["id"]) if a else browser_of(request)
+
+
+def private_of(request):
+    return request.headers.get("x-mb-private", "") == "1"
 
 
 @app.post("/api/feedback")
@@ -177,25 +294,51 @@ async def feedback(fb: Feedback, request: Request):
 class FilmPref(BaseModel):
     id: int
     title: str = ""
-    signal: int              # 1 liked the film, -1 not for me, 0 undo
+    signal: int = 0          # v3: 1 liked the film, -1 not for me, 0 undo
+    choice: Optional[str] = None   # v6: "liked" | "not" | "unseen" | "want" | "" (clear); wins over signal
     message_id: str = ""
 
 
 @app.post("/api/film")
 async def film_pref(fp: FilmPref, request: Request):
-    """v3: "I liked this film" - a film preference, kept apart from answer feedback (personal.py)."""
+    """A film preference, kept apart from answer feedback. v3: liked / not for me (personal.py).
+    v6: four labelled choices, one per film (film_info.choose); the reply says where it was saved."""
     if not code_ok(request):
         return JSONResponse({"error": "Wrong or missing access code."}, status_code=401)
     user = user_of(request)
-    if not user or fp.signal not in (-1, 0, 1):
-        return JSONResponse({"error": "need a user id and signal -1, 0 or 1"}, status_code=400)
+    if not user:
+        return JSONResponse({"error": "need a user id"}, status_code=400)
+    choice = fp.choice
+    if choice is None:
+        if fp.signal not in (-1, 0, 1):
+            return JSONResponse({"error": "signal must be -1, 0 or 1"}, status_code=400)
+        choice = {1: "liked", -1: "not", 0: ""}[fp.signal]
+    if choice not in film_info.CHOICES + ("",):
+        return JSONResponse({"error": "choice must be liked, not, unseen, want or empty"}, status_code=400)
     try:
-        import personal
-        personal.record_film(user, fp.id, fp.title[:200], fp.signal, "card", fp.message_id[:40])
-        return JSONResponse({"ok": True, "taste": personal.summary(user)})
+        said = film_info.choose(user, fp.id, fp.title[:200], choice, fp.message_id[:40])
+        return JSONResponse({"ok": True, "choice": choice, "message": said})
     except Exception as e:
         print(f"[movie-buff] film preference failed: {e!r}", flush=True)
         return JSONResponse({"error": "couldn't save that"}, status_code=500)
+
+
+@app.get("/api/film/{fid}")
+async def film_detail(fid: int, request: Request):
+    """v6: the film panel (backdrop, cast with photos, budget and gross, links)."""
+    if not code_ok(request):
+        return JSONResponse({"error": "Wrong or missing access code."}, status_code=401)
+    info = await asyncio.get_running_loop().run_in_executor(None, film_info.detail, fid, user_of(request))
+    if not info.get("title"):
+        return JSONResponse(dict(info, error="No details for that film yet."), status_code=404)
+    return JSONResponse(info)
+
+
+@app.get("/api/watchlist")
+async def watchlist(request: Request):
+    if not code_ok(request):
+        return JSONResponse({"error": "Wrong or missing access code."}, status_code=401)
+    return JSONResponse({"films": film_info.watchlist(user_of(request))})
 
 
 @app.get("/api/taste")
@@ -222,6 +365,9 @@ async def chat_open(conv_id: str, request: Request):
     if not code_ok(request):
         return JSONResponse({"error": "Wrong or missing access code."}, status_code=401)
     c = chats.load_chat(user_of(request), conv_id)
+    if c:
+        for t in c.get("turns", []):                  # v6: posters + current choices on reopened chats
+            film_info.enrich(t.get("films") or [], user_of(request))
     return JSONResponse(c) if c else JSONResponse({"error": "No such chat."}, status_code=404)
 
 
@@ -229,7 +375,200 @@ async def chat_open(conv_id: str, request: Request):
 async def chat_delete(conv_id: str, request: Request):
     if not code_ok(request):
         return JSONResponse({"error": "Wrong or missing access code."}, status_code=401)
-    return JSONResponse({"ok": chats.delete_chat(user_of(request), conv_id)})
+    user = user_of(request)
+    ok = chats.delete_chat(user, conv_id)
+    forgot = memory.forget_conv(user, conv_id) if ok else 0     # v6: "forget this chat" includes its facts
+    return JSONResponse({"ok": ok, "forgot_facts": forgot})
+
+
+# ------------------------------------------------------------------ v6: accounts, settings, memory
+def _who(request):
+    """What the page needs to know about the person: account, name, settings, onboarding, greeting."""
+    a = account_of(request)
+    key = accounts.user_key(a["id"]) if a else browser_of(request)
+    prof = user_prefs.load(key)
+    name = prof["display_name"] or (a["display_name"] if a else "")
+    try:
+        greet = user_prefs.greeting(key, name)
+    except Exception as e:  # noqa: BLE001
+        print(f"[movie-buff] greeting failed: {e!r}", flush=True)
+        greet = None
+    return {"account": {"username": a["username"], "display_name": a["display_name"]} if a else None,
+            "name": name, "settings": prof["settings"], "onboarded": prof["onboarded"], "groups": prof["groups"],
+            "greeting": greet, "memory_count": len(memory.notes(key)), "genres": user_prefs.GENRES, "certs": user_prefs.CERTS[:4],
+            "about_max": user_prefs.ABOUT_MAX}
+
+
+def _gate(request):
+    return None if code_ok(request) else JSONResponse({"error": "Wrong or missing access code."}, status_code=401)
+
+
+def _with_session(payload, token):
+    r = JSONResponse(payload)
+    r.set_cookie(accounts.COOKIE, token, max_age=accounts.SESSION_DAYS * 86400, httponly=True, samesite="lax",
+                 secure=False, path="/")     # plain HTTP: the cookie can't be Secure until the site has HTTPS
+    return r
+
+
+@app.get("/api/me")
+async def me(request: Request):
+    if (g := _gate(request)):
+        return g
+    return JSONResponse(await asyncio.get_running_loop().run_in_executor(None, _who, request))
+
+
+class SignUp(BaseModel):
+    username: str
+    password: str
+    display_name: str = ""
+    keep_history: bool = True
+
+
+@app.post("/api/signup")
+async def signup(body: SignUp, request: Request):
+    if (g := _gate(request)):
+        return g
+    loop = asyncio.get_running_loop()
+    try:
+        aid = await loop.run_in_executor(None, accounts.sign_up, body.username, body.password, body.display_name)
+    except accounts.AccountError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    key, guest = accounts.user_key(aid), browser_of(request)
+    moved = accounts.move_data(guest, key) if body.keep_history and guest else {}
+    if body.display_name.strip():
+        user_prefs.save(key, display_name=body.display_name)
+    token = accounts.new_session(aid)
+    request.cookies[accounts.COOKIE] = token                 # so _who sees the new session
+    payload = await loop.run_in_executor(None, _who, request)
+    payload["moved"] = moved
+    return _with_session(payload, token)
+
+
+class LogIn(BaseModel):
+    username: str
+    password: str
+
+
+@app.post("/api/login")
+async def login(body: LogIn, request: Request):
+    if (g := _gate(request)):
+        return g
+    loop = asyncio.get_running_loop()
+    try:
+        aid = await loop.run_in_executor(None, accounts.log_in, body.username, body.password)
+    except accounts.AccountError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    token = accounts.new_session(aid)
+    request.cookies[accounts.COOKIE] = token
+    return _with_session(await loop.run_in_executor(None, _who, request), token)
+
+
+@app.post("/api/logout")
+async def logout(request: Request):
+    accounts.end_session(request.cookies.get(accounts.COOKIE, ""))
+    r = JSONResponse({"ok": True})
+    r.delete_cookie(accounts.COOKIE, path="/")
+    return r
+
+
+class DeleteAccount(BaseModel):
+    password: str
+
+
+@app.post("/api/account/delete")
+async def account_delete(body: DeleteAccount, request: Request):
+    if (g := _gate(request)):
+        return g
+    a = account_of(request)
+    if not a:
+        return JSONResponse({"error": "You're not signed in."}, status_code=400)
+    try:
+        gone = await asyncio.get_running_loop().run_in_executor(None, accounts.delete_account, a["id"], body.password)
+    except accounts.AccountError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    r = JSONResponse({"ok": True, "deleted": gone})
+    r.delete_cookie(accounts.COOKIE, path="/")
+    return r
+
+
+class Settings(BaseModel):
+    settings: Optional[dict] = None
+    name: Optional[str] = None
+
+
+@app.post("/api/settings")
+async def settings_save(body: Settings, request: Request):
+    if (g := _gate(request)):
+        return g
+    key = user_of(request)
+    if not key:
+        return JSONResponse({"error": "need a user id"}, status_code=400)
+    prof = user_prefs.save(key, settings=body.settings, display_name=body.name)
+    return JSONResponse({"ok": True, "settings": prof["settings"], "name": prof["display_name"]})
+
+
+@app.get("/api/onboarding")
+async def onboarding_get(request: Request):
+    if (g := _gate(request)):
+        return g
+    loop = asyncio.get_running_loop()
+    groups = await loop.run_in_executor(None, user_prefs.groups)
+    famous = await loop.run_in_executor(None, user_prefs.famous)
+    film_info.enrich(famous, user_of(request))               # their current choices, if any
+    return JSONResponse({"groups": groups, "films": famous})
+
+
+class Onboarding(BaseModel):
+    name: Optional[str] = None
+    groups: List[str] = []
+    settings: Optional[dict] = None
+
+
+@app.post("/api/onboarding")
+async def onboarding_save(body: Onboarding, request: Request):
+    if (g := _gate(request)):
+        return g
+    key = user_of(request)
+    if not key:
+        return JSONResponse({"error": "need a user id"}, status_code=400)
+    try:
+        user_prefs.set_groups(key, body.groups[:20])
+    except Exception as e:  # noqa: BLE001
+        print(f"[movie-buff] onboarding groups failed: {e!r}", flush=True)
+    user_prefs.save(key, settings=body.settings, display_name=body.name, onboarded=True)
+    return JSONResponse(await asyncio.get_running_loop().run_in_executor(None, _who, request))
+
+
+@app.get("/api/memory")
+async def memory_list(request: Request):
+    if (g := _gate(request)):
+        return g
+    return JSONResponse({"notes": memory.notes(user_of(request))})
+
+
+class NoteEdit(BaseModel):
+    text: str
+
+
+@app.patch("/api/memory/{note_id}")
+async def memory_edit(note_id: int, body: NoteEdit, request: Request):
+    if (g := _gate(request)):
+        return g
+    return JSONResponse({"ok": memory.edit(user_of(request), note_id, body.text)})
+
+
+@app.delete("/api/memory/{note_id}")
+async def memory_delete(note_id: int, request: Request):
+    if (g := _gate(request)):
+        return g
+    return JSONResponse({"ok": memory.delete(user_of(request), note_id)})
+
+
+@app.delete("/api/memory")
+async def memory_clear(request: Request):
+    if (g := _gate(request)):
+        return g
+    return JSONResponse({"ok": True, "deleted": memory.clear(user_of(request))})
 
 
 @app.get("/api/health")
@@ -265,7 +604,19 @@ async def chat(req: ChatRequest, request: Request):
         conv_in = None                     # a client sending junk gets a fresh conversation
     user = user_of(request)
     conv_id = request.headers.get("x-mb-conv", "")[:40]
+    private = private_of(request)                       # v6: private chat - not saved, no memory either way
+    prefs = user_prefs.load(user)["settings"]
+    mem_on = bool(prefs.get("memory")) and not private
     utag = pipeline.user_tag(user) if hasattr(pipeline, "user_tag") else ""
+    rec_block, rec_tag = "", ""
+    if mem_on and prefs.get("recall", True):
+        try:                                   # 21 Oct: relevant exchanges from the person's other chats
+            rec_block, rec_tag = memory.recall_block(user, question, conv_id)
+        except Exception as e:  # noqa: BLE001
+            print(f"[movie-buff] recall failed: {e!r}", flush=True)
+    extra_tag = "|".join(t for t in (user_prefs.tag(prefs), memory.tag(user) if mem_on else "", rec_tag) if t)
+    if extra_tag:
+        utag = f"{utag}|{extra_tag}"
     key = site_cache.answer_key(question, req.recent_titles, history, conv_in, utag)
     hit = None if req.think else site_cache.get_answer(key)
 
@@ -274,17 +625,31 @@ async def chat(req: ChatRequest, request: Request):
         # the stored answer, no GPU needed. Now kept on disk and matched after
         # normalizing (web/site_cache.py).
         src, done = hit
+        src = dict(src, films=film_info.enrich([dict(f) for f in src.get("films") or []], user))
 
         async def replay():
             yield sse("sources", **dict(src, id=rid))
             yield sse("status", stage="answering")
             yield sse("token", text=done["answer"])
+            lk = links.for_answer(question, src.get("films"), src.get("intent"), done.get("answer", ""))
+            if lk:
+                yield sse("links", groups=lk)
             yield sse("done", **dict(done, id=rid, cached=True,
                                      timings={"total_s": 0.0, "retrieve_s": 0.0, "first_text_s": 0.0}))
+            if mem_on and memory.FIRST_PERSON.search(question):   # v6: a replayed answer still learns the facts
+                try:
+                    async with gpu_lock:
+                        added = await asyncio.get_running_loop().run_in_executor(
+                            None, lambda: memory.remember(user, question, conv_id, mock=getattr(pipeline, "MOCK", False)))
+                    if added:
+                        yield sse("memory", added=added)
+                except Exception as e:  # noqa: BLE001
+                    print(f"[movie-buff] memory failed: {e!r}", flush=True)
         log_line("requests", {"time": time.strftime("%Y-%m-%d %H:%M:%S"), "id": rid,
                               "question": question, "cached": True})
-        chats.save_turn(user, conv_id, question, done.get("answer", ""), src.get("films"),
-                        done.get("recent_titles"), done.get("conv"), rid, cached=True)
+        if not private:
+            chats.save_turn(user, conv_id, question, done.get("answer", ""), src.get("films"),
+                            done.get("recent_titles"), done.get("conv"), rid, cached=True)
         return StreamingResponse(replay(), media_type="text/event-stream",
                                  headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
@@ -303,11 +668,25 @@ async def chat(req: ChatRequest, request: Request):
         def work():
             t0 = time.perf_counter()
             put(sse("status", stage="searching"))
-            prompt, hits = pipeline.prepare(question, req.recent_titles, conv_in, user)
+            user_prefs.CURRENT["settings"] = prefs           # v6: the person's limits, for chat._personalize
+            clear_ctx = _request_context(prefs, user, private)
+            try:
+                prompt, hits = pipeline.prepare(question, req.recent_titles, conv_in, user)
+            finally:
+                user_prefs.CURRENT["settings"] = None
+                clear_ctx()
             trace = pipeline.last_trace()
             retrieve_s = time.perf_counter() - t0
-            src = dict(films=[pipeline.card(h) for h in hits], steps=pipeline.steps(hits),
-                       alternatives=pipeline.alternatives(hits), retrieve_s=round(retrieve_s, 2))
+            intent = (((hits[0].get("_plan") or {}).get("intent") if hits else None)
+                      or ((trace or {}).get("plan") or {}).get("intent"))
+            if intent == "recommend":
+                hits = user_prefs.filter_hits(prefs, hits)   # already done before the prompt; the cards match
+            prompt += user_prefs.prompt_block(prefs, intent, question)
+            if mem_on:
+                prompt += memory.block(user)
+                prompt += rec_block
+            src = dict(films=film_info.enrich([pipeline.card(h) for h in hits], user), steps=pipeline.steps(hits),
+                       alternatives=pipeline.alternatives(hits), retrieve_s=round(retrieve_s, 2), intent=intent)
             put(sse("sources", id=rid, **src))
             if cancel.is_set():
                 return
@@ -317,15 +696,27 @@ async def chat(req: ChatRequest, request: Request):
             t1 = time.perf_counter()
             first = None
             answer = []
-            for kind, text in pipeline.stream_answer(messages, req.think, cancel):
-                if first is None:
-                    first = time.perf_counter() - t0
-                if kind == "token":
-                    answer.append(text)
-                put(sse(kind, text=text))
+            cap = None if req.think else user_prefs.LENGTH_TOKENS.get(prefs.get("length", "normal"))
+            user_prefs.CURRENT["num_predict"] = cap
+            n_tok = 0
+            try:
+                for kind, text in pipeline.stream_answer(messages, req.think, cancel):
+                    if first is None:
+                        first = time.perf_counter() - t0
+                    if kind == "token":
+                        answer.append(text)
+                        n_tok += 1
+                    put(sse(kind, text=text))
+            finally:
+                user_prefs.CURRENT["num_predict"] = None
+            if cap and n_tok >= cap - 2 and not cancel.is_set():
+                # it stopped at the cap, probably mid-sentence: say so rather than leave it hanging
+                tail = " …\n\n*(Cut short at your answer-length setting. Ask me to go on, or choose a longer length in Settings.)*"
+                answer.append(tail)
+                put(sse("token", text=tail))
 
             final = "".join(answer).strip()
-            if final and not cancel.is_set() and not getattr(pipeline, "MOCK", False):
+            if final and not cancel.is_set() and not getattr(pipeline, "MOCK", False) and prefs.get("sources", True):
                 try:                                   # v4 WIKI_CREDIT=1: sources line added in code
                     import chat as _chat
                     credit = _chat.wiki_credit(hits) if hasattr(_chat, "wiki_credit") else ""
@@ -344,10 +735,21 @@ async def chat(req: ChatRequest, request: Request):
                                  "first_text_s": round(first, 2) if first else None,
                                  "generate_s": round(time.perf_counter() - t1, 2),
                                  "total_s": round(time.perf_counter() - t0, 2)})
+            if final and not cancel.is_set():
+                lk = links.for_answer(question, src["films"], intent, final)
+                if lk:
+                    put(sse("links", groups=lk))
             put(sse("done", id=rid, **done))
-            if final:
+            if final and not private:
                 chats.save_turn(user, conv_id, question, final, src["films"], done["recent_titles"],
                                 done["conv"], rid)
+            if final and mem_on and not cancel.is_set():
+                try:                                       # v6: facts from what the person said (memory.py)
+                    added = memory.remember(user, question, conv_id, mock=getattr(pipeline, "MOCK", False))
+                    if added:
+                        put(sse("memory", added=added))
+                except Exception as e:  # noqa: BLE001
+                    print(f"[movie-buff] memory failed: {e!r}", flush=True)
             if final and not cancel.is_set() and not req.think and hits:
                 site_cache.put_answer(key, question, src, done,
                                       pipeline.last_ttl() if hasattr(pipeline, "last_ttl") else None)
@@ -361,7 +763,7 @@ async def chat(req: ChatRequest, request: Request):
             while len(RECENT) > RECENT_MAX:
                 RECENT.pop(next(iter(RECENT)))
             plan_prefs = ((hits[0].get("_plan") or {}).get("preferences") if hits else None) or []
-            if user and plan_prefs:
+            if user and plan_prefs and not private:
                 try:
                     import personal
                     personal.record_stated(user, plan_prefs)     # "I hate jump scares" -> taste profile

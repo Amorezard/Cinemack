@@ -1,0 +1,68 @@
+v6 night summary  Wed Oct 21 12:35:11 AM EDT 2026
+
+--- free data coverage
+free-data coverage (facts.db; catalogue 32,484 films)
+  tmdb extra checked: 33,437
+  films with a YouTube trailer/teaser: 25,509
+  films with US where-to-watch: 25,023
+  films with a US certification: 19,547
+  omdb: 950 ok; RT 816; Metacritic 739
+    films that had no critic score before: 846
+  guardian reviews: 25,028, matched 14,778 (8,644 films)
+  nyt reviews: 4,574, matched 2,616 (2,565 films)
+  youtube trailers with stats: 25,197; review videos 284; comments 93,314
+  netflix rows: 0 (matched 0)
+  movielens 32M films: 84,275
+
+--- pageviews (fetch_v6_data.py)
+  pageviews: 7,833 films checked, 6,318 with views before release; median 28-day views 7,594
+  meta pageviews_fetched_at = 2026-10-20T18:18:22+00:00
+
+--- box-office model (pf3)
+Box-office performance model pf3 (lightgbm), fitted 2026-10-21T03:39:17+00:00
+target: log(gross / budget); films with budget and gross: 11,016 (train <= 2015: 8,742; test 2016-2019: 1,487; 2020-2023: 787)
+
+held-out 2016-2019      mean abs error (log)  typical miss   Spearman
+  genre median (baseline)         1.432          x 4.19       +0.144
+  linear, before release          1.332          x 3.79       +0.441
+  trees, before, no context       1.255          x 3.51       +0.479
+  trees, before release           1.256          x 3.51       +0.485
+  trees, before + trailers        1.201          x 3.32       +0.560
+  trees, + reception              1.046          x 2.84       +0.708
+  trees, + reception + news       1.042          x 2.83       +0.710
+
+2020-2023 (pandemic years, reported separately):
+  before   MAE 1.440  Spearman +0.399
+  after    MAE 1.284  Spearman +0.599
+  news     MAE 1.281  Spearman +0.597
+  before_no_context MAE 1.439  Spearman +0.403
+  before_trailer MAE 1.437  Spearman +0.462
+
+before - genre baseline: -0.176 [-0.210, -0.144] (negative = model better)
+before - linear:         -0.076 [-0.099, -0.053]
+with release context - without (pf1): +0.001 [-0.007, +0.008]  -> release context adds measurable information: no
+with trailer timing - without (pf3): -0.055 [-0.069, -0.041]  -> adds measurable information: YES (used per film)  (films with trailer data: train 3387, test 1487)
+pre-release Wikipedia views, 5-fold CV on 1723 films 2016-2023: MAE 1.178 -> 1.148, diff -0.030 [-0.043, -0.017]  -> adds measurable information: YES (reported only)
+news - reception only:   -0.003 [-0.008, +0.002]  -> news adds measurable information: no
+
+release-context features (mean effect size, rank among all before-release features): days to the nearest big holiday 0.055 (#10), same-weekend competition's budgets 0.043 (#12), how this genre usually does in this month 0.030 (#15), big releases the same weekend 0.025 (#18), horror release vs Halloween 0.022 (#20), same-genre films within two weeks 0.018 (#22), big releases in the 10 days before 0.017 (#23), same-genre films in the month before 0.015 (#28), years since the previous film in the series 0.012 (#33), same author's earlier adaptations 0.008 (#35), adapted from a book / comic 0.002 (#41), same author's recent adaptations' returns 0.002 (#43), same author's adaptations in the past year 0.001 (#44), sequel 15+ years later 0.000 (#50)
+reasons stated in Wikipedia box office / release / reception text, share of films citing each:
+  well below expectation (n=2844): audience (who it was for / unfamiliar) 1%, budget / costs 6%, competition 1%, fatigue / saturation 0%, international / China 1%, marketing 2%, pandemic / streaming 3%, rating (R / PG-13) 0%, release timing 3%, reviews / word of mouth 6%, runtime 0%, star / cast 1%
+  well above expectation (n=2923): audience (who it was for / unfamiliar) 0%, budget / costs 1%, competition 1%, fatigue / saturation 0%, international / China 2%, marketing 2%, pandemic / streaming 2%, rating (R / PG-13) 0%, release timing 3%, reviews / word of mouth 7%, runtime 0%, star / cast 1%
+  about as expected (n=4294): audience (who it was for / unfamiliar) 1%, budget / costs 4%, competition 2%, fatigue / saturation 0%, international / China 2%, marketing 3%, pandemic / streaming 2%, rating (R / PG-13) 0%, release timing 4%, reviews / word of mouth 6%, runtime 0%, star / cast 1%
+most influential (before): running time 0.209, lead actors' earlier returns 0.153, budget 0.147, director's earlier returns 0.087, the franchise's earlier returns 0.085, US production 0.080, drama genre 0.079, comedy genre 0.077
+most influential (after): positive share of review comments 0.321, CinemaScore grade 0.234, budget 0.228, TMDB rating 0.220, release year 0.158, lead actors' earlier returns 0.151, English-language 0.130, Metacritic score 0.116
+most influential (news): positive share of review comments 0.314, CinemaScore grade 0.240, budget 0.228, TMDB rating 0.216, lead actors' earlier returns 0.151, release year 0.136, English-language 0.126, Metacritic score 0.113
+
+rule (a) MAE >= 5% below baseline with CI excluding 0: PASS (12.3% lower)
+rule (b) Spearman >= 0.30: PASS
+rule (c) answers: run eval_v3 --category why --answers PERF=0 vs PERF=1 (run_v5.sh perfeval)
+model part of the rule: PASS
+
+Limits: films with both budget and gross are mostly wide releases with Wikipedia/TMDB coverage, so the model describes those, not every film. Budgets are reported figures (marketing not included). Contributions are associations across films, not causes.
+
+--- answers + judge (why, compare, reviews, factual, detail)
+  EXTRA_DATA=0  {'pass': 24, 'judged': 26, 'grounded': 4.69, 'cats': {'factual': [5, 7], 'detail': [4, 4], 'compare': [4, 4], 'reviews': [4, 4], 'why': [7, 7]}}
+  EXTRA_DATA=1  {'pass': 24, 'judged': 26, 'grounded': 4.69, 'cats': {'factual': [5, 7], 'detail': [4, 4], 'compare': [4, 4], 'reviews': [4, 4], 'why': [7, 7]}}
+
+EXTRA_DATA: KEEP ON (rule passed)

@@ -670,6 +670,9 @@ def parse_filters(question):
             y = int(m.group(1))
             f["year_min"], f["year_max"] = y, y
 
+    if DATE_WORDS:
+        _date_words(q, f)
+
     genres = []
     for word, genre in GENRE_WORDS.items():
         if genre not in genres and genre_is_a_filter(q, word):
@@ -678,6 +681,81 @@ def parse_filters(question):
         f["genres"] = genres
 
     return f
+
+
+# 21 Oct, DATE_WORDS=1 (off by default; tested on tune/check before switching on):
+#   "early/mid/late 90s" narrow a decade; "seventies", "noughties"... are decades; "in the last 5 years",
+#   "past decade", "last year", "this year" are ranges ending now. Words that are about WHEN the film came out
+#   only in a request ("recent", "new", "latest", "nowadays", "old", "classic Hollywood") count only when the
+#   question asks for recommendations: in a description "I saw it recently" is about the viewing, not the film.
+DATE_WORDS = _os_m.environ.get("DATE_WORDS", "0") == "1"
+_DECADE_WORDS = {"twenties": 1920, "thirties": 1930, "forties": 1940, "fifties": 1950, "sixties": 1960,
+                 "seventies": 1970, "eighties": 1980, "nineties": 1990, "noughties": 2000, "aughts": 2000,
+                 "two thousands": 2000, "twenty tens": 2010, "twenty twenties": 2020}
+_R_PART = re.compile(r"\b(early|mid|late)[- ]?(?:'|19|20)?(\d0)s\b|\b(early|mid|late)[- ](twenties|thirties|forties|"
+                     r"fifties|sixties|seventies|eighties|nineties|noughties)\b")
+_R_LASTN = re.compile(r"\b(?:in |from |over )?(?:the )?(?:last|past) (\d{1,2}|two|three|four|five|six|seven|eight|nine|ten|"
+                      r"few|couple of) years\b")
+_NUMW = {"two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+         "few": 4, "couple of": 2}
+_R_RECENT = re.compile(r"\b(recent(ly)?|newer|newest|latest|new (movies|films|releases|ones)|modern|lately|nowadays|"
+                       r"these days|current(ly)?|this decade)\b")
+_R_OLD = re.compile(r"\b(old(er)? (movies|films|ones|classics)|vintage|golden age|classic hollywood|black[- ]and[- ]white "
+                    r"(movies|films)|silent (movies|films|era))\b")
+
+
+def _is_age(q, pos):
+    return bool(re.search(r"\b(his|her|their|my|your|our|in (his|her|their)) (early |mid |late |mid-)?$", q[max(0, pos - 25):pos]))
+
+
+def _decade_start(two_digits):
+    d = int(two_digits)
+    return (1900 if d >= 20 else 2000) + d
+
+
+def _date_words(q, f):
+    """Adds year_min / year_max from date words (see DATE_WORDS). Changes nothing when a year is already set,
+    except to narrow a decade with early / mid / late."""
+    for word, rng in DECADES.items():                 # the older decade rule also read ages as decades
+        mm = re.search(rf"\b{re.escape(word)}\b", q)
+        if mm and _is_age(q, mm.start()) and (f.get("year_min"), f.get("year_max")) == rng:
+            f.pop("year_min", None)
+            f.pop("year_max", None)
+    m = _R_PART.search(q)
+    if m and _is_age(q, m.start()):
+        m = None                                   # "a woman in her early 20s" is an age, not a decade
+    if m:
+        part = m.group(1) or m.group(3)
+        lo = _decade_start(m.group(2)) if m.group(2) else _DECADE_WORDS[m.group(4)]
+        a, b = {"early": (0, 3), "mid": (3, 6), "late": (6, 9)}[part]
+        f["year_min"], f["year_max"] = lo + a, lo + b
+        return
+    if f.get("year_min"):
+        return
+    for word, lo in _DECADE_WORDS.items():
+        mm = re.search(rf"\b{word}\b", q)
+        if mm and not _is_age(q, mm.start()):
+            f["year_min"], f["year_max"] = lo, lo + 9
+            return
+    m = _R_LASTN.search(q)
+    if m:
+        n = _NUMW.get(m.group(1)) or int(m.group(1))
+        f["year_min"], f["year_max"] = CURRENT_YEAR - n, CURRENT_YEAR
+        return
+    if re.search(r"\b(last|past|previous) decade\b", q):
+        f["year_min"], f["year_max"] = CURRENT_YEAR - 10, CURRENT_YEAR
+        return
+    if re.search(r"\blast year\b", q):
+        f["year_min"] = f["year_max"] = CURRENT_YEAR - 1
+        return
+    if re.search(r"\bthis year\b", q):
+        f["year_min"] = f["year_max"] = CURRENT_YEAR
+        return
+    if is_recommendation(q):
+        if _R_RECENT.search(q):
+            f["year_min"], f["year_max"] = CURRENT_YEAR - 5, CURRENT_YEAR
+        elif _R_OLD.search(q):
+            f["year_min"], f["year_max"] = 1900, 1969 if re.search(r"golden age|classic hollywood|black[- ]and[- ]white|silent", q) else 1979
 
 
 def genre_is_a_filter(q, word):
@@ -839,6 +917,85 @@ def backfill(conn, filters, need, exclude_ids):
             "text": row[6], "vote_count": row[7] or 0,
             "distance": None,  # ranked by popularity, not vector distance
         })
+        if len(out) >= need:
+            break
+    return out
+
+
+# ---------------------------------------------------------------- 21 Oct: DISCOVER=1 (off by default)
+# Recommendations that say what KIND of pick they want. "Lesser known" beats "highly rated" when both appear
+# ("underrated gems that critics loved" = obscure, ranked by rating).
+DISCOVER = _os_m.environ.get("DISCOVER", "0") == "1"
+R_OBSCURE = re.compile(r"\b(lesser[- ]known|little[- ]known|less[- ]known|hidden gems?|gems?|underrated|under[- ]the[- ]radar|"
+                       r"obscure|overlooked|under-?seen|under-?appreciated|not (very |that |too )?(well[- ]known|popular|"
+                       r"famous|mainstream)|haven'?t heard of|never heard of|deep cuts?|off the beaten path|niche|indie)\b", re.I)
+R_QUALITY = re.compile(r"\b((highly|top|best|well|critically|universally)[- ](rated|reviewed|regarded|acclaimed|received)|"
+                       r"acclaimed|masterpieces?|greatest|the best|best[- ]ever|all[- ]time|award[- ]winning|"
+                       r"oscar[- ]winning|must[- ]see|essential)\b", re.I)
+R_BROWSE = re.compile(r"\b(what|which|any|list|name|show me|give me)\b.{0,40}\b(movies|films)\b.{0,30}\b(came out|"
+                      r"released|were out|from|of|in)\b|\b(movies|films) (from|of|released in|that came out in)\b", re.I)
+QUALITY_PRIOR_VOTES, QUALITY_PRIOR_MEAN = 500, 6.4   # vote-weighted rating: (v*R + m*C) / (v + m)
+QUALITY_MIN_VOTES = 200
+OBSCURE_MIN_VOTES, OBSCURE_MAX_VOTES, OBSCURE_MIN_RATING = 60, 2500, 6.8
+
+
+def taste_mode(question):
+    q = question or ""
+    if R_OBSCURE.search(q):
+        return "obscure"
+    if R_QUALITY.search(q):
+        return "quality"
+    return None
+
+
+def _bayes(va, vc):
+    va, vc = float(va or 0), float(vc or 0)
+    return (vc * va + QUALITY_PRIOR_VOTES * QUALITY_PRIOR_MEAN) / (vc + QUALITY_PRIOR_VOTES)
+
+
+def discover_rank(conn, hits, mode):
+    """Re-orders (quality) or filters + re-orders (obscure) a recommendation pool by TMDB rating and votes."""
+    ids = [h["id"] for h in hits]
+    if not ids:
+        return hits
+    rows = dict((r[0], (r[1], r[2])) for r in conn.execute(
+        "SELECT id, vote_average, vote_count FROM movies WHERE id IN (%s)" % ",".join("?" * len(ids)), ids))
+    for h in hits:
+        va, vc = rows.get(h["id"], (None, h.get("vote_count")))
+        h["_va"], h["_vc"] = va or 0, vc or 0
+    if mode == "quality":
+        good = [h for h in hits if h["_vc"] >= QUALITY_MIN_VOTES]
+        good.sort(key=lambda h: -_bayes(h["_va"], h["_vc"]))
+        return good + [h for h in hits if h["_vc"] < QUALITY_MIN_VOTES]
+    keep = [h for h in hits if OBSCURE_MIN_VOTES <= h["_vc"] <= OBSCURE_MAX_VOTES and h["_va"] >= OBSCURE_MIN_RATING]
+    keep.sort(key=lambda h: (-round(h["_va"], 1), -h["_vc"]))
+    return keep
+
+
+def backfill_discover(conn, filters, need, exclude_ids, mode):
+    """backfill() for DISCOVER modes: the best-rated films matching the year / genre filters, from the catalogue."""
+    lo = filters.get("year_min", 0)
+    hi = filters.get("year_max", 9999)
+    sql = ("SELECT id, title, release_year, genres, director, top_cast, embed_text, vote_count, vote_average "
+           "FROM movies WHERE CAST(release_year AS INTEGER) BETWEEN ? AND ?")
+    params = [lo, hi]
+    for g in filters.get("genres", []):
+        sql += " AND genres LIKE ?"
+        params.append(f"%{g}%")
+    if mode == "obscure":
+        sql += " AND vote_count BETWEEN ? AND ? AND vote_average >= ? ORDER BY vote_average DESC, vote_count DESC"
+        params += [OBSCURE_MIN_VOTES, OBSCURE_MAX_VOTES, OBSCURE_MIN_RATING]
+    else:
+        sql += (" AND vote_count >= ? ORDER BY (vote_count * vote_average + ? * ?) / (vote_count + ?) DESC")
+        params += [QUALITY_MIN_VOTES, QUALITY_PRIOR_VOTES, QUALITY_PRIOR_MEAN, QUALITY_PRIOR_VOTES]
+    sql += " LIMIT ?"
+    params.append(need + len(exclude_ids) + 5)
+    out = []
+    for row in conn.execute(sql, params):
+        if row[0] in exclude_ids:
+            continue
+        out.append({"id": row[0], "title": row[1], "release_year": row[2], "genres": row[3], "director": row[4],
+                    "top_cast": row[5], "text": row[6], "vote_count": row[7] or 0, "distance": None})
         if len(out) >= need:
             break
     return out
@@ -1169,7 +1326,8 @@ SWITCHES = {"RERANK_CAP": RERANK_CAP, "SOFT_FILTERS": SOFT_FILTERS,
             "MULTI_FILM": MULTI_FILM, "HYDE": HYDE, "HYBRID": HYBRID, "RERANK_N": RERANK_N,
             "RERANK_CHARS": RERANK_CHARS, "GUESS_WIDE": GUESS_WIDE,
             "WIKI": WIKI, "WIKI_KW": WIKI_KW, "WIKI_CTX_KW": WIKI_CTX_KW,
-            "ALIASES": _os_m.environ.get("ALIASES", "0"), "DYM": _os_m.environ.get("DYM", "0"), "WIKI_KINDS": ",".join(WIKI_KINDS),
+            "ALIASES": _os_m.environ.get("ALIASES", "0"), "DATE_WORDS": _os_m.environ.get("DATE_WORDS", "0"),
+            "DISCOVER": _os_m.environ.get("DISCOVER", "0"), "DYM": _os_m.environ.get("DYM", "0"), "WIKI_KINDS": ",".join(WIKI_KINDS),
             "WIKI_Q": WIKI_Q, "WIKI_QSTYLES": ",".join(WIKI_QSTYLES), "WIKI_EXACT": WIKI_EXACT, "RERANK": _os_w.environ.get("RERANK", "auto"),
             "RERANK_AGREE": RERANK_AGREE, "RERANK_GAP": RERANK_GAP, "RERANK_ENGINE": RERANK_ENGINE,
             "RRF_WEIGHTS": RRF_WEIGHTS, "RRF_K": RRF_K_ENV,
@@ -1865,9 +2023,16 @@ def understand(question, recent_titles=None, conv_block=""):
     return plan
 
 
+# 21 Oct: the web site puts the person's own film choices here for the one question being answered
+# (web/server.py, from user_prefs.past_films_block); empty for the eval harness and the terminal chat.
+PERSON = {"block": ""}
+
+
 def _understand_with(question, recent_titles, model, stat, conv_block=""):
     recent = "  ".join(f"{i}. {t}" for i, t in enumerate(recent_titles or [], 1)) or "(none)"
     user = f"Recent films: {recent}\nQuestion: {question}"
+    if PERSON.get("block"):
+        user = PERSON["block"] + "\n" + user
     use_conv = bool(CONV and conv_block)
     if use_conv:
         user = conv_block + "\n" + user
@@ -2120,6 +2285,14 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
             describing = bool(DESCRIBES_A_FILM.search(question)
                               and not NAMES_A_FILM.search(question))
         filters = parse_filters(question)
+        discover = taste_mode(question) if DISCOVER else None
+        if (DISCOVER and not recommending and not describing and not named
+                and (discover or (filters.get("year_min") and R_BROWSE.search(question)))):
+            # 21 Oct: "highly rated horror movies", "hidden gems from the 80s", "what came out in 1999" are
+            # browse requests even without the word "recommend"
+            recommending = True
+            if trace is not None:
+                trace["discover_browse"] = True
         want = max(k, RECOMMEND_K) if recommending else k
         pool = POOL_WIDE if (filters or recommending) else max(POOL_DEFAULT, k * 5)
         soft = bool(SOFT_FILTERS and filters and describing and not recommending)
@@ -2430,7 +2603,12 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
                 best[key] = h
         hits = [best[k] for k in order]
 
-        if recommending:
+        if recommending and discover:
+            # 21 Oct, DISCOVER=1: "highly rated" ranks by a vote-weighted rating; "lesser known" keeps well-rated
+            # films with few votes and drops the famous ones (see taste_mode).
+            hits = discover_rank(conn, hits[:RERANK_POOL], discover) + (hits[RERANK_POOL:] if discover == "quality" else [])
+            notes["discover"] = discover
+        elif recommending:
             # Relevant first, then well-known. Without this the ranking is pure
             # vector distance, which treats a 60-vote direct-to-video title the
             # same as a film everyone has heard of.
@@ -2444,11 +2622,12 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
         # one specific film must be allowed to come back empty - that is the
         # whole point of the relevance cutoff. Backfilling here is what turned
         # "the 1987 film The Cobalt Hour" into Full Metal Jacket and Predator.
-        if filters and recommending and len(hits) < want:
+        if (filters or discover) and recommending and len(hits) < want:
             have = {h["id"] for h in hits}
             if subject:
                 have.add(subject["id"])
-            extra = backfill(conn, filters, want - len(hits), have)
+            extra = (backfill_discover(conn, filters, want - len(hits), have, discover) if discover
+                     else backfill(conn, filters, want - len(hits), have))
             hits.extend(extra)
             notes["backfilled"] = len(extra)
 

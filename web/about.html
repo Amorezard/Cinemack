@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>About Movie Buff</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%237b5cff'/%3E%3Cstop offset='1' stop-color='%23ff3d7f'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='9' fill='url(%23g)'/%3E%3Cpath d='M9 13h14l-1.6 11H10.6z' fill='white'/%3E%3Ccircle cx='12' cy='11' r='3' fill='white'/%3E%3Ccircle cx='16' cy='9.5' r='3.2' fill='white'/%3E%3Ccircle cx='20' cy='11' r='3' fill='white'/%3E%3C/svg%3E">
+<style>
+  :root{
+    color-scheme: light;
+    --bg:#fff8f1; --surface:#ffffff; --ink:#1d1530; --soft:#5f5673; --faint:#8c83a0; --line:#efe3dc;
+    --violet:#6a4cf0; --grad-text: linear-gradient(95deg,#7b5cff 0%,#ff3d7f 55%,#ff8a3d 100%);
+    --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --display: ui-rounded, "SF Pro Rounded", "Nunito", "Segoe UI Variable Display", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){ color-scheme: dark; --bg:#120d1f; --surface:#1c1530; --ink:#f4effc; --soft:#b8adcf;
+      --faint:#877e9f; --line:#2e2548; --violet:#a391ff; }
+  }
+  :root[data-theme="dark"]{ color-scheme: dark; --bg:#120d1f; --surface:#1c1530; --ink:#f4effc; --soft:#b8adcf;
+      --faint:#877e9f; --line:#2e2548; --violet:#a391ff; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:var(--ink); font:16px/1.65 var(--font); }
+  main{ max-width:720px; margin:0 auto; padding:28px 16px 64px; }
+  a{ color:var(--violet); }
+  .back{ font-size:14px; font-weight:600; text-decoration:none; }
+  h1{ font-family:var(--display); font-size:clamp(30px,6vw,42px); line-height:1.1; margin:18px 0 8px; letter-spacing:-.02em; }
+  h1 span{ background:var(--grad-text); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  h2{ font-family:var(--display); font-size:20px; margin:32px 0 8px; }
+  p, li{ color:var(--soft); }
+  .lede{ font-size:17px; }
+  .credit{ display:grid; grid-template-columns:120px 1fr; gap:16px; align-items:start; padding:16px 0; border-top:1px solid var(--line); }
+  .credit:last-of-type{ border-bottom:1px solid var(--line); }
+  .credit .mark{ font-weight:800; color:var(--ink); font-size:14px; }
+  .credit img{ width:96px; height:auto; display:block; }
+  .credit p{ margin:0 0 6px; font-size:15px; }
+  @media (max-width:520px){ .credit{ grid-template-columns:1fr; gap:6px; } }
+</style>
+</head>
+<body>
+<main>
+  <a class="back" href="/">← Back to Movie Buff</a>
+  <h1>About <span>Movie Buff</span></h1>
+  <p class="lede">Movie Buff is a student research project at Merrimack College: a film chatbot that answers from a database of about 32,000 films and checks its answers against it. It is not a commercial product.</p>
+
+  <h2>Where the data comes from</h2>
+  <div class="credit">
+    <div class="mark" id="tmdb-mark">TMDB</div>
+    <div>
+      <p><strong>This product uses the TMDB API but is not endorsed or certified by TMDB.</strong></p>
+      <p>Film details, cast and crew, posters, backdrops and cast photos come from <a href="https://www.themoviedb.org/">The Movie Database (TMDB)</a>. Images load straight from TMDB's servers; Movie Buff does not keep copies.</p>
+    </div>
+  </div>
+  <div class="credit">
+    <div class="mark">Wikipedia</div>
+    <div>
+      <p>Plot, production, reception and box-office passages come from <a href="https://en.wikipedia.org/">English Wikipedia</a>, used under the <a href="https://creativecommons.org/licenses/by-sa/4.0/">Creative Commons Attribution-ShareAlike 4.0</a> licence. Answers that use Wikipedia text link the articles they used.</p>
+      <p>Rotten Tomatoes, Metacritic and CinemaScore figures on film cards are the ones stated in each film's Wikipedia article, so they can be out of date.</p>
+    </div>
+  </div>
+  <div class="credit">
+    <div class="mark">IMDb</div>
+    <div>
+      <p>Information courtesy of IMDb (<a href="https://www.imdb.com">https://www.imdb.com</a>). Used with permission. IMDb ratings come from IMDb's non-commercial datasets.</p>
+    </div>
+  </div>
+  <div class="credit">
+    <div class="mark">Wikidata</div>
+    <div>
+      <p>Awards and some budget and box-office figures come from <a href="https://www.wikidata.org/">Wikidata</a> (CC0).</p>
+    </div>
+  </div>
+  <div class="credit">
+    <div class="mark">JustWatch</div>
+    <div>
+      <p>Where-to-watch listings (streaming, rental and purchase) come from <a href="https://www.justwatch.com/">JustWatch</a>, through TMDB.</p>
+    </div>
+  </div>
+  <div class="credit">
+    <div class="mark">Reviews</div>
+    <div>
+      <p>Professional reviews: <a href="https://www.theguardian.com/film">The Guardian</a> (powered by the Guardian Open Platform) and <a href="https://www.nytimes.com/section/movies">The New York Times</a> (data provided by The New York Times). Movie Buff quotes only a review's short summary and links to the full review.</p>
+      <p>Rotten Tomatoes and Metacritic scores for films whose Wikipedia article gives none come from <a href="https://www.omdbapi.com/">OMDb</a>.</p>
+    </div>
+  </div>
+  <div class="credit">
+    <div class="mark">YouTube</div>
+    <div>
+      <p>Trailers play from YouTube in privacy-enhanced mode, only when you press play. Trailer view counts come from the YouTube Data API and are today's counts.</p>
+    </div>
+  </div>
+  <div class="credit">
+    <div class="mark">MovieLens &amp; Netflix</div>
+    <div>
+      <p>Audience ratings and tags from the <a href="https://grouplens.org/datasets/movielens/">MovieLens</a> datasets (GroupLens, University of Minnesota). Netflix viewing figures from Netflix's published "What We Watched" engagement reports.</p>
+    </div>
+  </div>
+
+  <h2>What gets saved</h2>
+  <ul>
+    <li>Your questions and Movie Buff's answers are logged to improve the system.</li>
+    <li>The buttons on film cards are saved for this browser. "Liked it" and "Not for me" shape its recommendations; "Haven't seen" and "Want to watch" are kept as a list. "Was this answer helpful?" rates the answer only, never the film.</li>
+    <li>Without an account, everything is tied to an anonymous id stored in your browser. With one, it follows your account. Passwords are stored only as a salted hash.</li>
+    <li>Memory: short notes from things you tell Movie Buff about yourself (who you watch with, what you can't stand) are kept and used in later answers. You can see, delete or turn off memory under your name or "Sign in" at the top, and a private chat is neither saved nor remembered.</li>
+    <li>Deleting your account removes your chats, film choices, settings and memory.</li>
+  </ul>
+  <p><a href="/how">How Movie Buff works</a></p>
+</main>
+<script>
+  // The TMDB logo goes in web/static/tmdb-logo.svg (download it from TMDB's logos page).
+  // Until it is there, the text "TMDB" stands in.
+  (() => {
+    const img = new Image();
+    img.alt = 'TMDB logo'; img.width = 96;
+    img.onload = () => { const m = document.getElementById('tmdb-mark'); m.textContent = ''; m.append(img); };
+    img.src = '/static/tmdb-logo.svg';
+  })();
+</script>
+</body>
+</html>

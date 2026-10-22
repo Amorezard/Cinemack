@@ -71,6 +71,20 @@ EVIDENCE_MIN = 10
 PERF = os.environ.get("PERF", "0") == "1"
 CRITIC_SCORES = os.environ.get("CRITIC_SCORES", "0") == "1"
 MONEY_REAL = os.environ.get("MONEY_REAL", "0") == "1"
+# v6 (20 Oct night) switch:
+#   EXTRA_DATA  the free data from fetch_free_data.py (extra_data.py): OMDb critic scores where Wikipedia had
+#               none, Guardian / NYT review lines in the reviews block, a "watch" block (where to stream,
+#               age rating, trailer) for where-to-watch questions, and an "audience" block (IMDb, MovieLens
+#               32M, Netflix views, trailer lead time and reach) with why / success / reviews questions
+EXTRA_DATA = os.environ.get("EXTRA_DATA", "0") == "1"
+# 21 Oct: per-person settings for the one question being answered (web/server.py sets it around prepare and
+# clears it after; the site answers one question at a time). hide = {"money", "critics"}: those lines are left
+# out of the blocks unless the question itself asks about money / reviews. Empty outside the site.
+REQUEST = {"hide": set()}
+R_MONEY_LINE = re.compile(r"\b(budget|gross|box[- ]office|revenue|profit|earned|opening weekend|returned \d|"
+                          r"break-?even|today's dollars|\$\d)", re.I)
+R_CRITIC_LINE = re.compile(r"^(Critics' scores|The Guardian \(|The New York Times \(|Audience reviews|Critics \(from)"
+                           r"|Rotten Tomatoes|Metacritic|CinemaScore|\[(Guardian|NYT) review\]", re.I)
 R_PERF = re.compile(r"\b(hit|flop\w*|bomb\w*|success\w*|do(es)? well|did (well|badly|poorly)|perform\w*|"
                     r"expect\w*|under-?perform\w*|over-?perform\w*|disappoint\w*|exceed\w*|surpris\w*)\b", re.I)
 
@@ -129,6 +143,10 @@ R_NEWS = _W(r"\b(news|headlines?|current events|zeitgeist|world events|cultural 
             r"(during|amid|after|before|right after|in the wake of) (the |a )?(war|pandemic|covid|recession|"
             r"election|attacks?|9/11|strike|crisis|depression|lockdown)|9/11|september 11|pandemic|covid|"
             r"recession|real[- ]world events?)\b")
+R_WATCH = _W(r"\b(where (can|could|do|should|to) (i |we |you )?(watch|stream|see|rent|buy|find)|stream(ing|ed)?|"
+             r"netflix|hulu|prime video|disney\+|disney plus|hbo( max)?|peacock|paramount\+|apple tv|tubi|"
+             r"rent(al)?|on demand|available (on|to)|trailers?|teasers?|age rating|rated (g|pg|pg-13|r|nc-17)\b|"
+             r"mpaa|parental|kid[- ]friendly|family[- ]friendly|appropriate for|ok for (kids|children))")
 R_COMPARE = _W(r"\b(compare\w*|comparison|versus|vs\.?|better than|worse than|differ\w*|"
                r"which (one |film |movie )?(made|earned|cost|did|was|is|had)|both)\b")
 R_AGG = _W(r"\b(which|what|who|top|most|least|highest|lowest|best|worst)\b.{0,60}\b(directors?|actors?|actresses|"
@@ -207,6 +225,13 @@ def route(question, plan, hits):
                 tasks.append("success")
             if PERF and R_PERF.search(q):
                 tasks.append("perf")
+        if EXTRA_DATA:
+            if R_WATCH.search(q):
+                tasks.append("watch")
+            if why or R_MONEY.search(q) or "success" in tasks or "perf" in tasks:
+                tasks.append("boxoffice")              # 21 Oct: Box Office Mojo via the IMDb API, when fetched
+            if why or "success" in tasks or "perf" in tasks or R_REVIEWS.search(q):
+                tasks.append("audience")
     else:
         why = False
     seen, out = set(), []
@@ -570,7 +595,11 @@ def reviews_block(fid, title):
     if c is None:
         return None
     lines = []
-    for st, label in (("audience", "Audience reviews (TMDB users)"), ("critic", "Critics (from Wikipedia's reception text)")):
+    kinds = [("audience", "Audience reviews (TMDB users)"), ("critic", "Critics (from Wikipedia's reception text)")]
+    if EXTRA_DATA:                 # 21 Oct: reviews_analyze.py --kinds pro,ytc
+        kinds += [("pro", "Professional reviews (the Guardian, the New York Times)"),
+                  ("ytc", "Comments under the trailer on YouTube (mostly written after release)")]
+    for st, label in kinds:
         try:
             rows = c.execute("select aspect, pos, neg, mixed, n_reviews, quotes_json from film_aspects "
                              "where tmdb_id = ? and source_type = ? order by (pos + neg + mixed) desc limit 6",
@@ -585,10 +614,17 @@ def reviews_block(fid, title):
             qs = json.loads(quotes or "[]")[:1]
             parts.append(f"{aspect}: {pos} positive, {neg} negative" + (f", {mixed} mixed" if mixed else "")
                          + (f' ("{qs[0]}")' if qs else ""))
-        src = "TMDB user reviews" if st == "audience" else "Wikipedia: Reception"
+        src = {"audience": "TMDB user reviews", "critic": "Wikipedia: Reception", "pro": "Guardian / NYT reviews",
+               "ytc": "YouTube trailer comments"}[st]
         lines.append(f"{label}, {n} analysed - " + "; ".join(parts) + f" [{src}, aspects by Movie Buff]")
-    if CRITIC_SCORES:
-        cl = critic_line(fid)
+    if CRITIC_SCORES or EXTRA_DATA:
+        cl = critic_line(fid) if CRITIC_SCORES else None
+        if not cl and EXTRA_DATA:
+            try:
+                import extra_data as _x
+                cl = _x.critic_line(fid)              # OMDb, for films whose Wikipedia text had no score
+            except Exception:  # noqa: BLE001
+                cl = None
         if cl:
             lines.insert(0, cl)
     if not [x for x in lines if not x.startswith("Critics' scores")]:
@@ -598,6 +634,12 @@ def reviews_block(fid, title):
                            "limit 2", (fid,)).fetchall()
             lines.append(f"{n} TMDB user reviews (not yet analysed); e.g. " + " | ".join(
                 f"{'(' + str(rt) + '/10) ' if rt else ''}{' '.join(t.split())[:220]}" for t, rt in ex) + " [TMDB user reviews]")
+    if EXTRA_DATA:
+        try:
+            import extra_data as _x
+            lines += _x.critic_review_lines(fid)      # Guardian (stars) and NYT professional reviews
+        except Exception:  # noqa: BLE001
+            pass
     return (f"{title} - what reviewers said\n" + "\n".join(lines)) if lines else None
 
 
@@ -1111,6 +1153,20 @@ def run(question, hits, plan, q_text=None):
             b = None
         if b:
             blocks.append(("news", b))
+    if EXTRA_DATA and ("watch" in rt["tasks"] or "audience" in rt["tasks"] or "boxoffice" in rt["tasks"]):
+        try:
+            import extra_data as _x
+            for h in films[:2]:
+                for kind, fn in (("boxoffice", getattr(_x, "boxoffice_block", None)), ("watch", _x.watch_block),
+                                 ("audience", _x.audience_block)):
+                    if fn is None:
+                        continue
+                    if kind in rt["tasks"]:
+                        b = fn(h["id"], h["title"])
+                        if b:
+                            blocks.append((kind, b))
+        except Exception as e:  # noqa: BLE001 - extra data missing must not lose the answer
+            print(f"[tools] extra data block failed: {e!r}", file=sys.stderr)
     if "sections" in rt["tasks"]:
         for h in films[:2]:
             b = sections_block(h["id"], h["title"], q_vec, rt["kinds"],
@@ -1134,6 +1190,9 @@ def run(question, hits, plan, q_text=None):
             blocks.insert(0, ("current", b))
             if not films:
                 out["replace_hits"] = True
+    hide = set(REQUEST.get("hide") or ())
+    if hide:
+        blocks = _hide_lines(blocks, hide, question)
     # Budget: the whole tool context stays under TOOL_CHARS; later (less central) blocks shrink first.
     total = 0
     kept = []
@@ -1164,12 +1223,39 @@ def run(question, hits, plan, q_text=None):
         style = "current"
     elif "news" in tasks:
         style = "news"
-    elif films and tasks <= {"facts"}:
+    elif films and tasks <= {"facts", "watch", "boxoffice"}:
         style = "fact"
     else:
         style = None
     out["style"] = style
     out["ms"]["total"] = round((time.perf_counter() - t0) * 1000)
+    return out
+
+
+def _hide_lines(blocks, hide, question):
+    """21 Oct: the person turned money and/or critic lines off. Whole blocks that are only money (market,
+    perf, success) or only reviews go; single lines are dropped from the rest. Nothing is hidden when the
+    question asks about that very thing."""
+    q = question or ""
+    hide = set(hide)
+    if "money" in hide and (R_MONEY.search(q) or R_WHY.search(q)):
+        hide.discard("money")
+    if "critics" in hide and (R_REVIEWS.search(q) or R_WHY.search(q)):
+        hide.discard("critics")
+    if not hide:
+        return blocks
+    out = []
+    for kind, b in blocks:
+        if "money" in hide and kind in ("market", "perf", "success", "boxoffice"):
+            continue
+        if "critics" in hide and kind == "reviews":
+            continue
+        lines = b.split("\n")
+        keep = [lines[0]] + [l for l in lines[1:]
+                             if not ("money" in hide and R_MONEY_LINE.search(l))
+                             and not ("critics" in hide and R_CRITIC_LINE.search(l.strip()))]
+        if len(keep) > 1:
+            out.append((kind, "\n".join(keep)))
     return out
 
 

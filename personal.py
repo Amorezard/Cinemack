@@ -49,6 +49,14 @@ try:
 except ValueError:
     PW = None
 
+# 21 Oct (live test: "recommend a fun heist movie" showed [REC]3 and Date Movie because their MovieLens
+# neighbour score with Parasite (weight 2) outweighed relevance to the question (at most 1)). TASTE_GATE=1 (default):
+# the taste score can raise a film's relevance score by at most TASTE_MAX (35%), so it re-orders near neighbours
+# but never lifts a weak match above the films the question asked for; "why it matched you" is only given
+# when the taste part actually counted. TASTE_GATE=0 = the 6 Oct formula (what personal.py sweep measured).
+TASTE_GATE = os.environ.get("TASTE_GATE", "1") == "1"
+TASTE_MAX = float(os.environ.get("TASTE_MAX", "0.35"))
+
 _U = {"conn": None}
 
 
@@ -188,18 +196,29 @@ def rerank(hits, likes, dislikes, stated=(), k=10, movies_db="movies.db"):
         comp = {"c": {i: m[i][0] for i in m}, "n": {i: min(nb.get(i, 0.0), 2.0) for i in m},
                 "p": {i: math.log1p(vc.get(i) or 0) for i in m}}
         comp = {k: _minmax(v) for k, v in comp.items()}
+    raw = {}
+    for rank, h in keep:
+        s, pos, neg = m[h["id"]]
+        if PW:
+            i = h["id"]
+            raw[i] = PW[0] * comp["c"][i] + PW[1] * comp["n"][i] + PW[2] * comp["p"][i]
+        else:
+            raw[h["id"]] = s + min(nb.get(h["id"], 0.0), 1.0) * 0.4
+    norm = _minmax(raw) if TASTE_GATE else raw
     for rank, h in keep:
         s, pos, neg = m[h["id"]]
         rel = 1.0 / (1 + rank * 0.15)                      # keep the question's own ranking mattering
-        if PW:
-            i = h["id"]
-            extra = PW[0] * comp["c"][i] + PW[1] * comp["n"][i] + PW[2] * comp["p"][i]
-        else:
-            extra = s + min(nb.get(h["id"], 0.0), 1.0) * 0.4
+        extra = norm.get(h["id"], 0.0)
         h = dict(h)
-        h["_score_personal"] = round(rel + extra, 3)
+        if TASTE_GATE:
+            # taste can add at most TASTE_MAX of the film's own relevance, and only a disliked match lowers it
+            h["_score_personal"] = round(rel * (1 + TASTE_MAX * extra) + (min(s, 0.0) * 0.1), 3)
+            counted = extra >= 0.5 and bool(pos)
+        else:
+            h["_score_personal"] = round(rel + extra, 3)
+            counted = True
         h["_why_you"] = explain(pos, neg, [titles.get(f) for f in likes
-                                          if features(f, conn) & set(pos)][:2])
+                                          if features(f, conn) & set(pos)][:2]) if counted else ""
         scored.append(h)
     scored.sort(key=lambda h: -h["_score_personal"])
     return scored[:k], {"likes": len(likes), "dislikes": len(dislikes), "stated": len(stated)}

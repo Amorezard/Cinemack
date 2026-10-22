@@ -21,6 +21,14 @@ v4 (14 Oct):
     analysed and counted (aggregate drops aspects from unusable ones).
   - REVIEW_FILMS_MAX no longer defaults to 200 (that cap was for the CPU-only week); 0 = no cap.
 
+21 Oct (--kinds pro,ytc): two more sources from fetch_free_data.py, each its own source_type
+  pro    professional reviews (critic_reviews: the Guardian with --body text, else the standfirst; NYT summary),
+         one review = one item, only reviews matched to the film (match >= 1)
+  ytc    the top 40 comments under the film's main YouTube trailer (most-liked first), joined into one text:
+         what viewers say they are excited or worried about. Comments are mostly written after release.
+  YouTube review-video descriptions are not analysed: they are mostly links and channel promotion.
+    python reviews_analyze.py --kinds pro,ytc --films 1500
+
 Design choices:
   - A fixed aspect list (the brief's: acting, pacing, writing, cinematography, soundtrack,
     characters, ending, originality, emotional impact, humor, action, visual effects, plus
@@ -58,6 +66,16 @@ SYSTEM_AUDIENCE = (
     "criticises, from this list only: " + ", ".join(ASPECTS) + ". For each, give the sentiment and a short "
     "quote (3-15 words) copied exactly from the review that shows it. At most 6 aspects. Skip aspects the "
     "review only mentions in passing. Reply with JSON only.")
+SYSTEM_PRO = (
+    "You analyse one professional critic's film review. List the aspects of the film the critic clearly praises or "
+    "criticises, from this list only: " + ", ".join(ASPECTS) + ". For each, give the sentiment and a short quote "
+    "(3-15 words) copied exactly from the review that shows it. At most 6 aspects. Reply with JSON only.")
+SYSTEM_COMMENTS = (
+    "You read comments viewers left under a film's trailer, separated by ' | '. List the aspects of the film the "
+    "comments clearly praise or criticise, from this list only: " + ", ".join(ASPECTS) + ". Use 'mixed' when "
+    "comments disagree. For each, give a short quote (3-15 words) copied exactly from one comment. At most 6 "
+    "aspects. Reply with JSON only.")
+SYSTEMS = {}
 SYSTEM_CRITIC = (
     "You analyse a passage summarising how critics received a film. List the aspects critics clearly praised "
     "or criticised, from this list only: " + ", ".join(ASPECTS) + ". For each, give the sentiment and a short "
@@ -167,6 +185,25 @@ def work_items(conn, films, kinds, per_film, critic_passages, ok=None):
                 key = f"sec:{sid}"
                 if key not in done:
                     items.append(("critic", fid, key, text))
+        if "pro" in kinds:
+            try:
+                rows = conn.execute("select review_key, coalesce(body, summary) from critic_reviews where tmdb_id = ? "
+                                    "and match >= 1 order by published desc limit 6", (fid,)).fetchall()
+            except sqlite3.Error:
+                rows = []
+            for rk, text in rows:
+                key = f"cr:{rk}"
+                if text and len(text) > 60 and key not in done:
+                    items.append(("pro", fid, key, text[:1800]))
+        if "ytc" in kinds:
+            try:
+                cs = [t for (t,) in conn.execute("select text from yt_comments where tmdb_id = ? and length(text) > 15 "
+                                                 "order by likes desc limit 40", (fid,))]
+            except sqlite3.Error:
+                cs = []
+            key = f"ytc:{fid}"
+            if len(cs) >= 5 and key not in done:
+                items.append(("ytc", fid, key, " | ".join(" ".join(c.split()) for c in cs)[:1800]))
     return items
 
 
@@ -236,7 +273,8 @@ def main():
           f"num_predict {NUM_PREDICT})")
     t0, kept, touched = time.time(), 0, set()
     for i, (st, fid, rid, text) in enumerate(items, 1):
-        res = call(a.ollama, a.model, SYSTEM_AUDIENCE if st == "audience" else SYSTEM_CRITIC, text)
+        system = {"audience": SYSTEM_AUDIENCE, "critic": SYSTEM_CRITIC, "pro": SYSTEM_PRO, "ytc": SYSTEM_COMMENTS}[st]
+        res = call(a.ollama, a.model, system, text)
         good = verified(text, res)
         conn.execute("delete from review_aspects where review_id = ?", (rid,))
         conn.executemany("insert into review_aspects values (?,?,?,?,?,?,?,?)",

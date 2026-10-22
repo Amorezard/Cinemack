@@ -26,7 +26,7 @@
       --ink:#f4effc; --soft:#b8adcf; --faint:#877e9f; --line:#2e2548; --line-strong:#40345f;
       --pink:#ff6b9d; --violet:#a391ff; --orange:#ffab5e; --teal:#4fd6c7; --gold:#ffc247;
       --shadow: 0 1px 2px rgba(0,0,0,.45), 0 14px 34px -18px rgba(0,0,0,.9);
-      --blob1:#3b1638; --blob2:#241a52; --blob3:#3a2414;
+      --blob1:#3b1638; --scene-dk:#46366f; --scene-line:#8f80b8; --blob2:#241a52; --blob3:#3a2414;
     }
   }
   :root[data-theme="dark"]{
@@ -35,7 +35,7 @@
     --ink:#f4effc; --soft:#b8adcf; --faint:#877e9f; --line:#2e2548; --line-strong:#40345f;
     --pink:#ff6b9d; --violet:#a391ff; --orange:#ffab5e; --teal:#4fd6c7; --gold:#ffc247;
     --shadow: 0 1px 2px rgba(0,0,0,.45), 0 14px 34px -18px rgba(0,0,0,.9);
-    --blob1:#3b1638; --blob2:#241a52; --blob3:#3a2414;
+    --blob1:#3b1638; --scene-dk:#46366f; --scene-line:#8f80b8; --blob2:#241a52; --blob3:#3a2414;
   }
   *{ box-sizing:border-box; }
   [hidden]{ display:none !important; }
@@ -108,6 +108,19 @@
   .credits{ font-size:13.5px; color:var(--soft); }
   .credits li{ margin-bottom:6px; }
   footer{ text-align:center; color:var(--faint); font-size:12.5px; padding:24px 16px 32px; }
+
+  /* ---------- theatre scene ---------- */
+  .scene{ display:block; width:min(var(--scene-w,560px),100%); height:auto; margin:0 auto 14px; overflow:visible; }
+  .scene .dk{ fill:var(--scene-dk,#2b1f3f); } .scene .dks{ stroke:var(--scene-line,#2b1f3f); }
+  .scene .spin{ animation:scene-spin 16s linear infinite; }
+  .scene .bulbs circle{ animation:scene-bulb 1.4s ease-in-out infinite alternate; }
+  .scene .bulbs circle:nth-child(even){ animation-delay:.7s; }
+  .scene .twinkle path{ transform-box:fill-box; transform-origin:center; animation:scene-tw 2.6s ease-in-out infinite; }
+  .scene .twinkle path:nth-child(2){ animation-delay:.8s; } .scene .twinkle path:nth-child(3){ animation-delay:1.5s; } .scene .twinkle path:nth-child(4){ animation-delay:2s; }
+  @keyframes scene-spin{ to{ transform:rotate(360deg); } }
+  @keyframes scene-bulb{ from{ opacity:.35; } to{ opacity:1; } }
+  @keyframes scene-tw{ 0%,100%{ transform:scale(.7); opacity:.6; } 50%{ transform:scale(1.15); opacity:1; } }
+  @media (prefers-reduced-motion: reduce){ .scene .spin, .scene .bulbs circle, .scene .twinkle path{ animation:none; } }
 </style>
 </head>
 <body>
@@ -124,6 +137,103 @@
 
 <main>
   <section class="hero">
+    <svg class="scene" style="--scene-w:440px" viewBox="0 0 720 210" role="img" aria-label="A cartoon movie theatre: a film camera, three posters under a Now Showing sign, a smiling popcorn bucket and a clapperboard">
+  <defs>
+    <linearGradient id="sc-sun" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff5c93"/><stop offset="1" stop-color="#ffab5e"/></linearGradient>
+    <linearGradient id="sc-curtain" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#b8123f"/><stop offset=".5" stop-color="#e0296b"/><stop offset="1" stop-color="#b8123f"/></linearGradient>
+    <clipPath id="sc-bucket"><path d="M528 118 L612 118 L601 204 L539 204 Z"/></clipPath>
+  </defs>
+  <g stroke="#2b1f3f" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+    <!-- curtains -->
+    <path d="M0 0 H40 C34 60 46 130 30 210 H0 Z" fill="url(#sc-curtain)"/>
+    <path d="M720 0 H680 C686 60 674 130 690 210 H720 Z" fill="url(#sc-curtain)"/>
+    <path d="M0 0 H720 V14 q-24 18 -48 0 q-24 18 -48 0 q-24 18 -48 0 q-24 18 -48 0 q-24 18 -48 0 q-24 18 -48 0 q-24 18 -48 0 q-24 18 -48 0 q-24 18 -48 0 q-24 18 -48 0 q-24 18 -48 0 q-24 18 -48 0 q-24 18 -48 0 q-24 18 -48 0 q-24 18 -48 0 Z" fill="#e0296b"/>
+
+    <!-- marquee -->
+    <rect class="dk" x="262" y="28" width="196" height="38" rx="8" fill="#2b1f3f"/>
+    <text x="360" y="57" text-anchor="middle" stroke="none" fill="#ffc247" font-family="ui-rounded, 'Nunito', system-ui, sans-serif" font-weight="900" font-size="14" letter-spacing="3">NOW SHOWING</text>
+    <g class="bulbs" stroke="none" fill="#ffc247">
+      <circle cx="274" cy="34" r="2.6"/><circle cx="300" cy="34" r="2.6"/><circle cx="326" cy="34" r="2.6"/><circle cx="352" cy="34" r="2.6"/><circle cx="378" cy="34" r="2.6"/><circle cx="404" cy="34" r="2.6"/><circle cx="430" cy="34" r="2.6"/><circle cx="446" cy="34" r="2.6"/>
+    </g>
+
+    <!-- poster 1: space -->
+    <rect x="262" y="76" width="58" height="84" rx="6" fill="#241a52"/>
+    <circle cx="302" cy="96" r="9" fill="#ffc247"/>
+    <path d="M281 128 l7 -22 l7 22 z" fill="#ff5c93"/>
+    <path d="M283 128 h10 l-5 9 z" fill="#ffab5e" stroke-width="2"/>
+    <g stroke="none" fill="#fff"><circle cx="276" cy="90" r="1.6"/><circle cx="310" cy="118" r="1.4"/><circle cx="296" cy="84" r="1.2"/></g>
+    <rect x="271" y="144" width="40" height="5" rx="2.5" fill="#ffab5e" stroke="none"/>
+
+    <!-- poster 2: sunset -->
+    <rect x="331" y="70" width="58" height="96" rx="6" fill="url(#sc-sun)"/>
+    <circle cx="360" cy="112" r="15" fill="#fff3c4"/>
+    <path d="M331 138 l18 -14 l12 9 l14 -12 l14 12 V166 H331 Z" fill="#6a4cf0" stroke-width="2.5"/>
+    <rect x="340" y="84" width="40" height="5" rx="2.5" fill="#fff" stroke="none"/>
+
+    <!-- poster 3: friendly ghost -->
+    <rect x="400" y="76" width="58" height="84" rx="6" fill="#16b7a7"/>
+    <path d="M415 142 v-24 a14 14 0 0 1 28 0 v24 l-5 -5 l-4.5 5 l-4.5 -5 l-4.5 5 l-4.5 -5 z" fill="#fff"/>
+    <g stroke="none" fill="#2b1f3f"><circle cx="424" cy="118" r="2.2"/><circle cx="434" cy="118" r="2.2"/></g>
+    <path d="M425 125 q4 3.5 8 0" fill="none" stroke-width="2"/>
+    <rect x="409" y="147" width="40" height="5" rx="2.5" fill="#fff" stroke="none"/>
+
+    <!-- camera on tripod -->
+    <path class="dks" d="M128 170 L96 206 M128 170 L160 206 M128 170 V206" fill="none" stroke-width="4"/>
+    <g class="spin" style="transform-origin:96px 80px">
+      <circle cx="96" cy="80" r="24" fill="#ffab5e"/>
+      <g fill="#fff8f1" stroke-width="2"><circle cx="96" cy="68" r="5"/><circle cx="107" cy="86" r="5"/><circle cx="85" cy="86" r="5"/></g>
+      <circle cx="96" cy="80" r="3" fill="#2b1f3f" stroke="none"/>
+    </g>
+    <g class="spin" style="transform-origin:152px 74px">
+      <circle cx="152" cy="74" r="28" fill="#ff5c93"/>
+      <g fill="#fff8f1" stroke-width="2"><circle cx="152" cy="60" r="6"/><circle cx="164" cy="81" r="6"/><circle cx="140" cy="81" r="6"/></g>
+      <circle cx="152" cy="74" r="3.4" fill="#2b1f3f" stroke="none"/>
+    </g>
+    <rect x="74" y="108" width="104" height="62" rx="14" fill="#7b5cff"/>
+    <circle cx="104" cy="139" r="13" fill="#a391ff"/>
+    <circle cx="104" cy="139" r="5" fill="#2b1f3f" stroke="none"/>
+    <path d="M178 124 L204 112 V166 L178 154 Z" fill="#ffc247"/>
+    <rect x="140" y="120" width="26" height="10" rx="4" fill="#ff5c93" stroke-width="2.5"/>
+
+    <!-- ticket -->
+    <g transform="rotate(-14 222 170)">
+      <path d="M200 156 h44 a5 5 0 0 0 0 10 v8 a5 5 0 0 0 0 10 h-44 a5 5 0 0 0 0 -10 v-8 a5 5 0 0 0 0 -10 z" fill="#ffc247" stroke-width="2.5"/>
+      <path d="M212 158 v24" stroke-dasharray="2 4" stroke-width="2"/>
+      <path d="M222 165 h14 M222 175 h10" stroke-width="2.5"/>
+    </g>
+
+    <!-- popcorn -->
+    <g fill="#fff3c4">
+      <circle cx="538" cy="114" r="13"/><circle cx="558" cy="104" r="14"/><circle cx="580" cy="106" r="14"/><circle cx="600" cy="114" r="12"/>
+      <circle cx="569" cy="92" r="12"/><circle cx="548" cy="96" r="10"/><circle cx="592" cy="94" r="10"/>
+    </g>
+    <path d="M528 118 L612 118 L601 204 L539 204 Z" fill="#fff"/>
+    <g clip-path="url(#sc-bucket)" stroke="none" fill="#ff3d7f">
+      <rect x="530" y="118" width="12" height="90"/><rect x="556" y="118" width="12" height="90"/><rect x="582" y="118" width="12" height="90"/><rect x="608" y="118" width="12" height="90"/>
+    </g>
+    <path d="M528 118 L612 118 L601 204 L539 204 Z" fill="none"/>
+    <rect x="547" y="138" width="46" height="34" rx="12" fill="#fff" stroke-width="2.5"/>
+    <g stroke="none" fill="#2b1f3f"><circle cx="562" cy="151" r="3"/><circle cx="578" cy="151" r="3"/></g>
+    <path d="M564 159 q6 5 12 0" fill="none" stroke-width="2.5"/>
+    <g stroke="none" fill="#ff8fb3"><ellipse cx="555" cy="158" rx="3.5" ry="2.2"/><ellipse cx="585" cy="158" rx="3.5" ry="2.2"/></g>
+
+    <!-- clapperboard -->
+    <rect class="dk" x="626" y="146" width="48" height="54" rx="5" fill="#2b1f3f"/>
+    <path d="M634 166 h32 M634 178 h32 M634 190 h20" stroke="#fff8f1" stroke-width="2.5"/>
+    <g transform="rotate(-20 626 146)">
+      <rect x="626" y="134" width="48" height="12" rx="3" fill="#fff8f1"/>
+      <path d="M636 134 l-6 12 M650 134 l-6 12 M664 134 l-6 12" stroke-width="5"/>
+    </g>
+
+    <!-- sparkles -->
+    <g class="twinkle" stroke="none">
+      <path d="M232 60 l3 8 l8 3 l-8 3 l-3 8 l-3 -8 l-8 -3 l8 -3 z" fill="#ffc247"/>
+      <path d="M492 70 l2.4 6 l6 2.4 l-6 2.4 l-2.4 6 l-2.4 -6 l-6 -2.4 l6 -2.4 z" fill="#ff5c93"/>
+      <path d="M500 150 l2 5 l5 2 l-5 2 l-2 5 l-2 -5 l-5 -2 l5 -2 z" fill="#7b5cff"/>
+      <path d="M60 176 l2 5 l5 2 l-5 2 l-2 5 l-2 -5 l-5 -2 l5 -2 z" fill="#ffab5e"/>
+    </g>
+  </g>
+</svg>
     <h1>How <span class="hl">Movie Buff</span> finds your film</h1>
     <p>Movie Buff is a language model that answers from a database of real film records instead of from memory. That's what lets it find a film from a vague description, and say plainly when it doesn't know.</p>
     <div class="flow" aria-label="Question, understand, search, read, answer, check">
@@ -143,6 +253,17 @@
     </ol>
   </section>
 
+  <section class="section">
+    <header><h2>More than finding the film</h2><p class="lead">Once it knows which film you mean, Movie Buff looks up what the question needs, from sources it names in the answer.</p></header>
+    <ol class="timeline">
+      <li style="--c:#16b7a7; --c2:var(--teal)"><h3>Facts and money <small>TMDB, Wikipedia, Wikidata</small></h3><p>Budgets and box office from more than one source (shown side by side when they disagree, and in today's dollars), cast and crew, awards, release dates and US age ratings.</p></li>
+      <li style="--c:#ff3d7f; --c2:var(--pink)"><h3>What people thought <small>reviews</small></h3><p>Rotten Tomatoes and Metacritic scores, Guardian and New York Times reviews (a short summary, with a link to the full review), and what audiences praised or criticised, counted by aspect with a quote for each.</p></li>
+      <li style="--c:#ff8a3d; --c2:var(--orange)"><h3>Why it did well or badly <small>a statistical model</small></h3><p>A model trained on about 12,000 films with known budgets and grosses estimates what a film like this usually earns before release, and which factors moved that estimate. Answers call it an estimate and give its typical error.</p></li>
+      <li style="--c:#7b5cff; --c2:var(--violet)"><h3>Links that fit the question <small>trailers, reviews, where to watch</small></h3><p>Under each answer: the trailer (it plays only when you press play), the full reviews, box-office pages, or where to stream, rent or buy it in the US, depending on what you asked.</p></li>
+      <li style="--c:#f5b400; --c2:var(--gold)"><h3>Made for you <small>accounts, settings, memory</small></h3><p>An optional account keeps your chats on any browser. Settings set the answer length and voice, spoilers, genres, years, running time and age rating for recommendations. Memory keeps short notes of what you tell it about yourself, and can connect a new question to an earlier chat. You can see, edit or delete all of it, or use a private chat.</p></li>
+    </ol>
+  </section>
+
   <section class="section" id="stats-section" hidden>
     <header><h2>How well it works</h2><p class="lead" id="stats-lead">Measured on questions set aside for testing, including real "what's that movie?" posts from the TREC Tip-of-the-Tongue benchmark.</p></header>
     <div><div class="stats" id="stats"></div><div class="updated" id="stats-updated"></div></div>
@@ -158,6 +279,7 @@
         <li>Directors, main cast, release year and TMDB rating for about 30,000 films</li>
         <li>Saying "I don't have that film" instead of inventing one</li>
         <li>Follow-ups like "who directed it?" or "what about the sequel?"</li>
+        <li>"Why did it flop?" and "what did critics say?": answers built from figures and reviews it can show you</li>
       </ul>
     </div>
     <div class="limits">
@@ -165,7 +287,8 @@
       <ul>
         <li>Very obscure films: the database keeps films with at least 50 ratings on TMDB, plus the most popular recent releases</li>
         <li>Endings and twists: the stored plot summaries stop before the ending</li>
-        <li>Small roles: only the top five cast members are stored</li>
+        <li>Small roles: only the main cast members are stored</li>
+        <li>Box-office "why" questions: the model shows patterns across many films, not proven causes, and marketing budgets are not public</li>
         <li>Speed: a long description can take 10–20 seconds, and questions are answered one at a time on a shared GPU</li>
       </ul>
     </div>
@@ -176,6 +299,7 @@
     <header><h2>Credits</h2></header>
   <ul class="credits" style="margin:0; padding-left:18px">
     <li>Film data from <a href="https://www.themoviedb.org/">TMDB</a> (via the Kaggle TMDB movies dataset). This product uses TMDB data but is not endorsed or certified by TMDB.</li>
+    <li>More data sources (Wikipedia, IMDb, JustWatch, the Guardian, the New York Times, OMDb, YouTube, MovieLens, Netflix) are credited on the <a href="/about">About page</a>.</li>
     <li>Real test questions from the <a href="https://trec-tot.github.io/">TREC 2023 Tip-of-the-Tongue track</a>, matched to films through <a href="https://www.wikidata.org/">Wikidata</a>.</li>
     <li>Built as a student research project at Merrimack College. Runs on a local open-weight model; nothing is sent to an outside AI service.</li>
   </ul>

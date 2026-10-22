@@ -74,6 +74,37 @@ bash rebuild_adapter.sh list | rollback            # adapters built, and going b
 MOCK=fake python mb.py ask "that movie with the shark"
 ```
 
+## v6 (16-22 Oct): the site as a product, and more free data
+
+Every answer-changing piece is a switch, off until its rule (written before the result) passes; site-only
+features that don't change answers are on.
+
+| Piece | File | What it does |
+|---|---|---|
+| Accounts | `web/accounts.py` | Optional sign-up / sign-in (scrypt or Argon2id hashes, HttpOnly session cookie, lockout after 5 failures); a guest's chats, film choices, settings and memory move to the new account; delete-account removes everything. |
+| Sign-in and onboarding | `web/index.html` | One centred flow: Account → You → Taste (11 groups → stated tastes) → Style (length, voice, spoilers, age rating) → All set. Full-screen on phones. |
+| Settings | `web/user_prefs.py` | Length (also a hard `num_predict` cap), voice, spoilers, never-genres, earliest year, longest runtime, US age-rating limit, "about me" note, money / critic lines on or off, memory, recall. Recommendation limits are applied in code before the prompt. |
+| Memory | `web/memory.py` | Notes the person states about themselves (llama3.2, checked against their words); recall of related exchanges from their other chats (word + title overlap, no model call); a line per recent chat when they refer back. Private chat uses none of it. |
+| Film cards and panel | `web/film_info.py` | Posters, cast photos, IMDb / RT / Metacritic, US rating, the four taste buttons, watchlist; panel with trailer, where to watch, review and box-office links. |
+| Links under answers | `web/links.py` | Chosen by the question: where to watch (JustWatch via TMDB), reviews (matched Guardian / NYT review, RT, Metacritic, IMDb, Letterboxd), box office (Box Office Mojo, Wikipedia section), trailers (YouTube, privacy-enhanced, loads on click). |
+| Free data | `fetch_v6_data.py`, `fetch_free_data.py` | Posters / cast photos, IMDb ratings, Wikipedia pageviews before release; TMDB trailers, watch providers and certifications; OMDb critic scores; Guardian and NYT reviews; YouTube trailer stats, descriptions, review videos and comments; Netflix engagement reports; MovieLens 32M. `python fetch_free_data.py coverage`. |
+| Data in answers | `extra_data.py`, `tools.py` (`EXTRA_DATA=1`) | OMDb scores where Wikipedia has none, Guardian / NYT lines, a where-to-watch block, an audience-and-reach block (IMDb, MovieLens, Netflix, trailer lead time; YouTube views labelled as after release). |
+| Review sources | `reviews_analyze.py --kinds pro,ytc` | Aspect counts with quotes from professional reviews and trailer comments, next to TMDB users and Wikipedia's reception text. |
+| Box-office model pf3 | `performance.py` | + trailer timing (pre-release only; used per film only if it beats pf2 on 2016-19), + pre-release Wikipedia views (own 5-fold test, reported only), + OMDb / IMDb in the after-release model. |
+| Date words | `retrieve.py` (`DATE_WORDS=1`) | "late 90s", "seventies", "last 5 years", "last year"; "recent" / "old" only in recommendations; ages ("in her early 20s") are not decades. |
+| Kinds of picks | `retrieve.py` (`DISCOVER=1`) | "highly rated / acclaimed / best" ranks recommendations by a vote-weighted rating; "lesser-known / hidden gems / underrated" keeps well-rated films with 60-2,500 votes; "what came out in 1999" and "highly rated horror" count as browse requests; the catalogue tops up the list with the same year / genre filters. |
+| Planner sees your films | `retrieve.PERSON`, `web/server.py` (`PLAN_PAST=1`, web only) | The person's liked / disliked / watchlist films go to the planner, so "like the last one I liked" resolves. |
+
+```bash
+python fetch_free_data.py tmdb && python fetch_free_data.py movielens && python fetch_free_data.py netflix
+python fetch_free_data.py guardian --again --body     # OMDB_API_KEY / GUARDIAN_API_KEY / NYT_API_KEY / YOUTUBE_API_KEY
+python fetch_free_data.py omdb                        # free key: 1,000 a day, run daily
+python extra_data.py "Oppenheimer"                    # the new answer lines for one film
+python performance.py fit && python performance.py show "Oppenheimer"
+bash run_v6_night.sh                                  # pf3 fit, YouTube, EXTRA_DATA answer test
+bash run_v6_day.sh                                    # nickname rerun, DATE_WORDS test, review sources
+```
+
 ## Quick start (a machine that already has the data)
 
 ```bash

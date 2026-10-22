@@ -48,6 +48,22 @@ Decision rule (written 15 Oct 2026, 17:40, before any result):
     python performance.py show "Oppenheimer"
     python performance.py reasons        # only the stated-reasons table (also part of fit)
     python performance.py remove
+
+pf3 (20 Oct night): pre-release attention, each with its own test and rule (written 20 Oct 2026, 23:40, before
+any result):
+  TRAILER   from TMDB's YouTube trailer list (fetch_free_data.py tmdb), only videos published BEFORE the release
+            date: how many trailers/teasers, and how many days before release the first one came out. Films before
+            2007 have no YouTube era, so both are blank for them. Tested like the release context: trees BEFORE vs
+            BEFORE + TRAILER on 2016-2019. Adopted into the per-film expectations only if the bootstrap 95% CI of
+            the MAE difference excludes 0 (better).
+  BUZZ      Wikipedia pageviews in the 28 days before release (fetch_v6_data.py pageviews; the API starts July
+            2015), log of the 28-day total and the last week's share. Too recent for the <=2015 training set, so it
+            gets its own test: 5-fold cross-validation over the 2016-2019 and 2021-2023 films that have pageviews
+            (each fold's model trained on every other film, all years). "Pre-release attention adds information"
+            is claimed only if the CI of the MAE difference excludes 0. Reported only; never used per film (most
+            films have no pageviews).
+  Reception (AFTER only): Rotten Tomatoes / Metacritic from OMDb where Wikipedia gave none, and the IMDb rating.
+  YouTube view counts are NOT used anywhere: they are today's counts, after release.
 """
 import argparse
 import datetime
@@ -64,7 +80,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import facts_db as F  # noqa: E402
 
-VERSION = "pf2"     # 15 Oct 20:30: + release context (pf1 = without it)
+VERSION = "pf3"     # 20 Oct night: + trailer timing / pageviews tests, OMDb + IMDb reception (pf2: release context)
 GENRES = ["Action", "Adventure", "Animation", "Comedy", "Crime", "Documentary", "Drama", "Family", "Fantasy",
           "History", "Horror", "Music", "Mystery", "Romance", "Science Fiction", "Thriller", "War", "Western"]
 TRAIN_TO, TEST = 2015, (2016, 2019)
@@ -95,7 +111,9 @@ BEFORE = BEFORE + CONTEXT
 # 15 Oct 20:40: number of TMDB votes taken out - it grows with how many people saw the film, so it measures the
 # outcome rather than explaining it (Doctor Sleep: "5,082 votes raises it x4.08")
 RECEPTION = ["rating", "ml_rating", "rt_pct", "rt_avg", "mc_score", "cinemascore",
-             "awards_won", "awards_nom", "aspects_pos"]
+             "awards_won", "awards_nom", "aspects_pos", "imdb_rating"]
+TRAILER = ["trailer_n_pre", "trailer_lead_days"]           # pf3: pre-release only (published before release)
+BUZZ = ["log_pv_pre28", "pv_last7_share"]                  # pf3: Wikipedia views in the 28 days before release
 NEWSF = ["news_resonance", "news_top_sim"]
 AFTER = BEFORE + RECEPTION
 WITH_NEWS = AFTER + NEWSF
@@ -112,6 +130,9 @@ LABEL = {
     "ml_rating": "MovieLens rating", "rt_pct": "Rotten Tomatoes score", "rt_avg": "critics' average rating",
     "mc_score": "Metacritic score", "cinemascore": "CinemaScore grade", "awards_won": "awards won",
     "awards_nom": "award nominations", "aspects_pos": "positive share of review comments",
+    "imdb_rating": "IMDb rating", "trailer_n_pre": "trailers and teasers before release",
+    "trailer_lead_days": "days from the first trailer to release",
+    "log_pv_pre28": "Wikipedia views in the 4 weeks before release", "pv_last7_share": "share of those views in the last week",
     "news_resonance": "news at release matching the film", "news_top_sim": "closest headline at release",
     "franchise_gap_years": "years since the previous film in the series", "legacy_sequel": "sequel 15+ years later",
     "source_adapted": "adapted from a book / comic", "author_prev_365_n": "same author's adaptations in the past year",
@@ -140,6 +161,10 @@ def _has(c, table):
         return True
     except Exception:  # noqa: BLE001
         return False
+
+
+def _has_videos(vids):
+    return bool(vids)
 
 
 def _date(rd):
@@ -212,6 +237,25 @@ def build_table(c):
         for fid, p, n in c.execute("select tmdb_id, sum(pos), sum(neg) from film_aspects group by tmdb_id"):
             if (p or 0) + (n or 0) >= 5:
                 asp[fid] = p / (p + n)
+    # pf3: OMDb fills Rotten Tomatoes / Metacritic where Wikipedia's reception text gave none
+    if _has(c, "omdb"):
+        for fid, rt, mc in c.execute("select tmdb_id, rt_pct, mc_score from omdb where status = 'ok' and tmdb_id is not null"):
+            old = crit.get(fid) or (None, None, None, None)
+            crit[fid] = (old[0] if old[0] is not None else rt, old[1], old[2] if old[2] is not None else mc, old[3])
+    imdb = {}
+    if _has(c, "imdb_ratings"):
+        imdb = {fid: r for fid, r, v in c.execute("select f.tmdb_id, i.rating, i.votes from films f join imdb_ratings i "
+                                                    "on i.imdb_id = f.imdb_id") if (v or 0) >= 50}
+    vids = {}
+    if _has(c, "film_videos"):
+        for fid, pub in c.execute("select tmdb_id, substr(published_at, 1, 10) from film_videos "
+                                  "where site = 'YouTube' and type in ('Trailer', 'Teaser') and published_at is not null"):
+            vids.setdefault(fid, []).append(_date(pub))
+    pv = {}
+    if _has(c, "pageviews"):
+        for fid, p28, p7, days in c.execute("select tmdb_id, pv_pre28, pv_pre7, days from pageviews"):
+            if days and days >= 20 and p28 is not None:
+                pv[fid] = (math.log1p(p28), (p7 or 0) / p28 if p28 else np.nan)
     news = {}
     if _has(c, "news_film"):
         news = {fid: (r, t) for fid, r, t in c.execute("select tmdb_id, resonance, top_sim from news_film")}
@@ -262,6 +306,14 @@ def build_table(c):
         w, n = aw.get(fid, (0, 0))
         x["awards_won"], x["awards_nom"] = w, n
         x["aspects_pos"] = asp.get(fid, np.nan)
+        x["imdb_rating"] = imdb.get(fid, np.nan)
+        if d.year >= 2007 and _has_videos(vids):
+            pre = sorted(v for v in vids.get(fid, []) if v and v < d)
+            x["trailer_n_pre"] = float(len(pre))
+            x["trailer_lead_days"] = float((d - pre[0]).days) if pre else np.nan
+        else:
+            x["trailer_n_pre"] = x["trailer_lead_days"] = np.nan
+        x["log_pv_pre28"], x["pv_last7_share"] = pv.get(fid, (np.nan, np.nan))
         r, t = news.get(fid, (None, None))
         x["news_resonance"] = np.nan if r is None else r
         x["news_top_sim"] = np.nan if t is None else t
@@ -557,6 +609,32 @@ def genre_baseline(train_rows, test_rows):
     return np.array([med.get(next((gg for gg in GENRES if r[f"g_{gg}"]), "?"), allm) for r in test_rows])
 
 
+def buzz_cv(uni, base_cols, buzz_cols, new, folds=5, seed=0):
+    """pf3: 5-fold CV over the 2016-2019 / 2021-2023 films with pageviews; every fold's model is trained on all
+    other films (all years). Returns MAE with and without the pageview features, the paired difference + CI."""
+    elig = [i for i, r in enumerate(uni) if (TEST[0] <= r["year"] <= TEST[1] or LATE[0] + 1 <= r["year"] <= LATE[1])
+            and not math.isnan(r["log_pv_pre28"])]
+    if len(elig) < 150:
+        return {"n": len(elig), "note": "fewer than 150 films with pageviews and a gross: not tested"}
+    rng = np.random.default_rng(seed)
+    order = rng.permutation(elig)
+    parts = np.array_split(order, folds)
+    ea, eb = [], []
+    for k in range(folds):
+        hold = set(int(i) for i in parts[k])
+        trr = [r for i, r in enumerate(uni) if i not in hold]
+        ter = [uni[i] for i in parts[k]]
+        y, yt = np.array([r["actual"] for r in trr]), np.array([r["actual"] for r in ter])
+        for cols, out in ((base_cols, ea), (base_cols + buzz_cols, eb)):
+            m = new()
+            m.fit(matrix(trr, cols), y)
+            out.extend(np.abs(m.predict(matrix(ter, cols)) - yt))
+    ea, eb = np.array(ea), np.array(eb)
+    d = boot_diff(eb, ea)
+    return {"n": len(elig), "mae_without": round(float(ea.mean()), 4), "mae_with": round(float(eb.mean()), 4),
+            "diff": d, "adds_information": bool(d[2] < 0)}
+
+
 # ------------------------------------------------------------------ fit
 def cmd_fit(a):
     t0 = time.time()
@@ -568,8 +646,11 @@ def cmd_fit(a):
     print(f"films with a budget: {len(rows):,}; with budget and gross (training universe): {len(uni):,}")
     kind, new = make_model()
     # a feature with no values at all (e.g. no MovieLens file on this server) is left out of every model
-    usable = {k for k in WITH_NEWS if any(not (isinstance(r[k], float) and math.isnan(r[k])) for r in uni)}
-    dropped = [k for k in WITH_NEWS if k not in usable]
+    ALLF = WITH_NEWS + TRAILER + BUZZ
+    usable = {k for k in ALLF if any(not (isinstance(r[k], float) and math.isnan(r[k])) for r in uni)}
+    dropped = [k for k in ALLF if k not in usable]
+    TR_ = [k for k in TRAILER if k in usable]
+    BZ_ = [k for k in BUZZ if k in usable]
     if dropped:
         print(f"features with no data, left out: {', '.join(dropped)}")
     BEFORE_, AFTER_, NEWS_, PF1_ = ([k for k in cols if k in usable] for cols in (BEFORE, AFTER, WITH_NEWS, BEFORE_PF1))
@@ -582,7 +663,10 @@ def cmd_fit(a):
     res = {"model": kind, "version": VERSION, "n_universe": len(uni), "n_train": len(tr), "n_test": len(te),
            "n_late": len(late), "fitted_at": F.now(), "features_without_data": dropped}
     preds, imps = {}, {}
-    for name, cols in (("before", BEFORE_), ("after", AFTER_), ("news", NEWS_), ("before_no_context", PF1_)):
+    arms = [("before", BEFORE_), ("after", AFTER_), ("news", NEWS_), ("before_no_context", PF1_)]
+    if TR_:
+        arms.append(("before_trailer", BEFORE_ + TR_))
+    for name, cols in arms:
         m = new()
         m.fit(matrix(tr, cols), ytr)
         p_te = m.predict(matrix(te, cols))
@@ -599,7 +683,7 @@ def cmd_fit(a):
     err["genre_baseline"] = np.abs(base - yte)
     err["linear_before"] = np.abs(lin - yte)
     res["test"] = {k: {"mae": round(float(e.mean()), 4)} for k, e in err.items()}
-    for k in ("before", "after", "news", "before_no_context"):
+    for k in [a for a, _c in arms]:
         res["test"][k]["spearman"] = round(spearman(preds[k][0], yte), 4)
         if len(late):
             res.setdefault("late", {})[k] = {"mae": round(float(np.abs(preds[k][1] - yla).mean()), 4),
@@ -612,6 +696,16 @@ def cmd_fit(a):
     d_ctx = boot_diff(err["before"], err["before_no_context"])
     res["diff"] = {"before_minus_genre": d_base, "before_minus_linear": d_lin, "news_minus_after": d_news,
                    "context_minus_no_context": d_ctx}
+    # pf3: trailer timing (main split) and pre-release Wikipedia attention (its own cross-validation)
+    trailer_ok = False
+    if TR_:
+        d_tr = boot_diff(err["before_trailer"], err["before"])
+        res["diff"]["trailer_minus_before"] = d_tr
+        trailer_ok = d_tr[2] < 0
+        res["trailer_coverage"] = {"train": sum(1 for r in tr if not math.isnan(r["trailer_n_pre"])),
+                                   "test": sum(1 for r in te if not math.isnan(r["trailer_n_pre"]))}
+    if BZ_:
+        res["buzz"] = buzz_cv(uni, BEFORE_ + (TR_ if trailer_ok else []), BZ_, new)
     res["importance"] = imps
     rel = 1 - res["test"]["before"]["mae"] / res["test"]["genre_baseline"]["mae"]
     rule_a = rel >= 0.05 and d_base[2] < 0
@@ -620,7 +714,13 @@ def cmd_fit(a):
                    "model_part_passes": bool(rule_a and rule_b),
                    "c_answers": "run eval_v3 --category why --answers PERF=0 vs PERF=1 (run_v5.sh perfeval)",
                    "news_adds_information": bool(d_news[2] < 0),
-                   "context_adds_information": bool(d_ctx[2] < 0)}
+                   "context_adds_information": bool(d_ctx[2] < 0),
+                   "trailer_adds_information": bool(trailer_ok),
+                   "buzz_adds_information": bool((res.get("buzz") or {}).get("adds_information"))}
+    if trailer_ok:                     # rule: adopted into the per-film expectations only when it helps
+        BEFORE_ = BEFORE_ + TR_
+        AFTER_ = AFTER_ + TR_
+        print("trailer timing adds information on 2016-2019: used in the per-film expectations", flush=True)
 
     # per-film expectations: 5-year blocks, each predicted by a model that did not see its own block
     print("per-film expectations (each 5-year block predicted by a model trained on the others) ...", flush=True)
@@ -702,8 +802,11 @@ def write_summary(res):
     L.append("")
     L.append(f"held-out {TEST[0]}-{TEST[1]}      mean abs error (log)  typical miss   Spearman")
     for k, name in (("genre_baseline", "genre median (baseline)"), ("linear_before", "linear, before release"),
-                    ("before_no_context", "trees, before, no context"), ("before", "trees, before release"), ("after", "trees, + reception"),
+                    ("before_no_context", "trees, before, no context"), ("before", "trees, before release"),
+                    ("before_trailer", "trees, before + trailers"), ("after", "trees, + reception"),
                     ("news", "trees, + reception + news")):
+        if k not in t:
+            continue
         L.append(f"  {name:28s} {t[k]['mae']:8.3f}          x{math.exp(t[k]['mae']):5.2f}       {t[k]['spearman']:+.3f}")
     if res.get("late"):
         L.append(f"\n{LATE[0]}-{LATE[1]} (pandemic years, reported separately):")
@@ -719,6 +822,20 @@ def write_summary(res):
         L.append(f"with release context - without (pf1): {d['context_minus_no_context'][0]:+.3f} "
                  f"[{d['context_minus_no_context'][1]:+.3f}, {d['context_minus_no_context'][2]:+.3f}]  -> release context adds "
                  f"measurable information: {'YES' if res['rule'].get('context_adds_information') else 'no'}")
+    if "trailer_minus_before" in d:
+        x = d["trailer_minus_before"]
+        L.append(f"with trailer timing - without (pf3): {x[0]:+.3f} [{x[1]:+.3f}, {x[2]:+.3f}]  -> adds measurable "
+                 f"information: {'YES (used per film)' if res['rule'].get('trailer_adds_information') else 'no'}"
+                 f"  (films with trailer data: train {res.get('trailer_coverage', {}).get('train', '?')}, "
+                 f"test {res.get('trailer_coverage', {}).get('test', '?')})")
+    if res.get("buzz"):
+        b = res["buzz"]
+        if "diff" in b:
+            L.append(f"pre-release Wikipedia views, 5-fold CV on {b['n']} films 2016-2023: MAE {b['mae_without']:.3f} -> "
+                     f"{b['mae_with']:.3f}, diff {b['diff'][0]:+.3f} [{b['diff'][1]:+.3f}, {b['diff'][2]:+.3f}]  -> adds "
+                     f"measurable information: {'YES' if b['adds_information'] else 'no'} (reported only)")
+        else:
+            L.append(f"pre-release Wikipedia views: {b.get('note')} (n={b.get('n')})")
     L.append(f"news - reception only:   {d['news_minus_after'][0]:+.3f} [{d['news_minus_after'][1]:+.3f}, "
              f"{d['news_minus_after'][2]:+.3f}]  -> news adds measurable information: "
              f"{'YES' if res['rule']['news_adds_information'] else 'no'}")
@@ -775,6 +892,14 @@ def _describe(name, val):
         return f"its genre usually returned {math.exp(val):.1f}x in this release month"
     if name == "author_prev_365_ret":
         return f"the same author's adaptations in the past year returned {math.exp(val):.1f}x"
+    if name == "trailer_lead_days":
+        return f"first trailer {val:.0f} days before release"
+    if name == "trailer_n_pre":
+        return f"{val:.0f} trailers/teasers before release"
+    if name == "log_pv_pre28":
+        return f"{math.expm1(val):,.0f} Wikipedia views in the 4 weeks before release"
+    if name == "imdb_rating":
+        return f"IMDb {val:.1f}/10"
     if name == "days_to_holiday":
         return f"{val:.0f} days from the nearest big holiday"
     if name in ("same_weekend_log_budget", "prev_10d_log_budget"):
