@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Movie Buff</title>
+<title>Cinemack</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%237b5cff'/%3E%3Cstop offset='1' stop-color='%23ff3d7f'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='9' fill='url(%23g)'/%3E%3Cpath d='M9 13h14l-1.6 11H10.6z' fill='white'/%3E%3Ccircle cx='12' cy='11' r='3' fill='white'/%3E%3Ccircle cx='16' cy='9.5' r='3.2' fill='white'/%3E%3Ccircle cx='20' cy='11' r='3' fill='white'/%3E%3C/svg%3E">
 <style>
   :root{
@@ -260,6 +260,8 @@
   .more button.primary{ border:none; background:var(--grad2); color:#fff; }
   .more button.primary:hover{ filter:brightness(1.06); color:#fff; }
   .more button:disabled{ opacity:.5; cursor:default; }
+  .more .choices{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; width:100%; margin-bottom:2px; }
+  .more .choices-label{ font-size:13px; color:var(--soft); font-weight:600; }
 
   /* v6: answer rating label */
   .rate{ display:inline-flex; align-items:center; gap:2px; white-space:nowrap; margin-left:8px; }
@@ -329,6 +331,15 @@
   .grp strong{ display:block; font-family:var(--display); font-size:14px; margin-top:6px; }
   .grp small{ display:block; color:var(--faint); font-size:11.5px; }
   .grp[aria-pressed="true"] strong::before{ content:"✓ "; color:var(--accent); }
+  /* 4 Nov: a second click marks a group "Not for me" */
+  .grp[data-state="avoid"]{ border-color:var(--line-strong); border-style:dashed; opacity:.72; }
+  .grp[data-state="avoid"] .ps{ filter:grayscale(1); }
+  .grp[data-state="avoid"] strong::before{ content:"✕ "; color:var(--soft); }
+  .grp .st{ display:block; font-size:11.5px; font-weight:700; margin-top:3px; color:var(--soft); min-height:1em; }
+  .grp[aria-pressed="true"] .st{ color:var(--accent); }
+  .seg.svc{ flex-wrap:wrap; }
+  .lb-steps{ margin:6px 0 10px 18px; padding:0; }
+  .fc-svc{ font-size:11.5px; font-weight:700; color:var(--accent-ink); background:var(--accent); border-radius:7px; padding:3px 7px; }
   .famous{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; margin-top:8px; }
   .fam{ display:grid; grid-template-columns:46px 1fr; gap:8px; align-items:start; font-size:12.5px; }
   .fam .poster{ width:46px; height:69px; border-radius:6px; }
@@ -387,6 +398,14 @@
   .fp-tag{ font-style:italic; color:var(--soft); margin:14px 0 4px; }
   .fp-ov{ margin:8px 0 0; }
   .fp-sec{ margin-top:18px; }
+  .fp-rec .rec-row{ display:grid; grid-template-columns:84px 1fr 56px; align-items:center; gap:8px; margin:6px 0; font-size:13.5px; }
+  .fp-rec .rb{ height:10px; border-radius:6px; background:color-mix(in srgb, currentColor 12%, transparent); overflow:hidden; }
+  .fp-rec .rb i{ display:block; height:100%; border-radius:6px; background:linear-gradient(90deg,#7b5cff,#ff3d7f); }
+  .fp-rec .rv{ text-align:right; font-variant-numeric:tabular-nums; }
+  .fp-rec h4{ font-size:12.5px; margin:10px 0 4px; }
+  .fp-rec ul{ margin:0; padding-left:18px; font-size:13.5px; }
+  .fp-rec .rec-note{ font-size:13.5px; margin:8px 0 0; }
+  .fp-rec .rec-src{ display:block; font-size:12px; opacity:.75; margin-top:8px; }
   .fp-sec h3{ font-size:11.5px; font-weight:800; letter-spacing:.07em; text-transform:uppercase; color:var(--faint); margin:0 0 8px; }
   .fp-cast{ display:grid; grid-template-columns:repeat(auto-fill,minmax(92px,1fr)); gap:10px; }
   .fp-cast figure{ margin:0; font-size:12.5px; line-height:1.3; }
@@ -472,9 +491,9 @@
 
 <header>
   <div class="bar">
-    <a class="brand" href="/" aria-label="Movie Buff home">
+    <a class="brand" href="/" aria-label="Cinemack home">
       <span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 10h14l-1.4 10H6.4z" fill="#fff"/><path d="M9 10.5l.6 9M15 10.5l-.6 9" stroke="#ff3d7f" stroke-width="1.4" opacity=".55"/><circle cx="8" cy="8" r="2.6" fill="#fff"/><circle cx="12" cy="6.6" r="2.9" fill="#fff"/><circle cx="16" cy="8" r="2.6" fill="#fff"/></svg></span>
-      <span class="name">Movie Buff</span>
+      <span class="name">Cinemack</span>
     </a>
     <span class="pill" id="health" role="status"><span class="dot"></span><span id="health-text">Checking…</span></span>
     <div class="spacer"></div>
@@ -602,7 +621,7 @@
         <span style="--c:#ff8a3d">says so when it doesn't know</span>
       </div>
       <div class="greet" id="greet" hidden></div>
-      <div class="personalise" id="personalise" hidden><button type="button" id="start-onboard">Personalise Movie Buff</button> · takes about a minute</div>
+      <div class="personalise" id="personalise" hidden><button type="button" id="start-onboard">Personalise Cinemack</button> · takes about a minute</div>
     </section>
   </div>
 </main>
@@ -622,7 +641,7 @@
 <div class="drawer-bg" id="drawer-bg" hidden></div>
 <aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-h" hidden>
   <div class="dh"><h2 id="drawer-h">Your chats</h2><button class="x" id="drawer-x" type="button" aria-label="Close">×</button></div>
-  <p class="note">Saved on the Movie Buff server for your account, or for this browser if you're not signed in. Reopen one to carry on where you left off. Deleting a chat also forgets anything remembered from it.</p>
+  <p class="note">Saved on the Cinemack server for your account, or for this browser if you're not signed in. Reopen one to carry on where you left off. Deleting a chat also forgets anything remembered from it.</p>
   <ul id="chat-list"></ul>
 </aside>
 
@@ -631,7 +650,7 @@
   <div class="dh"><h2 id="me-h">You</h2><button class="x" id="me-x" type="button" aria-label="Close">×</button></div>
   <div class="me-body" id="me-body"></div>
 </aside>
-<dialog class="panel onboard" id="onboard" aria-label="Personalise Movie Buff"></dialog>
+<dialog class="panel onboard" id="onboard" aria-label="Personalise Cinemack"></dialog>
 
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 <dialog class="panel" id="film-panel" aria-label="Film details"></dialog>
@@ -639,7 +658,7 @@
 <div class="gate" id="gate" hidden>
   <form id="gate-form">
     <h2>Access code 🎟️</h2>
-    <p>Movie Buff runs on a shared GPU, so it's open to people with the code.</p>
+    <p>Cinemack runs on a shared GPU, so it's open to people with the code.</p>
     <label for="code" class="sr">Access code</label>
     <input id="code" type="password" autocomplete="current-password" placeholder="Enter the code">
     <div class="msg-bad" id="gate-bad" aria-live="polite"></div>
@@ -792,7 +811,14 @@
 
   // ---------- rendering helpers ----------
   const esc = (s) => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const inline = (s) => esc(s)
+  // v7 D5 / R16: markdown links render only for allow-listed domains (citations, Wikipedia, reviews); others stay text
+  const LINK_OK = new Set(["apnews.com", "austinchronicle.com", "avclub.com", "azcentral.com", "bbc.co.uk", "bbc.com", "bfi.org.uk", "bloody-disgusting.com", "boston.com", "bostonglobe.com", "boxofficemojo.com", "chicagoreader.com", "chicagotribune.com", "cinemablend.com", "cinemascore.com", "cnn.com", "collider.com", "commonsensemedia.org", "consequence.net", "cs.merrimack.edu", "deadline.com", "denofgeek.com", "detroitnews.com", "dreadcentral.com", "ebertandroeper.com", "empireonline.com", "esquire.com", "ew.com", "filmcomment.com", "filmthreat.com", "forbes.com", "ft.com", "gamesradar.com", "gizmodo.com", "gq.com", "grouplens.org", "guardian.co.uk", "hindustantimes.com", "hollywoodreporter.com", "ign.com", "imdb.com", "independent.co.uk", "indiewire.com", "inquirer.com", "io9.com", "justwatch.com", "latimes.com", "lemonde.fr", "letterboxd.com", "lwlies.com", "mashable.com", "metacritic.com", "movieline.com", "movieweb.com", "nerdist.com", "netflix.com", "newsweek.com", "newyorker.com", "npr.org", "nydailynews.com", "nymag.com", "nypost.com", "nytimes.com", "omdbapi.com", "pajiba.com", "pastemagazine.com", "philly.com", "polygon.com", "radiotimes.com", "reelviews.net", "reuters.com", "rogerebert.com", "rollingstone.com", "rottentomatoes.com", "salon.com", "screendaily.com", "screenrant.com", "seattletimes.com", "sfchronicle.com", "sfgate.com", "slantmagazine.com", "slate.com", "smh.com.au", "spin.com", "standard.co.uk", "startribune.com", "stltoday.com", "suntimes.com", "telegraph.co.uk", "the-numbers.com", "theatlantic.com", "thedailybeast.com", "thefilmstage.com", "theglobeandmail.com", "theguardian.com", "thehindu.com", "themoviedb.org", "theplaylist.net", "theringer.com", "thestar.com", "thetimes.co.uk", "thewrap.com", "time.com", "timeout.com", "timesofindia.indiatimes.com", "totalfilm.com", "tvguide.com", "usatoday.com", "vanityfair.com", "variety.com", "villagevoice.com", "vox.com", "vulture.com", "washingtonpost.com", "wikidata.org", "wikimedia.org", "wikipedia.org", "wired.com", "wsj.com", "youtu.be", "youtube.com"]);
+  const linkOk = (u) => { try { let h = new URL(u).hostname.toLowerCase().replace(/^www\./, '');
+    for (;;) { if (LINK_OK.has(h)) return true; const i = h.indexOf('.'); if (i < 0) return false; h = h.slice(i + 1); } } catch { return false; } };
+  const links = (s) => s.replace(/\[([^\]]{1,200})\]\((https?:\/\/[^\s)]+)\)/g, (m, t, u) => {
+    const raw = u.replace(/&amp;/g, '&');
+    return linkOk(raw) ? `<a href="${u}" target="_blank" rel="noopener nofollow">${t}</a>` : t; });
+  const inline = (s) => links(esc(s))
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/(^|[\s(])\*(?!\s)(.+?)\*(?=[\s).,;:!?]|$)/g, '$1<em>$2</em>')
     .replace(/(^|[\s(])_(?!\s)(.+?)_(?=[\s).,;:!?]|$)/g, '$1<em>$2</em>');
@@ -943,6 +969,12 @@
     if (line1.length) { const d = document.createElement('div'); d.className = 'fc-sub'; d.innerHTML = line1.join(' · '); body.append(d); }
     if (f.director) { const d = document.createElement('div'); d.className = 'fc-sub'; d.textContent = 'Directed by ' + f.director; body.append(d); }
     const ch = scoreChips(f); if (ch) body.append(ch);
+    if (Array.isArray(f.on_services) && f.on_services.length) {   // 4 Nov: on the person's streaming services
+      const sv = document.createElement('div'); sv.className = 'fc-chips';
+      const b = document.createElement('span'); b.className = 'fc-svc'; b.textContent = 'On your ' + f.on_services.join(' / ');
+      b.title = 'Streaming on your services in the US (JustWatch via TMDB); listings change.';
+      sv.append(b); body.append(sv);
+    }
     if (f.why) { const w = document.createElement('div'); w.className = 'fc-why'; w.textContent = 'Why it matched you: ' + f.why; body.append(w); }
     el.append(pw, body);
     if (f.id != null) el.append(tasteGroup(f, rid));
@@ -977,7 +1009,7 @@
     ui.sources.hidden = false;
     ui.sources.innerHTML = '';
     if (!films.length) {
-      ui.sources.innerHTML = '<div class="memory-note">Nothing in the database matched this question, so there are no films to show. Movie Buff is told to say so rather than guess.</div>';
+      ui.sources.innerHTML = '<div class="memory-note">Nothing in the database matched this question, so there are no films to show. Cinemack is told to say so rather than guess.</div>';
       return;
     }
     const row = (list) => { const r = document.createElement('div'); r.className = 'frow'; list.forEach(f => r.append(filmCard(f, rid))); return r; };
@@ -992,6 +1024,23 @@
       d.append(row(others));
       ui.sources.append(d);
     }
+  }
+
+  // 3 Nov: "Did you mean the film or the show?" - one button per choice, before the follow-up chips. A click asks the
+  // same question again, saying which one (the server routes it).
+  function renderChoices(ui, choices) {
+    const row = document.createElement('div'); row.className = 'choices';
+    const lab = document.createElement('span'); lab.className = 'choices-label'; lab.textContent = 'Did you mean:';
+    row.append(lab);
+    for (const c of choices.slice(0, 4)) {
+      if (!c || !c.label || !c.question) continue;
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'primary';
+      b.textContent = c.label; b.title = c.question;
+      b.onclick = () => { row.querySelectorAll('button').forEach(x => x.disabled = true); ask(c.question); };
+      row.append(b);
+    }
+    ui.more.prepend(row);
+    ui.more.hidden = false;
   }
 
   // "Tell me more" plus 2-3 follow-up chips chosen from the kind of answer (no extra model call).
@@ -1083,6 +1132,33 @@
       if (m.gross) rowOf('Worldwide gross', m.gross, m.gross_src, m.gross_real);
       s.append(tb);
     }
+    const R = info.reception;                                  // v7 E5: critics vs audiences, praise, complaints
+    if (R && (R.critics != null || R.audiences != null || (R.praise || []).length)) {
+      const s = sec('Reception'), box = document.createElement('div'); box.className = 'fp-rec';
+      const bar = (label, v, src) => { if (v == null) return; const row = document.createElement('div'); row.className = 'rec-row';
+        row.innerHTML = '<span class="rl"></span><span class="rb"><i></i></span><span class="rv"></span>';
+        row.querySelector('.rl').textContent = label; row.querySelector('i').style.width = Math.max(2, Math.min(100, v)) + '%';
+        row.querySelector('.rv').textContent = `${v}/100`; row.title = src ? `From ${src}` : ''; box.append(row); };
+      bar('Critics', R.critics, R.critics_src); bar('Audiences', R.audiences, R.audiences_src);
+      const lines = [];
+      if (R.gap_label) lines.push(R.gap_label.charAt(0).toUpperCase() + R.gap_label.slice(1) + '.');
+      if (R.polar && R.polar !== 'broadly agreed') lines.push(`Audience ratings: ${R.polar}.`);
+      if (R.trend === 'rose') lines.push('Rated higher by viewers in later years than at release.');
+      if (R.trend === 'fell') lines.push('Rated lower by viewers in later years than at release.');
+      if (R.legacy) lines.push(R.legacy === 'cult following' ? 'Has a cult following (Wikipedia).' : 'Reappraised since release (Wikipedia).');
+      if (R.bombing) lines.push('A burst of extreme low ratings (review bombing) was left out of the counts.');
+      if (lines.length) { const p = document.createElement('p'); p.className = 'rec-note'; p.textContent = lines.join(' '); box.append(p); }
+      const list = (title, items) => { if (!(items || []).length) return; const h = document.createElement('h4'); h.textContent = title;
+        const ul = document.createElement('ul'); for (const it of items) { const li = document.createElement('li'); li.textContent = it; ul.append(li); } box.append(h, ul); };
+      list('Praised', R.praise); list('Criticised', R.complaints);
+      const named = (R.named || []).filter(n => n.outlet).map(n => n.outlet + (n.critic ? ` (${n.critic})` : ''));
+      if (named.length) { const p = document.createElement('p'); p.className = 'rec-src'; p.textContent = 'Critics quoted on Wikipedia: ' + named.join(', '); box.append(p); }
+      const src = document.createElement('small'); src.className = 'rec-src';
+      src.textContent = `Sources: ${[R.critics_src, R.audiences_src].filter(Boolean).join(', ')}` +
+        (R.n_audience_reviews ? `; ${R.n_audience_reviews} TMDB user reviews analysed` : '') +
+        (R.n_critic_statements ? `; ${R.n_critic_statements} critic statements` : '') + '. 0-100 scale; see How it works.';
+      box.append(src); s.append(box);
+    }
     const L = info.links || {};
     if (L.trailer && L.trailer.key) {
       const s = sec(L.trailer.type === 'Teaser' ? 'Teaser' : 'Trailer');
@@ -1110,7 +1186,7 @@
     if (info.wiki) a(info.wiki.url, 'Wikipedia article');
     if (info.tmdb_url || f.id != null) a(info.tmdb_url || `https://www.themoviedb.org/movie/${f.id}`, 'TMDB page');
     if (info.imdb_url) a(info.imdb_url, 'IMDb page');
-    const tm = document.createElement('button'); tm.type = 'button'; tm.className = 'linkbtn'; tm.textContent = 'Ask Movie Buff to tell me more';
+    const tm = document.createElement('button'); tm.type = 'button'; tm.className = 'linkbtn'; tm.textContent = 'Ask Cinemack to tell me more';
     tm.onclick = () => { panel.close(); ask(`Tell me more about ${filmName(info)}.`); };
     lk.append(tm); links.append(lk);
     const note = document.createElement('p'); note.className = 'fp-note';
@@ -1256,7 +1332,7 @@
     state.busy = true; updateSend();
     state.ctrl = new AbortController();
 
-    let answer = '', thinking = '', gotText = false, films = null, steps = [], rid = null, intent = null;
+    let answer = '', thinking = '', gotText = false, films = null, steps = [], rid = null, intent = null, choices = null;
     let timer = null, stageStart = performance.now();
     const setStatus = (msg, hint = '') => { ui.status.hidden = false; ui.stText.textContent = msg; ui.hint.textContent = hint; };
     const tick = (label) => {
@@ -1280,6 +1356,7 @@
         films = data.films || [];
         steps = data.steps || [];
         intent = data.intent || null;
+        choices = Array.isArray(data.choices) && data.choices.length ? data.choices : null;
         renderSources(ui, films, null, rid);
         renderAlts(ui, data.alternatives);
       } else if (event === 'thinking') {
@@ -1304,6 +1381,9 @@
         if (t.total_s) parts.push(`done in ${t.total_s.toFixed(1)}s`);
         ui.meta.innerHTML = (steps.length ? '<ul>' + steps.map(s => '<li>' + esc(s) + '</li>').join('') + '</ul>' : '')
           + '<div class="times">' + esc(parts.join(' · ')) + '</div>';
+      } else if (event === 'replace') {                       // v7: the safety check rewrote the answer
+        answer = data.text || '';
+        ui.body.innerHTML = md(answer);
       } else if (event === 'links') {
         renderLinks(ui, data.groups || []);
       } else if (event === 'memory') {
@@ -1355,7 +1435,7 @@
         if (answer.trim()) remember(text, answer);
       } else {
         const box = document.createElement('div'); box.className = 'error';
-        box.textContent = err.friendly ? err.message : "Couldn't reach the Movie Buff server. Check that it's running, then try again.";
+        box.textContent = err.friendly ? err.message : "Couldn't reach the Cinemack server. Check that it's running, then try again.";
         const again = document.createElement('button'); again.type = 'button'; again.textContent = 'Try again';
         again.onclick = () => { ui.el.remove(); ask(text, { retry: true }); };
         box.append(again); ui.body.after(box);
@@ -1367,6 +1447,7 @@
       if (answer.trim()) {
         renderActions(ui, answer.trim(), rid);
         if (films) { renderSources(ui, films, answer, rid); renderMore(ui, films, answer, intent); }
+        if (choices) renderChoices(ui, choices);
       }
       ui.meta.hidden = !state.details || !ui.meta.innerHTML;
       finish();
@@ -1473,7 +1554,7 @@
     const me = await loadMe();
     if (!me) { meBody.innerHTML = "<p class=\"empty-note\">Couldn't reach the server.</p>"; return; }
     meBody.innerHTML = '';
-    meBody.append(accountSection(me), settingsSection(me, focus === 'settings'), await memorySection(me, focus === 'memory'),
+    meBody.append(accountSection(me), settingsSection(me, focus === 'settings'), letterboxdSection(), await memorySection(me, focus === 'memory'),
                   await watchSection(), privacySection(me));
     if (focus) meBody.querySelector(`[data-sec="${focus}"]`)?.scrollIntoView({ block: 'start' });
   }
@@ -1496,9 +1577,50 @@
     inB.onclick = () => { closeMe(); openAuth('in'); };
     upB.onclick = () => { closeMe(); openAuth('up'); };
     sec.append(el('h3', { textContent: 'Your account' }),
-      el('p', { className: 'empty-note', textContent: "Optional. Without one, Movie Buff remembers you by this browser only." }),
+      el('p', { className: 'empty-note', textContent: "Optional. Without one, Cinemack remembers you by this browser only." }),
       el('div', { className: 'row-btns' }, inB, upB));
     return sec;
+  }
+
+  // 4 Nov: streaming services (settings.services), used by the settings form and the setup's Limits step
+  function servicesBox(me, chosen) {
+    const box = el('div', { className: 'seg svc' });
+    for (const [k, label] of (me.services_all || [])) {
+      const i = el('input', { type: 'checkbox', value: k, checked: (chosen || []).includes(k) });
+      box.append(el('label', {}, i, el('span', { textContent: label })));
+    }
+    return box;
+  }
+
+  // 4 Nov: import the person's own Letterboxd export (no Letterboxd API: their data, their files)
+  function letterboxdSection() {
+    const d = el('details', { className: 'me-sec' });
+    d.dataset.sec = 'import';
+    d.append(el('summary', { textContent: 'Import from Letterboxd' }));
+    const steps = el('ol', { className: 'empty-note lb-steps' },
+      el('li', { textContent: 'On letterboxd.com, open Settings → Data → Export your data. You get a .zip file.' }),
+      el('li', { textContent: 'Unzip it, then choose ratings.csv, watched.csv and watchlist.csv here (one or all).' }));
+    const file = el('input', { type: 'file', multiple: true, accept: '.csv,text/csv' });
+    const go = el('button', { type: 'button', className: 'btn', textContent: 'Import' });
+    const out = el('div', { className: 'empty-note', role: 'status' });
+    go.onclick = async () => {
+      const fs = [...(file.files || [])].filter(x => /\.csv$/i.test(x.name)).slice(0, 6);
+      if (!fs.length) { out.textContent = 'Choose the CSV files from your export first (unzip it if you have a .zip).'; return; }
+      go.disabled = true; out.textContent = 'Importing…';
+      try {
+        const files = {};
+        for (const x of fs) files[x.name] = await x.text();
+        const r = await post('/api/import/letterboxd', { files });
+        out.textContent = `Matched ${r.matched} of your films: ${r.liked} liked, ${r.not} not for you, ${r.want} on your watchlist`
+          + (r.kept_site ? `; ${r.kept_site} you had already marked here were left as they were` : '')
+          + (r.unmatched ? `. ${r.unmatched} ${r.unmatched === 1 ? "film wasn't" : "films weren't"} in Cinemack's catalogue` + (r.unmatched_examples && r.unmatched_examples.length ? ` (e.g. ${r.unmatched_examples.slice(0, 3).join(', ')})` : '') : '') + '.';
+        toast('Letterboxd import done. Your recommendations now use it.');
+      } catch (x) { out.textContent = x.message; }
+      go.disabled = false;
+    };
+    d.append(el('p', { className: 'empty-note', textContent: 'Ratings of 3.5★ or more count as liked, 2★ or less as not for you; your watchlist becomes your watchlist here. Nothing is shared with Letterboxd.' }),
+             steps, field('Files from your export', file), el('div', { className: 'row-btns' }, go), out);
+    return d;
   }
 
   function settingsSection(me, open) {
@@ -1508,9 +1630,9 @@
     d.append(el('summary', { textContent: 'Settings' }));
     const f = el('form');
     const name = el('input', { type: 'text', value: me.name || '', maxLength: 40 });
-    f.append(field('What Movie Buff calls you', name));
+    f.append(field('What Cinemack calls you', name));
     f.append(field('Answer length', seg('length', [['short', 'Short'], ['normal', 'Normal'], ['detailed', 'Detailed']], s.length)));
-    f.append(field('Voice', seg('voice', [['persona', 'Movie Buff'], ['plain', 'Plain']], s.voice), 'Movie Buff is chatty and enthusiastic; Plain sticks to the facts.'));
+    f.append(field('Voice', seg('voice', [['persona', 'Cinemack'], ['plain', 'Plain']], s.voice), 'Cinemack is chatty and enthusiastic; Plain sticks to the facts.'));
     f.append(field('Spoilers', seg('spoilers', [['site', 'Only if I ask'], ['never', 'Never'], ['warn', 'Warn first'], ['allow', 'Allow']], s.spoilers)));
     const genres = el('div', { className: 'seg' });
     for (const g of me.genres) { const i = el('input', { type: 'checkbox', value: g, checked: (s.never_genres || []).includes(g) }); genres.append(el('label', {}, i, el('span', { textContent: g }))); }
@@ -1523,13 +1645,15 @@
     const cert = el('select');
     for (const [v, t] of [['', 'Any rating'], ['PG-13', 'PG-13 or milder'], ['PG', 'PG or milder'], ['G', 'G only']]) cert.append(el('option', { value: v, textContent: t, selected: String(s.max_cert || '') === v }));
     f.append(field('Age rating for recommendations', cert, 'US ratings. Films without a US rating are not filtered out; answers say when a film has none.'));
+    const svc = servicesBox(me, s.services || []);
+    f.append(field('My streaming services', svc, 'Films on these get a badge and come first in recommendations (US listings from JustWatch via TMDB).'));
     const about = el('textarea', { maxLength: me.about_max, value: s.about || '', placeholder: "e.g. I'm a film student, talk about cinematography" });
     const count = el('small'); const upd = () => count.textContent = `${about.value.length}/${me.about_max}`; about.oninput = upd; upd();
     const af = field('About me', about); af.append(count); f.append(af);
     const src = el('input', { type: 'checkbox', checked: s.sources !== false });
     f.append(el('label', { className: 'chk' }, src, el('span', { textContent: 'Show the Wikipedia sources line under answers' })));
     const mem = el('input', { type: 'checkbox', checked: s.memory !== false });
-    f.append(el('label', { className: 'chk' }, mem, el('span', { textContent: 'Memory: remember what I tell Movie Buff about myself and use it in answers' })));
+    f.append(el('label', { className: 'chk' }, mem, el('span', { textContent: 'Memory: remember what I tell Cinemack about myself and use it in answers' })));
     const rec = el('input', { type: 'checkbox', checked: s.recall !== false });
     f.append(el('label', { className: 'chk' }, rec, el('span', { textContent: 'Connect to my earlier chats when they relate to a new question (needs memory on)' })));
     const mon = el('input', { type: 'checkbox', checked: s.money !== false });
@@ -1544,7 +1668,8 @@
       const body = { name: name.value, settings: { length: segVal(f, 'length'), voice: segVal(f, 'voice'), spoilers: segVal(f, 'spoilers'),
         never_genres: [...genres.querySelectorAll('input:checked')].map(i => i.value), min_year: minY.value || null,
         max_runtime: maxR.value || null, about: about.value, sources: src.checked, memory: mem.checked,
-        max_cert: cert.value || null, recall: rec.checked, money: mon.checked, critics: cri.checked } };
+        max_cert: cert.value || null, recall: rec.checked, money: mon.checked, critics: cri.checked,
+        services: [...svc.querySelectorAll('input:checked')].map(i => i.value) } };
       try { await post('/api/settings', body); toast('Settings saved. They apply from your next question.'); await loadMe(); }
       catch (x) { err.textContent = x.message; }
       save.disabled = false;
@@ -1559,7 +1684,7 @@
     const sum = el('summary', { textContent: 'Memory' }); d.append(sum);
     d.append(el('p', { className: 'empty-note', textContent: me.settings.memory === false
       ? 'Memory is off (see Settings). Nothing new is remembered and nothing below is used.'
-      : 'Short notes from things you told Movie Buff about yourself. They go into every answer. Delete anything you don’t want kept.' }));
+      : 'Short notes from things you told Cinemack about yourself. They go into every answer. Delete anything you don’t want kept.' }));
     const ul = el('ul', { className: 'mem-list' }); d.append(ul);
     let notes = [];
     try { notes = (await api('/api/memory')).notes || []; } catch {}
@@ -1643,10 +1768,10 @@
     const draw = () => {
       ob.innerHTML = '';
       const wrap = el('div', { className: 'ob' });
-      if (mode === 'up') wrap.append(progress(['Account', 'You', 'Taste', 'Style'], 0));
+      if (mode === 'up') wrap.append(progress(['Account', 'You', 'Taste', 'Limits', 'Style'], 0));
       const hero = el('div', { className: 'auth-hero' });
       hero.innerHTML = `<div class="logo" aria-hidden="true">${LOGO}</div>`;
-      hero.append(el('h2', { id: 'auth-h', textContent: mode === 'up' ? 'Create your Movie Buff account' : 'Welcome back' }),
+      hero.append(el('h2', { id: 'auth-h', textContent: mode === 'up' ? 'Create your Cinemack account' : 'Welcome back' }),
         el('p', { className: 'lead', textContent: mode === 'up' ? 'Your chats on any browser, and recommendations that learn your taste. About a minute; every step after this one can be skipped.'
                                                                  : 'Sign in to pick up your chats, film choices and settings.' }));
       wrap.append(hero);
@@ -1660,7 +1785,7 @@
       const pw = el('input', { type: 'password', autocomplete: mode === 'up' ? 'new-password' : 'current-password', required: true });
       form.append(field('Username', user, mode === 'up' ? '3-32 letters, numbers, dots, dashes or underscores' : ''));
       let name = null, keep = null;
-      if (mode === 'up') { name = el('input', { type: 'text', autocomplete: 'nickname', maxLength: 40, placeholder: 'What should Movie Buff call you?' }); form.append(field('Name (optional)', name)); }
+      if (mode === 'up') { name = el('input', { type: 'text', autocomplete: 'nickname', maxLength: 40, placeholder: 'What should Cinemack call you?' }); form.append(field('Name (optional)', name)); }
       form.append(field('Password', pw, mode === 'up' ? 'At least 8 characters' : ''));
       if (mode === 'up') {
         keep = el('input', { type: 'checkbox', checked: true });
@@ -1706,23 +1831,41 @@
     let data = { groups: [], films: [] };
     try { data = await api('/api/onboarding'); } catch {}
     const me = state.me || await loadMe() || { settings: {}, groups: [] };
-    const pick = { name: me.name || '', groups: new Set(me.groups || []), settings: Object.assign({}, me.settings) };
+    const pick = { name: me.name || '', groups: new Set((me.groups || []).filter(k => !String(k).startsWith('-'))),
+                   avoid: new Set((me.groups || []).filter(k => String(k).startsWith('-')).map(k => String(k).slice(1))),
+                   settings: Object.assign({}, me.settings) };
+    // 4 Nov: groups marked "Not for me" suggest these never-genres on the Limits step (the person can untick them)
+    const AVOID_GENRE = { horror: 'Horror', romance: 'Romance', western: 'Western', docs: 'Documentary', music: 'Music', war: 'War', anim: 'Animation' };
+    let limitsSeen = false;
     let step = 0;
     const all = [
       ['You', () => {
         const name = el('input', { type: 'text', value: pick.name, maxLength: 40, placeholder: 'Your name or a nickname' });
         name.oninput = () => pick.name = name.value;
         setTimeout(() => name.focus(), 30);
-        return [el('h2', { textContent: 'What should Movie Buff call you?' }), el('p', { className: 'lead', textContent: 'Used in greetings. Leave it blank if you like.' }), field('Name', name)];
+        return [el('h2', { textContent: 'What should Cinemack call you?' }), el('p', { className: 'lead', textContent: 'Used in greetings. Leave it blank if you like.' }), field('Name', name)];
       }],
       ['Taste', () => {
         const grid = el('div', { className: 'groups' });
         for (const g of data.groups) {
           const b = el('button', { type: 'button', className: 'grp' });
-          b.setAttribute('aria-pressed', String(pick.groups.has(g.key)));
           const ps = el('div', { className: 'ps' }); g.films.forEach(f => ps.append(posterEl(f, f.poster, 60, 90)));
-          b.append(ps, el('strong', { textContent: g.label }), el('small', { textContent: g.tags.join(' · ') }));
-          b.onclick = () => { pick.groups.has(g.key) ? pick.groups.delete(g.key) : pick.groups.add(g.key); b.setAttribute('aria-pressed', String(pick.groups.has(g.key))); };
+          const st = el('span', { className: 'st' });
+          const show = () => {                     // 4 Nov: click once = into it, twice = not for me, three times = clear
+            const on = pick.groups.has(g.key), off = pick.avoid.has(g.key);
+            b.setAttribute('aria-pressed', String(on));
+            b.dataset.state = off ? 'avoid' : on ? 'like' : '';
+            st.textContent = on ? 'Into it' : off ? 'Not for me' : '';
+            b.setAttribute('aria-label', `${g.label}: ${on ? 'into it' : off ? 'not for me' : 'no preference'}. Click to change.`);
+          };
+          b.append(ps, el('strong', { textContent: g.label }), el('small', { textContent: g.tags.join(' · ') }), st);
+          b.onclick = () => {
+            if (pick.groups.has(g.key)) { pick.groups.delete(g.key); pick.avoid.add(g.key); }
+            else if (pick.avoid.has(g.key)) pick.avoid.delete(g.key);
+            else pick.groups.add(g.key);
+            show();
+          };
+          show();
           grid.append(b);
         }
         const fam = el('div', { className: 'famous' });
@@ -1737,19 +1880,46 @@
           }
           fam.append(el('div', { className: 'fam' }, posterEl(f, f.poster, 46, 69), el('div', {}, el('strong', { textContent: filmName(f) }), opts2)));
         }
-        return [el('h2', { textContent: 'What do you like watching?' }), el('p', { className: 'lead', textContent: 'Pick any groups that sound like you. They shape your first recommendations.' }), grid,
+        return [el('h2', { textContent: 'What do you like watching?' }), el('p', { className: 'lead', textContent: 'Click a group once if it sounds like you, twice if it’s not for you. They shape your first recommendations.' }), grid,
                 data.films.length ? el('h3', { textContent: 'Seen any of these?', style: 'margin:18px 0 0;font-family:var(--display)' }) : '', fam];
+      }],
+      ['Limits', () => {                          // 4 Nov: the hard filters and streaming services, asked at setup
+        const s = pick.settings;
+        if (!limitsSeen && !(s.never_genres || []).length) {
+          s.never_genres = [...new Set([...pick.avoid].map(k => AVOID_GENRE[k]).filter(Boolean))];
+        }
+        limitsSeen = true;
+        const box = el('div');
+        const genres = el('div', { className: 'seg' });
+        for (const g of (me.genres || [])) { const i = el('input', { type: 'checkbox', value: g, checked: (s.never_genres || []).includes(g) }); genres.append(el('label', {}, i, el('span', { textContent: g }))); }
+        const minY = el('select');
+        for (const [v, t] of [['', 'Any year'], ['1960', '1960 or later'], ['1970', '1970 or later'], ['1980', '1980 or later'], ['1990', '1990 or later'], ['2000', '2000 or later'], ['2010', '2010 or later']])
+          minY.append(el('option', { value: v, textContent: t, selected: String(s.min_year || '') === v }));
+        const maxR = el('select');
+        for (const [v, t] of [['', 'Any length'], ['90', 'Up to 1h 30m'], ['120', 'Up to 2h'], ['150', 'Up to 2h 30m'], ['180', 'Up to 3h']])
+          maxR.append(el('option', { value: v, textContent: t, selected: String(s.max_runtime || '') === v }));
+        const svc = servicesBox(me, s.services || []);
+        box.append(field('Never suggest these genres', genres, (pick.avoid.size ? 'Ticked from the groups you said aren’t for you. ' : '') + 'Untick any you’d still like now and then.'),
+                   field('How old can recommendations be?', minY),
+                   field('How long can a film be?', maxR),
+                   field('Which streaming services do you have?', svc, 'Films on these get a badge and come first when they fit just as well (US listings from JustWatch via TMDB).'));
+        box.onchange = () => {
+          s.never_genres = [...genres.querySelectorAll('input:checked')].map(i => i.value);
+          s.min_year = minY.value || null; s.max_runtime = maxR.value || null;
+          s.services = [...svc.querySelectorAll('input:checked')].map(i => i.value);
+        };
+        return [el('h2', { textContent: 'Anything to rule out?' }), el('p', { className: 'lead', textContent: 'Recommendations follow these before the answer is written. Change them any time in Settings.' }), box];
       }],
       ['Style', () => {
         const box = el('div');
         box.append(field('Answer length', seg('ob-length', [['short', 'Short'], ['normal', 'Normal'], ['detailed', 'Detailed']], pick.settings.length || 'normal')),
-                   field('Voice', seg('ob-voice', [['persona', 'Movie Buff'], ['plain', 'Plain']], pick.settings.voice || 'persona'), 'Movie Buff is chatty and enthusiastic; Plain sticks to the facts.'),
+                   field('Voice', seg('ob-voice', [['persona', 'Cinemack'], ['plain', 'Plain']], pick.settings.voice || 'persona'), 'Cinemack is chatty and enthusiastic; Plain sticks to the facts.'),
                    field('Spoilers', seg('ob-spoilers', [['site', 'Only if I ask'], ['never', 'Never'], ['warn', 'Warn first'], ['allow', 'Allow']], pick.settings.spoilers || 'site')),
                    field('Recommendations for', seg('ob-cert', [['', 'Any age'], ['PG-13', 'Up to PG-13'], ['PG', 'Up to PG'], ['G', 'G only']], pick.settings.max_cert || ''),
                          'Watching with kids? Recommendations stay at or below this US rating.'));
         box.onchange = () => { pick.settings.length = segVal(box, 'ob-length'); pick.settings.voice = segVal(box, 'ob-voice'); pick.settings.spoilers = segVal(box, 'ob-spoilers');
                                pick.settings.max_cert = segVal(box, 'ob-cert') || null; };
-        return [el('h2', { textContent: 'How should Movie Buff talk to you?' }), el('p', { className: 'lead', textContent: 'You can change these, and more, in Settings at any time.' }), box];
+        return [el('h2', { textContent: 'How should Cinemack talk to you?' }), el('p', { className: 'lead', textContent: 'You can change these, and more, in Settings at any time.' }), box];
       }],
     ];
     const steps = all.filter(([label]) => !(label === 'You' && opts.skipName));
@@ -1780,14 +1950,14 @@
       wrap.append(el('div', { className: 'ob-done' }, el('div', { className: 'big', textContent: '🍿' }),
         el('h2', { textContent: `You're all set${who ? ', ' + who : ''}.` }),
         el('p', { className: 'lead', textContent: saved && pick.groups.size ? 'Your recommendations now start from your picks. Mark films you like or dislike on any card and they keep learning.'
-                                                                            : 'You can personalise Movie Buff any time from Settings.' }),
+                                                                            : 'You can personalise Cinemack any time from Settings.' }),
         el('div', { className: 'row-btns', style: 'justify-content:center' }, go)));
       ob.append(wrap);
       setTimeout(() => go.focus(), 30);
     };
     const next = async () => {
       if (step < steps.length - 1) { step++; draw(); return; }
-      try { await post('/api/onboarding', { name: pick.name, groups: [...pick.groups], settings: pick.settings }); } catch (x) { toast(x.message); return; }
+      try { await post('/api/onboarding', { name: pick.name, groups: [...pick.groups], avoid: [...pick.avoid], settings: pick.settings }); } catch (x) { toast(x.message); return; }
       await loadMe();
       if (after) { done(true); return; }
       ob.close();
@@ -1839,7 +2009,7 @@
       return h;
     } catch {
       pill.className = 'pill bad'; txt.textContent = 'Server offline';
-      pill.title = "Can't reach the Movie Buff server.";
+      pill.title = "Can't reach the Cinemack server.";
       return null;
     }
   }

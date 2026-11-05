@@ -1,0 +1,26 @@
+{
+ "results": [
+  {
+   "iso_3166_1": "GB",
+   "release_dates": [
+    {
+     "type": 3,
+     "release_date": "2023-07-20T00:00:00.000Z"
+    }
+   ]
+  },
+  {
+   "iso_3166_1": "US",
+   "release_dates": [
+    {
+     "type": 1,
+     "release_date": "2023-07-11T00:00:00.000Z"
+    },
+    {
+     "type": 3,
+     "release_date": "2023-07-21T00:00:00.000Z"
+    }
+   ]
+  }
+ ]
+}

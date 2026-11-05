@@ -1,0 +1,45 @@
+{
+ "about": "v7 D8 discovery prompts (21 Oct examples + more), written 27 Oct before results. Rule: REC_CLEAN=1 kept if no prompt's top 10 has a bad item (rec_clean.py check) and tune / check lose <= 1.",
+ "questions": [
+  {
+   "id": "d01",
+   "question": "hidden gems from the 80s"
+  },
+  {
+   "id": "d02",
+   "question": "lesser known thrillers"
+  },
+  {
+   "id": "d03",
+   "question": "what movies came out in 1999"
+  },
+  {
+   "id": "d04",
+   "question": "highly rated horror movies"
+  },
+  {
+   "id": "d05",
+   "question": "underrated comedies from the 2000s"
+  },
+  {
+   "id": "d06",
+   "question": "the best animated movies"
+  },
+  {
+   "id": "d07",
+   "question": "recommend some good music movies"
+  },
+  {
+   "id": "d08",
+   "question": "critically acclaimed dramas from 2023"
+  },
+  {
+   "id": "d09",
+   "question": "new sci-fi movies"
+  },
+  {
+   "id": "d10",
+   "question": "obscure documentaries worth watching"
+  }
+ ]
+}

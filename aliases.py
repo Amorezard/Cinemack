@@ -19,12 +19,15 @@ Sources (table aliases in facts.db, rebuilt by `build`):
   numeral    Roman <-> Arabic sequel numbers ("Rocky 4" <-> "Rocky IV", "Godfather Part 2")
   wikidata   English "also known as" labels from Wikidata (films with a Wikidata id)
   curated    a hand list of common abbreviations and nicknames (CURATED below)
+  imdb       v7 D2: IMDb alternate titles (US / UK / Commonwealth release titles, original titles, working
+             titles) from imdb_akas (v7_data.py imdb)
 Guards: an alias that is itself another film's exact title is dropped; one-word aliases only from
 the curated list; acronyms (all capitals / digits) match only as typed (case-sensitive).
 
     python aliases.py build            # ~10 min (Wikidata in batches of 50 ids)
     python aliases.py try "who directed T2 and is LOTR better"
     python aliases.py stats
+    python aliases.py imdbcheck sets/tune.json sets/check.json   # 30 Oct: questions an IMDb alias still changes
 """
 import json
 import os
@@ -40,7 +43,8 @@ sys.path.insert(0, HERE)
 import facts_db as F  # noqa: E402
 
 MOVIES = os.path.join(HERE, "movies.db")
-UA = "MovieBuff/4 (student research project; Merrimack College) python-urllib"
+UA = ("MovieBuff/7 (student research project; Merrimack College; " + (os.environ.get("MB_CONTACT") or "no contact set")
+      + ") python-urllib")
 ROMAN = {"II": 2, "III": 3, "IV": 4, "V": 5, "VI": 6, "VII": 7, "VIII": 8, "IX": 9, "X": 10}
 ARABIC = {v: k for k, v in ROMAN.items()}
 # alias -> exact catalogue title (year optional, "title|year"). Acronyms are matched case-sensitively.
@@ -104,17 +108,33 @@ def catalogue():
 
 
 def _get(url):
-    for i in range(3):
+    """JSON or None. 29 Oct: Wikidata answered 429 (Too Many Requests) during the day run and batches were skipped;
+    now it waits as long as Retry-After asks (at least 10, 20, 40 ... s) and tries 6 times."""
+    import urllib.error
+    for i in range(6):
         try:
             with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA}), timeout=60) as r:
                 return json.load(r)
+        except urllib.error.HTTPError as e:
+            wait = 10 * 2 ** i
+            if e.code == 429:
+                try:
+                    wait = max(wait, float(e.headers.get("Retry-After") or 0))
+                except ValueError:
+                    pass
+            print(f"  HTTP {e.code}; waiting {wait:.0f}s", file=sys.stderr, flush=True)
+            time.sleep(wait)
         except Exception as e:  # noqa: BLE001
             print(f"  {str(e)[:80]}", file=sys.stderr)
             time.sleep(3 * (i + 1))
+    _GAVE_UP[0] += 1
     return None
 
 
-def build(skip_wikidata=False):
+_GAVE_UP = [0]
+
+
+def build(skip_wikidata=False, skip_imdb=False):
     rows = catalogue()
     titles = {}
     for mid, t, y, vc in rows:
@@ -179,7 +199,30 @@ def build(skip_wikidata=False):
                         add(v, fid, *by_id[fid], "wikidata")
             if (s // 50) % 40 == 0:
                 print(f"  {s + 50:,}/{len(ql):,}", flush=True)
-            time.sleep(0.3)
+            time.sleep(1.0)
+        if _GAVE_UP[0]:
+            print(f"  WARNING: {_GAVE_UP[0]} Wikidata batches of 50 failed after 6 tries; their aliases are missing "
+                  f"(run `python aliases.py build` again later)", flush=True)
+    if not skip_imdb:
+        # v7 (27 Oct) D2: IMDb alternate titles (English-language regions, original titles, working titles) for
+        # films in the catalogue; the same guards as every other source (not another film's exact title, 2+ words).
+        c = F.connect(readonly=True)
+        by_id = {mid: (t, y) for mid, t, y, _ in rows}
+        n0 = len(out)
+        try:
+            imdb_to = {imdb: fid for fid, imdb in c.execute("select tmdb_id, imdb_id from films where imdb_id like 'tt%'")
+                       if fid in by_id}
+            for tconst, title, region, lang, types, is_orig in c.execute(
+                    "select tconst, title, region, language, types, is_original from imdb_akas"):
+                fid = imdb_to.get(tconst)
+                if fid is None or not title or not (3 <= len(title) <= 80):
+                    continue
+                if (region in ("US", "GB", "CA", "AU", "IE", "NZ") or is_orig or (types or "") in ("working", "alternative")
+                        or (lang or "") == "en"):
+                    add(title, fid, *by_id[fid], "imdb")
+        except sqlite3.Error as e:
+            print(f"  (IMDb alternate titles skipped: {e})")
+        print(f"IMDb alternate titles: {len(out) - n0:,} aliases")
     c = F.connect()
     c.executescript(DDL)
     c.execute("delete from aliases")
@@ -199,26 +242,73 @@ def stats():
 _IDX = {}
 
 
-def _index():
-    if "map" not in _IDX:
+ALIAS_IMDB = os.environ.get("ALIAS_IMDB", "0") == "1"   # v7: IMDb alternate titles used only when switched on
+
+
+def _index(imdb=None):
+    imdb = ALIAS_IMDB if imdb is None else imdb
+    key = "map_imdb" if imdb else "map"
+    if key not in _IDX:
         c = F.connect(readonly=True)
         m = {}
         try:
             for alias, n, mid, t, y, src in c.execute("select alias, norm, tmdb_id, title, year, source from aliases"):
-                m.setdefault(n, {})[mid] = (alias, t, y, src)
+                if src == "imdb" and not imdb:
+                    continue
+                if src == "imdb" and not imdb_alias_ok(n):
+                    continue
+                cur = m.setdefault(n, {})
+                if src == "imdb" and mid in cur:
+                    continue                      # 30 Oct: never replace a nickname / Wikidata alias of the same film
+                cur[mid] = (alias, t, y, src)
         except (sqlite3.Error, AttributeError):
             pass
-        _IDX["map"] = m
-        _IDX["max_words"] = max((len(k.split()) for k in m), default=0)
-    return _IDX["map"], _IDX["max_words"]
+        _IDX[key] = m
+        _IDX[key + "_w"] = max((len(k.split()) for k in m), default=0)
+    return _IDX[key], _IDX[key + "_w"]
 
 
-def expand(question):
+# 30 Oct fix (Thursday's bisect: ALIAS_IMDB=1 lost 5 tune questions - it "locked onto" Hot Tub Time Machine and Jinn
+# from IMDb alternate titles that are ordinary words in a plot description, and 3 more right films at pool #1 were cut).
+# IMDb alternate titles now count only when
+#   - the alias has at least IMDB_MIN_CONTENT content words (not the / a / of ...), and
+#   - the question is not a long description (fewer than IMDB_LONG words), and
+#   - it is written as a title in the question: every content word starts with a capital (or is a number), and
+#     a one-content-word alias is not just the first word of a sentence.
+# The nickname, article, numeral, Wikidata and curated aliases are unchanged.
+# `python aliases.py imdbcheck sets/tune.json sets/check.json` lists every question an IMDb alias still changes.
+IMDB_LONG = int(os.environ.get("IMDB_ALIAS_LONG", "40"))
+IMDB_MIN_CONTENT = int(os.environ.get("IMDB_ALIAS_MIN_CONTENT", "2"))
+_STOP = {"the", "a", "an", "of", "and", "in", "on", "at", "to", "for", "with", "from", "by", "or", "is", "it", "my",
+         "your", "his", "her", "their", "this", "that", "as", "be", "not", "no", "up", "out", "de", "la", "le", "el",
+         "der", "die", "das", "les", "los", "il", "i", "me", "you", "we", "he", "she", "they", "one", "man", "girl",
+         "boy", "woman", "love", "story", "movie", "film", "part"}
+
+
+def imdb_alias_ok(n):
+    return len([w for w in n.split() if w not in _STOP]) >= IMDB_MIN_CONTENT
+
+
+def typed_as_title(question, start, end):
+    """question[start:end] is written as a title (see above)."""
+    words = re.findall(r"[^\W_]+", question[start:end])
+    content = [w for w in words if w.casefold() not in _STOP] or words
+    if not content or not all(w[:1].isupper() or w[:1].isdigit() for w in content):
+        return False
+    before = question[:start].rstrip()
+    first = not before or before[-1] in ".!?:\"'“("
+    if len(content) == 1 and first and question[start:end].strip().startswith(content[0]):
+        return False
+    return True
+
+
+def expand(question, imdb=None):
     """The question with each alias followed by its catalogue title(s) in brackets. Idempotent."""
-    amap, maxw = _index()
+    amap, maxw = _index(imdb)
     if not amap or not question:
         return question
     toks = list(re.finditer(r"[A-Za-z0-9][A-Za-z0-9'’.]*", question))
+    long_q = len(toks) >= IMDB_LONG
     nq = f" {norm(question)} "
     inserts, i = [], 0
     while i < len(toks):
@@ -226,6 +316,9 @@ def expand(question):
         for w in range(min(maxw, len(toks) - i), 0, -1):
             span = question[toks[i].start():toks[i + w - 1].end()]
             films = amap.get(norm(span))
+            if films and any(v[3] == "imdb" for v in films.values()):
+                ok = not long_q and typed_as_title(question, toks[i].start(), toks[i + w - 1].end())
+                films = {k: v for k, v in films.items() if v[3] != "imdb" or ok}
             if not films:
                 continue
             if all(is_acronym(a) for a, *_ in films.values()) and span not in {a for a, *_ in films.values()}:
@@ -245,13 +338,31 @@ def expand(question):
     return question
 
 
+def imdbcheck(paths):
+    """Every question whose rewrite differs with IMDb alternate titles on vs off (30 Oct guards applied)."""
+    for p in paths:
+        d = json.load(open(p))
+        qs = d if isinstance(d, list) else d["questions"]
+        diff = []
+        for q in qs:
+            t = (q.get("turns") or [q.get("question", "")])[-1]
+            t = t if isinstance(t, str) else t.get("user", "")
+            a, b = expand(t, imdb=False), expand(t, imdb=True)
+            if a != b:
+                diff.append(f"  {q.get('id', '?'):12s} {b[:160]!r}")
+        print(f"{p}: {len(qs)} questions; changed by an IMDb alias: {len(diff)}")
+        print("\n".join(diff[:40]))
+
+
 if __name__ == "__main__":
     a = sys.argv[1:]
     if a and a[0] == "build":
-        build(skip_wikidata="--no-wikidata" in a)
+        build(skip_wikidata="--no-wikidata" in a, skip_imdb="--no-imdb" in a)
     elif a and a[0] == "try":
         print(expand(" ".join(a[1:])))
     elif a and a[0] == "stats":
         stats()
+    elif a and a[0] == "imdbcheck":
+        imdbcheck(a[1:])
     else:
         print(__doc__)

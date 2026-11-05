@@ -29,7 +29,7 @@ def context_for(h):
     """What the LLM sees. Separate from embed_text on purpose: the embedding
     holds what people search BY, the prompt holds what the model needs to
     ANSWER - so ratings go in, keywords stay out, and cast is capped at 4."""
-    row = None if h.get("_facts_only") else _CTX_DB.execute(
+    row = None if (h.get("_facts_only") or h.get("_tv")) else _CTX_DB.execute(
         "SELECT title, release_year, genres, director, top_cast, overview, "
         "vote_average, vote_count FROM movies WHERE id = ?", (h["id"],)).fetchone()
     if row is None:
@@ -38,6 +38,14 @@ def context_for(h):
         return _T.film_card(h)
     title, year, genres, director, cast, overview, va, vc = row
     lines = [f"{title} ({year or 'unknown year'})"]
+    if _os.environ.get("SHORTS", "0") == "1":          # v7 (1 Nov): say that a short is a short (SHORTS=0: unchanged)
+        try:
+            import shorts as _sh
+            lab = _sh.label(h["id"])
+            if lab:
+                lines.append(lab)
+        except Exception:  # noqa: BLE001
+            pass
     if genres:
         lines.append(f"Genres: {genres}")
     if director:
@@ -110,7 +118,7 @@ NO_HEDGING = ("No disclaimers: don't say you are unsure, don't suggest checking 
 # TOOLS=0 = the v2 prompt exactly.
 TOOLS = _os.environ.get("TOOLS", "0") == "1"
 PROMPT_VERSION = "v3.1" if TOOLS else "v2"   # v3.1 (6 Oct): fact / ranking / reviews styles
-LAST_TOOL = {}       # the last build_prompt's tool result (route, timings) for logs and evals
+LAST_TOOL = __import__("request_state").LocalDict(dict)       # v7 D4 per-thread; the last build_prompt's tool result (route, timings) for logs and evals
 
 DATA_NOTE = ("Lines in the structured data end with their source in brackets. When you use a number "
              "from them, name the source briefly (for example \"per TMDB\"). If two sources disagree, "
@@ -148,6 +156,51 @@ CURRENT_HOW = ("How to answer: list the films from the current/upcoming data tha
                "release dates can still change. Don't add films that are not in the list.")
 
 
+# v7 (27 Oct): reception questions (tools.RECEPTION=1): a reception card + numbered evidence; the answer cites [n].
+RECEPTION_HOW = ("How to answer: this asks how the film was received. Keep the groups apart and name each one: critics "
+                 "(Wikipedia's reception text, the Guardian, Rotten Tomatoes / Metacritic), ordinary viewers (TMDB user "
+                 "reviews, IMDb, MovieLens, CinemaScore) and, if present, analysts (video essays). Say what each group "
+                 "said with specific points, and put the evidence number in square brackets right after each claim it "
+                 "supports, e.g. [2] or [1][4]; numbers from the reception card keep their source in brackets. Give the "
+                 "sample size when you generalise (\"18 of 25 user reviews\") and say so when a sample is too small to "
+                 "generalise. Report what reviewers said as reported opinion; mark your own interpretation as such "
+                 "(\"this suggests\"). If critics and audiences disagree, say how, using the gap line. Use only what is "
+                 "above: no reviewers, quotes, scores or numbers from memory. Keep it under about 300 words, no headings "
+                 "unless the question asks for several things.")
+# 3 Nov fix (1 Nov: reception set 36 = 36; on lost rc05 rc15 rc25 rc29 and analytic a16, judge: "too verbose /
+# unsupported claim"): the paragraph above told the model to cover every group, so "What did critics praise about Mad
+# Max?" also got audiences, sample sizes and a closing interpretation. Now: only the group(s) asked about, a citation
+# only where that numbered item states the claim, no closing summary, shorter. RECEPTION_V=1 = the 27 Oct paragraph.
+RECEPTION_HOW_V1 = RECEPTION_HOW
+RECEPTION_HOW_V2 = ("How to answer: this asks how the film was received. Answer only for the group(s) the question asks "
+                    "about - if it asks what critics said, talk about critics; if it asks about audiences or fans, talk "
+                    "about viewers; cover critics, viewers and (if present) analysts only when the question asks generally "
+                    "how it was received or how the groups compare. Name each group's sources: critics (Wikipedia's "
+                    "reception text, the Guardian, Rotten Tomatoes / Metacritic), ordinary viewers (TMDB user reviews, "
+                    "IMDb, MovieLens, CinemaScore), analysts (video essays). Give specific points, and put an evidence "
+                    "number in square brackets only after a claim that numbered item itself states, e.g. [2]; if no "
+                    "single item states it, leave the number off. Numbers from the reception card keep their source in "
+                    "brackets. Give the sample size when you generalise (\"18 of 25 user reviews\"). Report reviewers' "
+                    "views as reported opinion; add an interpretation of your own only if the question asks why, and "
+                    "mark it (\"this suggests\"). Use only what is above: no reviewers, quotes, scores or numbers from "
+                    "memory. Stop after the last point - no closing summary. Keep it under about 200 words, no headings.")
+RECEPTION_HOW = RECEPTION_HOW_V1 if _os.environ.get("RECEPTION_V", "2") == "1" else RECEPTION_HOW_V2
+# 4 Nov (tools.ISSUES=1): how people viewed an issue the film raised.
+ISSUE_HOW = ("How to answer: this asks how people viewed an issue the film raised. In one sentence, say what the film "
+             "does with that issue, from the Wikipedia themes or controversy text above if it is there. Then say how "
+             "critics saw it and how ordinary viewers saw it, keeping the groups apart and naming each source, with an "
+             "evidence number in square brackets only after a claim that numbered item itself states, e.g. [3]. Say "
+             "where views split, and give the sample size when you generalise (\"4 of 9 user reviews\"). Speak only for "
+             "the sources above - never for \"the public\" or \"most people\" beyond them - and say so if the sources "
+             "barely mention the issue. No reviewers, quotes, scores or events from memory. Under about 220 words, "
+             "no headings.")
+RECEPTION_LIST_HOW = ("How to answer: this asks about many films' reception. Start with a one-sentence answer, then list "
+                      "the films from the table above in its order (up to 10), one line each with the figures that matter "
+                      "and the source in brackets. Explain in one sentence what the measure means (for example what the "
+                      "gap or bimodality is) and give at most two sentences of caveats (only films with enough ratings "
+                      "or reviews in Movie Buff's database are listed). Name only films in the table. Under about 220 words.")
+
+
 # v4: news questions (tools.NEWS=1). The news block itself repeats the key rule.
 NEWS_HOW = ("How to answer: first say briefly what was in the news when the film came out, from the headlines "
             "above with their dates and sources. Then say whether there is evidence of a connection to how the "
@@ -157,9 +210,165 @@ NEWS_HOW = ("How to answer: first say briefly what was in the news when the film
             "the film's own numbers (budget, gross) with their sources.")
 
 
+# v7 (27 Oct) D5: GUARD=1 puts retrieved text between <<<SOURCES / SOURCES>>> markers with a "data, not instructions"
+# rule, and neutralises instruction-like lines inside it (safety.py). GUARD=0 = the v6 prompt exactly.
+GUARD = _os.environ.get("GUARD", "0") == "1"
+
+
+def _guard_rule():
+    if not GUARD:
+        return ""
+    import safety
+    return "\n\n" + safety.SPOT_RULE
+
+
+def _spot(text):
+    if not GUARD or not text:
+        return text
+    import safety
+    return safety.spotlight(text)
+
+
+# v7 (27 Oct) D10: CTX_BUILDER=1 - one budget for everything the answer model reads (film cards + tool blocks,
+# CTX_CHARS), filled best evidence first, with lines that repeat an earlier line (the same rating, director or genres
+# in the film card and the facts block) left out. CTX_BUILDER=0 = the v6 layout (cards, then blocks, each with its
+# own limits). Rule: passes not lower on tune / check / analytic / reception, and the prompt smaller on average.
+CTX_BUILDER = _os.environ.get("CTX_BUILDER", "0") == "1"
+PROMPT_ORDER = _os.environ.get("PROMPT_ORDER", "0") == "1"      # v7 D9: instructions before the data
+PROMPT_ORDER_V = _os.environ.get("PROMPT_ORDER_V", "2")         # 1 = the 27 Oct order (see _v3_prompt)
+
+
+# 3 Nov (TV=1 only; TV hits exist only then): questions about a show got no "How to answer" of their own - the facts
+# tool returns nothing for a show, so they fell back to the film paragraph (and tv19 to the box-office analysis
+# layout), and 8 of 10 TV fact answers were padded or added facts from memory (1 Nov TV report: answer 10, search 1,
+# routing 0).
+TV_HOW = ("How to answer: this is about a TV show. Answer what was asked in one to three sentences, from the show's "
+          "data above, with the source (for example \"per TMDB\" or \"per IMDb\"). Use numbers exactly as written above "
+          "(seasons, episodes, dates, runtimes, ratings) - never a figure from memory. Give only what was asked: no "
+          "episode titles, awards, story arcs, cast or other shows unless the question asks for them. If the data above "
+          "doesn't have what was asked, say so in one sentence instead of filling it in. If the question asks which "
+          "show it is, name it with its years first. If asked whether it is good, give a verdict from its ratings.")
+TV_REC_HOW = ("How to answer: suggest two to four shows from the information above (only those), each with its years and "
+              "a one-line reason tied to what the person asked for, from its data. Don't add shows, episodes, awards or "
+              "numbers that are not above. Keep it under about 150 words.")
+CTX_CHARS = int(_os.environ.get("CTX_CHARS", "11000"))
+PRIMARY = ("facts", "reception", "evidence", "aggregate", "current", "reception_list", "compare", "tv_reviews", "personal")
+_LABELS = ("genres", "director", "starring", "cast", "tmdb user rating", "released", "runtime")
+
+
+def _line_key(line):
+    import re as _re
+    t = _re.sub(r"\[[^\]]*\]", "", line.casefold())
+    t = _re.sub(r"[^a-z0-9 ]+", " ", t)
+    t = " ".join(t.split())
+    for lab in _LABELS:
+        if t.startswith(lab):
+            return "label:" + lab
+    return t
+
+
+# 3 Nov fix (after the 1 Nov analytic losses a27 a30 a49 a50): the builder dropped lines that were not repeats -
+# source-label lines ("[TMDB credits; money: ...]" became "" once brackets were stripped, and "" was skipped), and the
+# card's Director / TMDB rating lines whenever a block had the same label (35 of 51 analytic questions), so answers
+# lost their source labels and filled gaps from memory. Now only a repeated passage-length line (>= CTX_DEDUP_MIN
+# characters, the same text twice) is dropped; short fact lines and source labels always stay.
+# CTX_BUILDER_V=1 = the 27 Oct behaviour (for re-running the old arm).
+CTX_BUILDER_V = _os.environ.get("CTX_BUILDER_V", "2")
+CTX_DEDUP_MIN = int(_os.environ.get("CTX_DEDUP_MIN", "80"))
+
+
+def build_context(hits, tool):
+    """(context text, blocks text) under one budget, best first, no repeated lines."""
+    if CTX_BUILDER_V == "1":
+        return _build_context_v1(hits, tool)
+    items = []                                       # (tier, order, kind, text)
+    cards = [context_for(h) for h in hits]
+    blocks = list(tool.get("blocks") or [])
+    if cards:
+        items.append((1, 0, "card", cards[0]))
+    for i, (k, b) in enumerate(blocks):
+        items.append((1 if k in PRIMARY else 3, i + 1, k, b))
+    for i, c in enumerate(cards[1:]):
+        items.append((2, 100 + i, "card", c))
+    items.sort(key=lambda x: (x[0], x[1]))
+    seen, used, out = set(), 0, {}
+    import re as _re
+    for tier, order, kind, text in items:
+        lines = text.split("\n")
+        keep = [lines[0]]
+        for l in lines[1:]:
+            body = " ".join(_re.sub(r"[^a-z0-9 ]+", " ", l.casefold()).split())
+            if len(body) >= CTX_DEDUP_MIN:           # passage-length: drop only an exact repeat
+                if body in seen:
+                    continue
+                seen.add(body)
+            keep.append(l)
+        t = "\n".join(keep)
+        room = CTX_CHARS - used
+        if room < 200:
+            break
+        if len(t) > room:
+            t = t[:room].rsplit("\n", 1)[0] + "\n..."
+        out[(tier, order, kind)] = t
+        used += len(t)
+    card_txt = [out[k] for k in sorted(out) if k[2] == "card"]
+    block_txt = [out[k] for k in sorted(out, key=lambda k: k[1]) if k[2] != "card"]
+    return "\n\n---\n\n".join(card_txt), "\n\n".join(block_txt)
+
+
+def _build_context_v1(hits, tool):
+    """27 Oct version (kept for CTX_BUILDER_V=1)."""
+    items = []                                       # (tier, order, kind, text)
+    cards = [context_for(h) for h in hits]
+    blocks = list(tool.get("blocks") or [])
+    if cards:
+        items.append((1, 0, "card", cards[0]))
+    for i, (k, b) in enumerate(blocks):
+        items.append((1 if k in PRIMARY else 3, i + 1, k, b))
+    for i, c in enumerate(cards[1:]):
+        items.append((2, 100 + i, "card", c))
+    items.sort(key=lambda x: (x[0], x[1]))
+    seen, used, out = set(), 0, {}
+
+    def film_of(text):                               # "Inception (2010) - structured data" -> "inception"
+        import re as _re
+        return _re.split(r"\s\(|\s-\s", text.split("\n", 1)[0].strip(), 1)[0].casefold()
+
+    def key_of(line, film):
+        k = _line_key(line)
+        return f"{film}|{k}" if k.startswith("label:") else k
+    # a fact line in a source-tagged block wins over the same fact in that film's card
+    tagged = {key_of(l, film_of(b)) for _t, _o, k, b in items if k != "card" for l in b.split("\n")[1:]}
+    for tier, order, kind, text in items:
+        lines = text.split("\n")
+        keep = [lines[0]]
+        film = film_of(text)
+        for l in lines[1:]:
+            key = key_of(l, film)
+            if not key or key in seen or (kind == "card" and "|label:" in key and key in tagged):
+                continue
+            seen.add(key)
+            keep.append(l)
+        t = "\n".join(keep)
+        room = CTX_CHARS - used
+        if room < 200:
+            break
+        if len(t) > room:
+            t = t[:room].rsplit("\n", 1)[0] + "\n..."
+        out[(tier, order, kind)] = t
+        used += len(t)
+    card_txt = [out[k] for k in sorted(out) if k[2] == "card"]
+    block_txt = [out[k] for k in sorted(out, key=lambda k: k[1]) if k[2] != "card"]
+    return "\n\n---\n\n".join(card_txt), "\n\n".join(block_txt)
+
+
 def _v3_prompt(question, hits, tool, amb_line):
-    context = "\n\n---\n\n".join(context_for(h) for h in hits)
-    blocks = "\n\n".join(b for _k, b in tool.get("blocks") or [])
+    if CTX_BUILDER:
+        context, blocks = build_context(hits, tool)
+        context, blocks = _spot(context), _spot(blocks)
+    else:
+        context = _spot("\n\n---\n\n".join(context_for(h) for h in hits))
+        blocks = _spot("\n\n".join(b for _k, b in tool.get("blocks") or []))
     parts = []
     if context:
         parts.append(f"Here is information on movies that might be relevant to the question:\n\n{context}")
@@ -167,14 +376,40 @@ def _v3_prompt(question, hits, tool, amb_line):
         parts.append(f"Structured data from Movie Buff's database (sources in brackets):\n\n{blocks}")
     style = tool.get("style")
     styled = {"analysis": ANALYSIS_HOW, "current": CURRENT_HOW, "ranking": RANKING_HOW, "reviews": REVIEWS_HOW,
-              "fact": FACT_HOW, "news": NEWS_HOW}
+              "fact": FACT_HOW, "news": NEWS_HOW, "reception": RECEPTION_HOW, "reception_list": RECEPTION_LIST_HOW,
+              "tv": TV_HOW, "tv_rec": TV_REC_HOW, "issue": ISSUE_HOW}
     how = styled.get(style) or (f"{HOW_TO_ANSWER}\n\n{DATA_NOTE}\n\n{NO_HEDGING}" if blocks
                                 else f"{HOW_TO_ANSWER}\n\n{NO_HEDGING}")
-    return "\n\n".join(parts) + f"""
+    if PROMPT_ORDER and PROMPT_ORDER_V == "1":
+        # v7 D9 (27 Oct version): the fixed instructions first, so consecutive prompts share a prefix
+        return f"""{how}{_guard_rule()}
+
+""" + "\n\n".join(parts) + f"""
+
+Question: {question}
+
+Answer using the information above.{amb_line}"""
+    if PROMPT_ORDER:
+        # 3 Nov fix (after the 1 Nov losses a09 a40 a43): the 27 Oct order moved this question's own "How to answer"
+        # paragraph (one or two sentences, only what was asked) to the top, far from the question, and the model
+        # stopped following it. Now only the text that is the same for every question (source note, no-hedging
+        # rule, guard rule) goes first; the question's own paragraph stays right after the question.
+        paras = how.split("\n\n")
+        own = [p for p in paras if p.startswith("How to answer")]
+        fixed = [p for p in paras if not p.startswith("How to answer")]
+        head = "\n\n".join(fixed) + _guard_rule()
+        return (f"{head}\n\n" if head.strip() else "") + "\n\n".join(parts) + f"""
 
 Question: {question}
 
 Answer using the information above.{amb_line}
+
+""" + "\n\n".join(own)
+    return "\n\n".join(parts) + f"""
+
+Question: {question}
+
+Answer using the information above.{amb_line}{_guard_rule()}
 
 {how}"""
 
@@ -244,14 +479,22 @@ def build_prompt(question, k=3, recent_titles=None, conv=None, user=None):
         except Exception as e:                            # a tool failure must not lose the answer
             print(f"[chat] tools failed: {e!r}", file=sys.stderr)
             tool = {"blocks": [], "replace_hits": False, "style": None, "route": None, "ms": {}}
-        if (plan or {}).get("intent") == "recommend" and hits:
+        if (plan or {}).get("intent") == "recommend" and hits and not hits[0].get("_tv"):
             try:
                 hits = _personalize(question, hits, plan, conv, user, tool)
             except Exception as e:                        # personalisation must not lose the answer
                 print(f"[chat] personalisation failed: {e!r}", file=sys.stderr)
+        if hits and hits[0].get("_tv") and tool.get("style") in (None, "fact", "analysis"):
+            ti = (plan or {}).get("intent")              # 3 Nov: a show's own answer paragraph (see TV_HOW)
+            if ti == "named_film":
+                tool["style"] = "tv"
+            elif ti == "recommend":
+                tool["style"] = "tv_rec"
         LAST_TOOL.update(tool)
         if tool.get("replace_hits"):
             hits = []
+        if hits and tool.get("citations"):
+            hits[0]["_citations"] = tool["citations"]     # v7 R16: kept with the hits, so cached searches keep them
         if hits or tool.get("blocks"):
             amb = hits[0].get("_ambiguous") if hits else None
             amb_line = (f"\n\nThe question could refer to {amb[0]} or {amb[1]}. Answer for {amb[0]} in one or two "
@@ -272,11 +515,11 @@ The movie database found nothing that matches this question. If the question is 
     if not ANSWER_STRICT:
         return f"""Here is information on movies that might be relevant to the question:
 
-{context}
+{_spot(context)}
 
 Question: {question}
 
-Answer using the information above.{amb_line}
+Answer using the information above.{amb_line}{_guard_rule()}
 
 {HOW_TO_ANSWER}
 

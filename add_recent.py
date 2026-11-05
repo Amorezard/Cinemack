@@ -74,7 +74,7 @@ def fconn():
     return c
 
 
-def _get(url, tries=3):
+def _get(url, tries=5):
     for i in range(tries):
         try:
             req = urllib.request.Request(url, headers={"User-Agent": UA})
@@ -82,7 +82,14 @@ def _get(url, tries=3):
                 return json.load(r)
         except Exception as e:  # noqa: BLE001
             print(f"  {str(e)[:80]} ({url[:70]})", file=sys.stderr)
-            time.sleep(3 * (i + 1))
+            wait = 3 * (i + 1)
+            if getattr(e, "code", None) == 429:          # 29 Oct: rate limited -> honour Retry-After, back off longer
+                try:
+                    wait = max(wait, int(e.headers.get("Retry-After") or 0))
+                except (TypeError, ValueError, AttributeError):
+                    pass
+                wait = max(wait, 20 * (i + 1))
+            time.sleep(wait)
     return None
 
 

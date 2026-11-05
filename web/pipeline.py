@@ -317,10 +317,17 @@ def check(answer, hits, question):
     if not hits or not answer.strip() or factcheck is None:
         return {"ok": None, "flags": [], "checked": 0}
     try:
-        return factcheck.fact_check(answer, hits, question)
+        res = factcheck.fact_check(answer, hits, question)
     except Exception as e:                      # never break an answer over the check
         print(f"[movie-buff] fact check failed: {e!r}", flush=True)
         return {"ok": None, "flags": [], "checked": 0}
+    # 8 Oct: the check only knows the film cards (movies.db), so with TOOLS=1 every budget, gross,
+    # award or crew fact taken from facts.db is flagged as "Not backed by the database" - a false
+    # alarm. Hide the warning on the page (ok=None shows no badge); the flags stay in requests.jsonl.
+    # FACTCHECK_WARN=1 shows it again.
+    if res.get("ok") is False and os.environ.get("FACTCHECK_WARN", "0") != "1":
+        return {"ok": None, "flags": res.get("flags", []), "checked": res.get("checked", 0), "hidden": True}
+    return res
 
 
 def alternatives(hits):
@@ -339,7 +346,17 @@ def card(hit):
     """The fields the page shows for each retrieved film. Every field is
     optional - different versions of retrieve.py carry different columns."""
     cast = hit.get("top_cast") or ""
-    rating = _rating(hit) if not hit.get("_facts_only") else None
+    rating = _rating(hit) if not (hit.get("_facts_only") or hit.get("_tv")) else None
+    if hit.get("_tv") and not MOCK:                 # v7 D1: a TV show (id = -TMDB TV id, never a film id)
+        try:
+            import tv as _tv
+            extra = _tv.card(hit)
+        except Exception:  # noqa: BLE001
+            extra = {"kind": "tv"}
+        return dict({"id": hit.get("id"), "why": hit.get("_why_you"), "title": hit.get("title"),
+                     "year": hit.get("years") or hit.get("release_year"), "director": hit.get("director"),
+                     "cast": ", ".join(c.strip() for c in cast.split(",")[:3] if c.strip()) or None,
+                     "genres": hit.get("genres"), "rating": None}, **extra)
     return {
         "id": hit.get("id"),
         "why": hit.get("_why_you"),
@@ -386,10 +403,10 @@ _MOCK_FILMS = [
     {"id": 496243, "title": "Parasite", "release_year": "2019", "director": "Bong Joon Ho",
      "top_cast": "Song Kang-ho, Lee Sun-kyun, Cho Yeo-jeong, Choi Woo-shik",
      "genres": "Comedy, Thriller, Drama", "vote_average": 8.5},
-    {"title": "The Joneses", "release_year": "2009", "director": "Derrick Borte",
+    {"id": 900001, "title": "The Joneses", "release_year": "2009", "director": "Derrick Borte",
      "top_cast": "David Duchovny, Demi Moore, Amber Heard",
      "genres": "Comedy, Drama", "vote_average": 6.2},
-    {"title": "Six Degrees of Separation", "release_year": "1993", "director": "Fred Schepisi",
+    {"id": 900002, "title": "Six Degrees of Separation", "release_year": "1993", "director": "Fred Schepisi",
      "top_cast": "Stockard Channing, Will Smith, Donald Sutherland",
      "genres": "Drama, Comedy", "vote_average": 6.8},
 ]
@@ -403,7 +420,9 @@ def _mock_prepare(question):
              "title_guesses_used": ["Parasite (0.826)"],
              "reranked_to": ["Parasite", "Six Degrees of Separation", "The Joneses"],
              "rerank_ms": 1401}
-    return question, [dict(f, _notes=notes) for f in _MOCK_FILMS]
+    hits = [dict(f, _notes=notes) for f in _MOCK_FILMS]     # 900001/900002: made-up ids, mock only
+    hits[0]["_plan"] = {"intent": "recommend" if "recommend" in question.lower() else "identify"}
+    return question, hits
 
 
 def _mock_stream(messages, think, cancel):

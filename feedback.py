@@ -46,6 +46,7 @@ def conn():
     if _C["conn"] is None:
         os.makedirs(os.path.dirname(PATH), exist_ok=True)
         c = sqlite3.connect(PATH, check_same_thread=False, timeout=30)
+        c.execute("pragma journal_mode=WAL")      # v7 D4: readers never block the writer
         c.executescript("""
         create table if not exists answers(
           message_id text primary key, conversation_id text, user_id text, vote text, reasons_json text,

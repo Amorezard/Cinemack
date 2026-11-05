@@ -15,6 +15,7 @@ first film is right, and checks that the probability means what it says.
 
     python confidence.py fit        # -> results/confidence_model.json + results/confidence_summary.txt
     python confidence.py table      # the threshold table again
+    python confidence.py fit --identify   # v7 D13: descriptions only -> results/confidence_identify.json / .txt
 
 Two thresholds then replace the fixed cut-offs (not switched on here): answer above the one where
 answered questions are right >= 85% of the time, ask "did you mean" between, say nothing matched below.
@@ -102,6 +103,36 @@ def report(p, y):
     return float(np.mean((p - y) ** 2)), float(ece), lines, table
 
 
+def cmd_fit_identify():
+    """v7 D13 (27 Oct): the 21 Oct model's middle bins were inverted (0.5-0.7 right only 23-26%) because named-film
+    questions (distance ~0, almost always right) and descriptions share one model. Refit on descriptions only (the
+    questions where "is the top film right?" is a real question), without the identify feature, and compare the
+    calibration error with the all-question model on the same check descriptions. Rule: calibration error down."""
+    Xt, yt = rows_from("stage_scores_*_tune*.json")
+    Xc, yc = rows_from("stage_scores_*_check*.json")
+    it, ic = Xt[:, 5] == 1, Xc[:, 5] == 1
+    if it.sum() < 30 or ic.sum() < 10:
+        sys.exit(f"not enough description runs (tune {int(it.sum())}, check {int(ic.sum())})")
+    keep = [0, 1, 2, 3, 4]
+    m_all = fit(Xt, yt)
+    p_all = predict(m_all, Xc[ic])
+    b_all, e_all, _l, _t = report(p_all, yc[ic])
+    m = fit(Xt[it][:, keep], yt[it])
+    m["names"] = [NAMES[i] for i in keep]
+    p = predict(m, Xc[ic][:, keep])
+    brier, ece, lines, table = report(p, yc[ic])
+    m.update(n_tune=int(it.sum()), n_check=int(ic.sum()), brier=brier, ece=ece, ece_all_model=e_all, brier_all_model=b_all,
+             only="identify")
+    json.dump(m, open(os.path.join(HERE, "results", "confidence_identify.json"), "w"), indent=1)
+    text = [f"D13: confidence refit on descriptions only ({int(it.sum())} tune runs, checked on {int(ic.sum())} check runs)",
+            f"  calibration error on check descriptions: all-question model {e_all:.3f} -> descriptions-only model {ece:.3f}"
+            f"  (Brier {b_all:.3f} -> {brier:.3f})",
+            f"  RULE (calibration error down): {'PASS' if ece < e_all else 'FAIL'}", "calibration:"] + lines + \
+           ["thresholds:"] + table
+    open(os.path.join(HERE, "results", "confidence_identify.txt"), "w").write("\n".join(text) + "\n")
+    print("\n".join(text))
+
+
 def cmd_fit():
     Xt, yt = rows_from("stage_scores_*_tune*.json")
     Xc, yc = rows_from("stage_scores_*_check*.json")
@@ -126,7 +157,9 @@ def cmd_fit():
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "fit":
+    if len(sys.argv) > 1 and sys.argv[1] == "fit" and "--identify" in sys.argv:
+        cmd_fit_identify()
+    elif len(sys.argv) > 1 and sys.argv[1] == "fit":
         cmd_fit()
     elif len(sys.argv) > 1 and sys.argv[1] == "table":
         print(open(SUMMARY).read())

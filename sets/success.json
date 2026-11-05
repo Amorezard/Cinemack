@@ -1,0 +1,113 @@
+{
+ "note": "4 Nov: box-office 'why' questions for the PERF rule (written by Claude: not blind).",
+ "questions": [
+  {
+   "id": "su01",
+   "category": "why",
+   "question": "Why did Doctor Sleep underperform at the box office?",
+   "notes": "Gives the film's budget and gross with their sources; separates what the data shows from interpretation and marks interpretation as such; names reasons only if the information above states them (quoted or attributed); compares with what similar films did only from figures above; invents no figures, events or quotes.",
+   "expect_films": [
+    "Doctor Sleep"
+   ]
+  },
+  {
+   "id": "su02",
+   "category": "why",
+   "question": "Why did Blade Runner 2049 lose money despite good reviews?",
+   "notes": "Gives the film's budget and gross with their sources; separates what the data shows from interpretation and marks interpretation as such; names reasons only if the information above states them (quoted or attributed); compares with what similar films did only from figures above; invents no figures, events or quotes.",
+   "expect_films": [
+    "Blade Runner 2049"
+   ]
+  },
+  {
+   "id": "su03",
+   "category": "why",
+   "question": "How did The Greatest Showman become such a big hit after a slow opening?",
+   "notes": "Gives the film's budget and gross with their sources; separates what the data shows from interpretation and marks interpretation as such; names reasons only if the information above states them (quoted or attributed); compares with what similar films did only from figures above; invents no figures, events or quotes.",
+   "expect_films": [
+    "The Greatest Showman"
+   ]
+  },
+  {
+   "id": "su04",
+   "category": "why",
+   "question": "Why was Solo: A Star Wars Story considered a flop?",
+   "notes": "Gives the film's budget and gross with their sources; separates what the data shows from interpretation and marks interpretation as such; names reasons only if the information above states them (quoted or attributed); compares with what similar films did only from figures above; invents no figures, events or quotes.",
+   "expect_films": [
+    "Solo: A Star Wars Story"
+   ]
+  },
+  {
+   "id": "su05",
+   "category": "why",
+   "question": "Why did John Carter fail at the box office?",
+   "notes": "Gives the film's budget and gross with their sources; separates what the data shows from interpretation and marks interpretation as such; names reasons only if the information above states them (quoted or attributed); compares with what similar films did only from figures above; invents no figures, events or quotes.",
+   "expect_films": [
+    "John Carter"
+   ]
+  },
+  {
+   "id": "su06",
+   "category": "why",
+   "question": "Why did Everything Everywhere All at Once do so well for a small film?",
+   "notes": "Gives the film's budget and gross with their sources; separates what the data shows from interpretation and marks interpretation as such; names reasons only if the information above states them (quoted or attributed); compares with what similar films did only from figures above; invents no figures, events or quotes.",
+   "expect_films": [
+    "Everything Everywhere All at Once"
+   ]
+  },
+  {
+   "id": "su07",
+   "category": "why",
+   "question": "Why did Cats (2019) bomb?",
+   "notes": "Gives the film's budget and gross with their sources; separates what the data shows from interpretation and marks interpretation as such; names reasons only if the information above states them (quoted or attributed); compares with what similar films did only from figures above; invents no figures, events or quotes.",
+   "expect_films": [
+    "Cats"
+   ]
+  },
+  {
+   "id": "su08",
+   "category": "why",
+   "question": "Why did The Flash (2023) underperform?",
+   "notes": "Gives the film's budget and gross with their sources; separates what the data shows from interpretation and marks interpretation as such; names reasons only if the information above states them (quoted or attributed); compares with what similar films did only from figures above; invents no figures, events or quotes.",
+   "expect_films": [
+    "The Flash"
+   ]
+  },
+  {
+   "id": "su09",
+   "category": "why",
+   "question": "What made Top Gun: Maverick such a huge success?",
+   "notes": "Gives the film's budget and gross with their sources; separates what the data shows from interpretation and marks interpretation as such; names reasons only if the information above states them (quoted or attributed); compares with what similar films did only from figures above; invents no figures, events or quotes.",
+   "expect_films": [
+    "Top Gun: Maverick"
+   ]
+  },
+  {
+   "id": "su10",
+   "category": "why",
+   "question": "Why did Joker make so much money for an R-rated film?",
+   "notes": "Gives the film's budget and gross with their sources; separates what the data shows from interpretation and marks interpretation as such; names reasons only if the information above states them (quoted or attributed); compares with what similar films did only from figures above; invents no figures, events or quotes.",
+   "expect_films": [
+    "Joker"
+   ]
+  },
+  {
+   "id": "su11",
+   "category": "why",
+   "question": "Did Oppenheimer do better than expected at the box office, and why?",
+   "notes": "Gives the film's budget and gross with their sources; separates what the data shows from interpretation and marks interpretation as such; names reasons only if the information above states them (quoted or attributed); compares with what similar films did only from figures above; invents no figures, events or quotes.",
+   "expect_films": [
+    "Oppenheimer"
+   ]
+  },
+  {
+   "id": "su12",
+   "category": "why",
+   "question": "Why did The Lone Ranger (2013) flop?",
+   "notes": "Gives the film's budget and gross with their sources; separates what the data shows from interpretation and marks interpretation as such; names reasons only if the information above states them (quoted or attributed); compares with what similar films did only from figures above; invents no figures, events or quotes.",
+   "expect_films": [
+    "The Lone Ranger"
+   ]
+  }
+ ]
+}

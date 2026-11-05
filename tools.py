@@ -77,10 +77,41 @@ MONEY_REAL = os.environ.get("MONEY_REAL", "0") == "1"
 #               age rating, trailer) for where-to-watch questions, and an "audience" block (IMDb, MovieLens
 #               32M, Netflix views, trailer lead time and reach) with why / success / reviews questions
 EXTRA_DATA = os.environ.get("EXTRA_DATA", "0") == "1"
+# v7 (27 Oct) switch, off until the reception set's rule passes (RECEPTION on if passes >= off + 6, unsupported rate
+# not higher, grounding not lower):
+#   RECEPTION  reception questions get the film's reception card (reception_cards.py) and numbered evidence from the
+#              reception index (evidence.py) instead of the v3 reviews block; the answer cites [n] and the site lists
+#              the cited sources under it. Questions about many films ("which films did critics and audiences
+#              disagree on", "most divisive", "cult classics", "mixed reviews but made money") get ranked SQL lists.
+RECEPTION = os.environ.get("RECEPTION", "0") == "1"
+# 4 Nov: ISSUES=1 (needs RECEPTION=1) - questions about how people viewed an issue a film raised ("How did audiences
+# react to Joker's portrayal of mental illness?", "Was Barbie's feminism divisive?") go to the reception task with
+# the issue as the evidence query, the film's Wikipedia Themes / Controversy paragraphs among the evidence
+# (evidence.py "themes" units), and their own answer paragraph (chat.ISSUE_HOW). ISSUES=0 = the 3 Nov routing.
+ISSUES = os.environ.get("ISSUES", "0") == "1"
+R_ISSUE_TOPIC = re.compile(r"\b(portray\w*|depict\w*|representation|represent(s|ed)?|treatment of|handl(e|ed|ing|es) "
+                           r"(of |the )?|take on|message|messaging|commentary|themes?|stance|politics|political|"
+                           r"controvers\w*|backlash|offensive|problematic|accurate|accuracy|inaccura\w*|sexis\w*|racis\w*|"
+                           r"feminis\w*|gender|mental (illness|health)|violence|religio\w*|class|capitalis\w*|grief|"
+                           r"trauma|addiction|masculinity|race|queer|lgbt\w*|disabilit\w*|war|colonial\w*|propaganda)\b",
+                           re.I)
+R_ISSUE_VIEW = re.compile(r"\b(how (did|do|does|was|were|is|are) (people|audiences?|viewers|critics|fans|the public|"
+                          r"it|its|the film|the movie)|react\w*|respond\w*|view(ed|s)?|receiv\w*|felt|feel|"
+                          r"think|thought|debate\w*|divid\w*|divisive|split|discuss\w*|criticiz\w*|criticis\w*|"
+                          r"prais\w*|controvers\w*|backlash|offend\w*|opinions?)\b", re.I)
+
+
+def is_issue_question(q):
+    return bool(q) and bool(R_ISSUE_TOPIC.search(q)) and bool(R_ISSUE_VIEW.search(q))
+
+
+IMDB = os.environ.get("IMDB", "0") == "1"                      # v7 D2: IMDb rating line in every film's facts
+RECEPTION_K = int(os.environ.get("RECEPTION_K", "8"))          # evidence units per question (split across films)
 # 21 Oct: per-person settings for the one question being answered (web/server.py sets it around prepare and
 # clears it after; the site answers one question at a time). hide = {"money", "critics"}: those lines are left
 # out of the blocks unless the question itself asks about money / reviews. Empty outside the site.
-REQUEST = {"hide": set()}
+from request_state import LocalDict as _LocalDict   # v7 D4: per-thread
+REQUEST = _LocalDict(lambda: {"hide": set()})
 R_MONEY_LINE = re.compile(r"\b(budget|gross|box[- ]office|revenue|profit|earned|opening weekend|returned \d|"
                           r"break-?even|today's dollars|\$\d)", re.I)
 R_CRITIC_LINE = re.compile(r"^(Critics' scores|The Guardian \(|The New York Times \(|Audience reviews|Critics \(from)"
@@ -147,6 +178,27 @@ R_WATCH = _W(r"\b(where (can|could|do|should|to) (i |we |you )?(watch|stream|see
              r"netflix|hulu|prime video|disney\+|disney plus|hbo( max)?|peacock|paramount\+|apple tv|tubi|"
              r"rent(al)?|on demand|available (on|to)|trailers?|teasers?|age rating|rated (g|pg|pg-13|r|nc-17)\b|"
              r"mpaa|parental|kid[- ]friendly|family[- ]friendly|appropriate for|ok for (kids|children))")
+R_RECEPTION = _W(r"\b(popular|loved|beloved|hated|divisive|divided|polari[sz]\w*|mixed reviews?|disagree\w*|"
+                 r"complain\w*|complaints?|prais\w*|critici[sz]\w*|reactions?|react\w*|reception|received|opinions?|"
+                 r"verdict|consensus|cult (classic|following|film|status)|reappraise\w*|re-?evaluat\w*|underrated|"
+                 r"overrated|aged (well|badly|poorly)|hold(s)? up|video essays?|essayists?|youtubers?|analysts?|"
+                 r"breakdowns?|reviewers?|critics?|audiences?|fans|viewers|moviegoers|word of mouth|"
+                 r"what did .{0,40}\b(think|say|make of)|reputation|standing|legacy|regarded|seen (today|now)|"
+                 r"new york times|nyt|the guardian|variety|hollywood reporter|roger ebert|rotten tomatoes|metacritic|"
+                 r"did .{0,50}\b(like|enjoy|love|hate|dislike))\b")
+R_REC_GAP = _W(r"\bcritics?\b.{0,60}\b(audiences?|fans|viewers|people|moviegoers|the public)\b.{0,60}\b(disagree\w*|"
+               r"lov(e|ed)|hat(e|ed)|lik(e|ed)|dislik(e|ed)|split|gap|differ\w*|more)\b|\b(audiences?|fans|viewers|people)\b"
+               r".{0,40}\b(lov(e|ed)|lik(e|ed)|enjoy(ed)?)\b.{0,40}\bcritics?\b.{0,20}\b(hat(e|ed)|dislik(e|ed)|pann(ed)?|"
+               r"didn'?t)\b|\b(critics and audiences|audiences and critics)\b.{0,40}\b(disagree\w*|split|differ\w*)\b")
+R_REC_DIVISIVE = _W(r"\b(most |more )?(divisive|polari[sz]\w*|split (audiences|opinion|viewers)|love[- ]it[- ]or[- ]"
+                    r"hate[- ]it|strongest (audience )?reactions?|most (controversial|debated))\b")
+R_REC_REAPPRAISE = _W(r"\b(cult (classics?|films?|movies?|following)|reappraise\w*|re-?evaluat\w*|under-?appreciated|"
+                      r"initially (panned|flopped|bombed|hated|dismissed)|aged well|found (its|an|their) audience|"
+                      r"better (with|over) time|grew on)\b")
+R_REC_MIXED_MONEY = _W(r"\b(mixed|bad|poor|negative|weak|middling) reviews?\b.{0,80}\b(made (a lot of |so much |good |"
+                       r"big |lots of )?money|profit\w*|box[- ]office|hits?|success\w*|earn\w*|gross\w*)\b|"
+                       r"\b(made (a lot of |so much |good |big )?money|profit\w*|hits?|success\w*|box[- ]office)\b"
+                       r".{0,60}\b(despite|but|even though|with)\b.{0,30}\b(mixed|bad|poor|negative|weak) reviews?\b")
 R_COMPARE = _W(r"\b(compare\w*|comparison|versus|vs\.?|better than|worse than|differ\w*|"
                r"which (one |film |movie )?(made|earned|cost|did|was|is|had)|both)\b")
 R_AGG = _W(r"\b(which|what|who|top|most|least|highest|lowest|best|worst)\b.{0,60}\b(directors?|actors?|actresses|"
@@ -199,11 +251,21 @@ def route(question, plan, hits):
                     about.append(extra[0])
                     have.add(extra[0]["title"].casefold())
         about = about[:3]
+    rec_list = None
+    if RECEPTION and not about:
+        # v7 R15: reception questions about many films are answered from the reception cards in SQL (E2, E4, R8)
+        rec_list = ("mixed_money" if R_REC_MIXED_MONEY.search(q) else "gaps" if R_REC_GAP.search(q) else
+                    "divisive" if R_REC_DIVISIVE.search(q) else "reappraised" if R_REC_REAPPRAISE.search(q) else None)
+        if rec_list:
+            tasks = [t for t in tasks if t != "aggregate"] + ["reception_list"]
     if about:
         tasks.append("facts")
         if len(about) > 1:
             tasks.append("compare")
         why = bool(R_WHY.search(q))
+        issue = bool(ISSUES and RECEPTION and is_issue_question(q))
+        if RECEPTION and (R_REVIEWS.search(q) or R_RECEPTION.search(q) or why or issue):
+            tasks.append("reception")          # v7 R15: card + numbered evidence (replaces the v3 reviews block)
         if why:
             tasks += ["market", "sections", "reviews"]
             if SUCCESS:
@@ -234,13 +296,16 @@ def route(question, plan, hits):
                 tasks.append("audience")
     else:
         why = False
+        issue = False
+    if "reception" in tasks:            # the card already has the reviews and audience numbers
+        tasks = [t for t in tasks if t not in ("reviews", "audience")]
     seen, out = set(), []
     for t in tasks:
         if t not in seen:
             seen.add(t)
             out.append(t)
-    return {"tasks": out, "films": about, "why": why,
-            "kinds": _section_kinds(q, why)}
+    return {"tasks": out, "films": about, "why": why, "issue": issue,
+            "kinds": _section_kinds(q, why), "reception_list": rec_list}
 
 
 def _section_kinds(q, why):
@@ -359,6 +424,19 @@ def ml_line(fid):
     return None
 
 
+def imdb_line(fid):
+    """v7 D2 (IMDB=1): the IMDb users' rating and votes, or None."""
+    c = db()
+    try:
+        r = c.execute("select r.rating, r.votes, r.fetched_at from films f join imdb_ratings r on r.imdb_id = f.imdb_id "
+                      "where f.tmdb_id = ?", (fid,)).fetchone()
+    except sqlite3.Error:
+        return None
+    if r and r[0] and (r[1] or 0) >= 50:
+        return f"IMDb users: {r[0]:.1f}/10 from {r[1]:,} votes [IMDb, {str(r[2])[:7]}]"
+    return None
+
+
 def real_line(fid):
     """Budget and gross in today's dollars (money_extra.py real), or None."""
     c = db()
@@ -447,6 +525,10 @@ def facts_block(fid, short=False):
     ml = ml_line(fid)
     if ml:
         lines.append(ml)
+    if IMDB:
+        il = imdb_line(fid)
+        if il:
+            lines.append(il)
     aw = awards(fid)
     if aw:
         lines.append(aw)
@@ -1084,7 +1166,10 @@ def facts_hits(titles, year=None):
 
 def film_card(h):
     """What the answer model sees for a film that is only in facts.db (chat.context_for's job
-    for catalogue films)."""
+    for catalogue films). v7: TV shows (h["_tv"]) get tv.py's card."""
+    if h.get("_tv"):
+        import tv as _tv
+        return _tv.context(h)
     b = facts_block(h["id"]) or f"{h.get('title')} ({h.get('release_year')})"
     r = film_row(h["id"])
     if r and r[12]:
@@ -1097,7 +1182,7 @@ def run(question, hits, plan, q_text=None):
     """All tool blocks for this question: {"blocks": [...], "route": {...}, "replace_hits": bool,
     "ms": {...}}. Safe when facts.db is missing (returns no blocks)."""
     t0 = time.perf_counter()
-    out = {"blocks": [], "route": None, "replace_hits": False, "ms": {}, "style": None}
+    out = {"blocks": [], "route": None, "replace_hits": False, "ms": {}, "style": None, "citations": {}}
     if db() is None:
         return out
     rt = route(question, plan, hits)
@@ -1105,7 +1190,17 @@ def run(question, hits, plan, q_text=None):
     out["route"]["films"] = [h.get("title") for h in rt["films"]]
     q_vec = None
     blocks = []
-    films = [h for h in rt["films"] if film_row(h["id"])]
+    films = [h for h in rt["films"] if not h.get("_tv") and film_row(h["id"])]
+    tv_films = [h for h in rt["films"] if h.get("_tv")]
+    if tv_films and ({"reviews", "reception"} & set(rt["tasks"]) or R_REVIEWS.search(question or "")):
+        try:
+            import tv as _tv
+            for h in tv_films[:2]:
+                b = _tv.reviews_block(h)
+                if b:
+                    blocks.append(("tv_reviews", b))
+        except Exception as e:  # noqa: BLE001
+            print(f"[tools] TV reviews failed: {e!r}", file=sys.stderr)
     if "sections" in rt["tasks"] and films:
         try:
             import retrieve as R
@@ -1120,6 +1215,12 @@ def run(question, hits, plan, q_text=None):
         b = compare_block([h["id"] for h in films])
         if b:
             blocks.append(("compare", b))
+    if "reception" in rt["tasks"] and films:
+        try:
+            for kind, b in reception_blocks(question, films[:2], q_text, out, issue=rt.get("issue")):
+                blocks.append((kind, b))
+        except Exception as e:  # noqa: BLE001 - reception data missing must not lose the answer
+            print(f"[tools] reception blocks failed: {e!r}", file=sys.stderr)
     if "market" in rt["tasks"] and films:
         b = market_block(films[0]["id"])
         if b:
@@ -1190,6 +1291,16 @@ def run(question, hits, plan, q_text=None):
             blocks.insert(0, ("current", b))
             if not films:
                 out["replace_hits"] = True
+    if "reception_list" in rt["tasks"]:
+        try:
+            b = reception_list_block(question, rt.get("reception_list"))
+        except Exception as e:  # noqa: BLE001
+            print(f"[tools] reception list failed: {e!r}", file=sys.stderr)
+            b = None
+        if b:
+            blocks.insert(0, ("reception_list", b))
+            if not films:
+                out["replace_hits"] = True
     hide = set(REQUEST.get("hide") or ())
     if hide:
         blocks = _hide_lines(blocks, hide, question)
@@ -1211,7 +1322,13 @@ def run(question, hits, plan, q_text=None):
     # rankings, reception and single facts get their own, shorter instructions.
     tasks = set(rt["tasks"])
     spec_task = ((out["route"] or {}).get("spec") or {}).get("task")
-    if rt["why"]:
+    if "reception_list" in tasks and not films:
+        style = "reception_list"
+    elif "reception" in tasks and films and rt.get("issue"):
+        style = "issue"                         # 4 Nov (ISSUES=1)
+    elif "reception" in tasks and films and not (rt["why"] and R_MONEY.search(question or "")):
+        style = "reception"
+    elif rt["why"]:
         style = "analysis"
     elif "aggregate" in tasks and spec_task == "ranking":
         style = "ranking"
@@ -1230,6 +1347,177 @@ def run(question, hits, plan, q_text=None):
     out["style"] = style
     out["ms"]["total"] = round((time.perf_counter() - t0) * 1000)
     return out
+
+
+# ================================================================== reception (v7 R15 / R16)
+def reception_card_text(fid):
+    """The film's reception card (reception_cards.py): the stored text, else built now."""
+    c = db()
+    try:
+        r = c.execute("select text from reception_card where tmdb_id = ?", (fid,)).fetchone()
+    except sqlite3.Error:
+        r = None
+    if r and r[0]:
+        return r[0]
+    try:
+        import reception_cards as RC
+        card = RC.build_card(c, fid)
+        return card["text"] if card else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+# 4 Nov: YT_COMMENTS=1 - the reception block also gets one line on the allow-listed channels' videos about the film
+# (count, views, likes: YouTube API data) and, when scored, the sentiment of the viewer comments under them (Cinemack's
+# own measure, labelled as such); the evidence then includes those comments. YT_COMMENTS=0 = the 3 Nov blocks.
+YT_COMMENTS = os.environ.get("YT_COMMENTS", "0") == "1"
+
+
+def _q(sql, p=()):
+    import sqlite3 as _sq
+    c = db()
+    if c is None:
+        return []
+    try:
+        return c.execute(sql, p).fetchall()
+    except _sq.Error:
+        return []
+
+
+def youtube_line(fid):
+    r = _q("""select count(distinct a.video_key), sum(a.views), sum(a.likes), sum(a.comment_count), max(a.fetched_at)
+        from yt_analysis a join (select distinct video_key from yt_analysis_units where tmdb_id = ? and match_ok = 1) u
+        on u.video_key = a.video_key""", (fid,))
+    if not r or not r[0][0]:
+        return None
+    n, views, likes, ncom, ts = r[0]
+    line = (f"YouTube: {n} video{'s' if n != 1 else ''} about this film from the allow-listed review and analysis channels"
+            + (f", {views:,} views" if views else "") + (f", {likes:,} likes" if likes else "")
+            + (f", {ncom:,} comments" if ncom else "") + f" in total [YouTube Data API{', ' + ts[:10] if ts else ''}]")
+    s = _q("""select count(*), sum(label = 'positive'), sum(label = 'mixed'), sum(label = 'negative')
+        from review_sentiment where source_type = 'yt_comment' and tmdb_id = ?""", (fid,))
+    if s and s[0][0]:
+        m, pos, mix, neg = s[0]
+        line += (f"; the top comments under them, scored by Cinemack (not a YouTube metric): {pos or 0} positive, "
+                 f"{mix or 0} mixed, {neg or 0} negative of {m}" + (" - too few to generalise" if m < 20 else ""))
+    return line
+
+
+def reception_blocks(question, films, q_text, out, issue=False):
+    """[(kind, block)] for each film: its reception card, then numbered evidence. Sets out["citations"]
+    ({n: {label, url, ...}}) so the site can list the sources the answer cited."""
+    import evidence as EV
+    blocks, cites = [], dict(out.get("citations") or {})
+    q_vec = None
+    try:
+        import retrieve as R
+        q_vec = R.embed_query(question if issue else (q_text or question))   # 4 Nov: an issue is searched as asked
+    except Exception:  # noqa: BLE001 - keyword search alone still works
+        q_vec = None
+    k = RECEPTION_K if len(films) == 1 else max(3, RECEPTION_K // 2)
+    if issue:
+        k += 4
+    for h in films:
+        card = reception_card_text(h["id"])
+        if card and YT_COMMENTS:
+            try:
+                yl = youtube_line(h["id"])
+                if yl:
+                    card = card + "\n" + yl
+            except Exception as e:  # noqa: BLE001
+                print(f"[tools] youtube line failed: {e!r}", file=sys.stderr)
+        if card:
+            blocks.append(("reception", card))
+        ev = EV.search(question, [h["id"]], k=k, q_vec=q_vec, conn=db())
+        b, c = EV.evidence_block(f"{h['title']} ({h.get('release_year') or '?'})", ev, start=len(cites) + 1)
+        if b:
+            blocks.append(("evidence", b))
+            cites.update(c)
+    out["citations"] = cites
+    return blocks
+
+
+def reception_list_block(question, kind):
+    """E2 / E4 / R8: reception questions about many films, answered in SQL over the reception cards."""
+    import reception_cards as RC
+    c = db()
+    spec = clean_spec(question, {"genres": [], "year_from": None, "year_to": None, "people": []})
+    genre = (spec.get("genres") or [None])[0]
+    m = re.search(r"\b(19|20)(\d)0s\b", question or "")
+    yf, yt = (int(m.group(1) + m.group(2) + "0"), int(m.group(1) + m.group(2) + "9")) if m else (None, None)
+    m2 = re.search(r"\b(?:in|from|of) ((?:19|20)\d\d)\b", question or "")
+    if m2 and not m:
+        yf = yt = int(m2.group(1))
+    if kind == "gaps":
+        return RC.gap_block(question, limit=10, genre=genre, year_from=yf, year_to=yt, conn=c)
+    where, args = ["coalesce(f.vote_count, 0) >= 200"], []
+    if genre:
+        where.append("f.genres_json like ?")
+        args.append(f'%"{genre}"%')
+    if yf:
+        where += ["f.year >= ?", "f.year <= ?"]
+        args += [yf, yt]
+    w = " and ".join(where)
+    if kind == "divisive":
+        rows = c.execute(f"""select f.title, f.year, d.n, d.mean, d.sd, d.pct_low, d.pct_high, d.bc from ml_dist d
+            join films f on f.tmdb_id = d.tmdb_id where d.n >= 1000 and d.pct_low >= 0.15 and d.pct_high >= 0.15 and {w}
+            order by d.bc desc limit 10""", args).fetchall()
+        if not rows:
+            return None
+        return ("Most polarised films by MovieLens ratings (two camps: many very low AND many very high ratings; bimodality "
+                "> 0.555 suggests two camps): title | year | ratings | mean /5 | % rating <= 2 | % rating >= 4.5 | bimodality\n"
+                + "\n".join(f"{t} | {y} | {n:,} | {mn:.2f} | {lo:.0%} | {hi:.0%} | {bc:.2f}" for t, y, n, mn, sd, lo, hi, bc in rows)
+                + "\n[MovieLens 32M ratings to 2023, computed by Movie Buff; only films with >= 1,000 ratings]")
+    if kind == "reappraised":
+        rows = c.execute(f"""select f.title, f.year, r.trend_label, r.trend_delta, r.legacy_label, r.data_json
+            from reception_card r join films f on f.tmdb_id = r.tmdb_id
+            where (r.legacy_label is not null or r.trend_label = 'rose') and {w}
+            order by (r.legacy_label is not null) desc, coalesce(r.trend_delta, 0) desc limit 10""", args).fetchall()
+        if not rows:
+            return None
+        out = ["Films whose standing rose after release: title | year | Wikipedia says | MovieLens release years -> "
+               "5+ years later"]
+        for t, y, tl, td, lg, _dj in rows:
+            out.append(f"{t} | {y} | {lg or '-'} | {('+' if (td or 0) >= 0 else '') + format(td, '.2f') if td is not None else '-'}")
+        return "\n".join(out) + "\n[Wikipedia: Legacy; MovieLens 32M, computed by Movie Buff]"
+    if kind == "mixed_money":
+        rows = c.execute(f"""select f.title, f.year, r.critic_score, r.critic_score_src, m.budget, m.gross, m.roi
+            from reception_card r join films f on f.tmdb_id = r.tmdb_id join money m on m.tmdb_id = r.tmdb_id
+            where r.critic_score between 35 and 60 and m.roi >= {PROFIT_X} and m.budget >= 1000000 and {w}
+            order by m.gross desc limit 10""", args).fetchall()
+        if not rows:
+            return None
+        return (f"Films with mixed reviews (critics' score 35-60 of 100) that were profitable (gross >= {PROFIT_X}x budget): "
+                "title | year | critics | budget | worldwide gross | gross/budget\n"
+                + "\n".join(f"{t} | {y} | {cs:.0f} ({src}) | {usd(b)} | {usd(g)} | {roi:.1f}x" for t, y, cs, src, b, g, roi in rows)
+                + "\n[critics: Wikipedia / Wikidata / OMDb; money: TMDB / Wikipedia / Wikidata; computed by Movie Buff]")
+    return None
+
+
+def citation_footer(answer, citations):
+    """v7 R16: 'Sources' lines for the evidence numbers the answer cited, in the order cited, or ''."""
+    if not citations or not answer:
+        return ""
+    cites = {int(k): v for k, v in citations.items()}
+    used = []
+    for m in re.finditer(r"\[(\d{1,2}(?:\s*[,–-]\s*\d{1,2})*)\]", answer):
+        for part in re.split(r"\s*,\s*", m.group(1)):
+            if re.match(r"^\d+\s*[–-]\s*\d+$", part):
+                a_, b_ = [int(x) for x in re.split(r"\s*[–-]\s*", part)]
+                nums = range(a_, b_ + 1) if 0 < b_ - a_ < 10 else []
+            else:
+                nums = [int(part)] if part.strip().isdigit() else []
+            for n in nums:
+                if n in cites and n not in used:
+                    used.append(n)
+    if not used:
+        return ""
+    lines = []
+    for n in used:
+        c = cites[n]
+        lab = c.get("label") or "source"
+        lines.append(f"[{n}] [{lab}]({c['url']})" if c.get("url") else f"[{n}] {lab}")
+    return "\n\n*Sources: " + "; ".join(lines) + ". Wikipedia text is CC BY-SA; reviews link to their original pages.*"
 
 
 def _hide_lines(blocks, hide, question):

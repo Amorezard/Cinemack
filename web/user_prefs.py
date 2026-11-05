@@ -42,7 +42,19 @@ IMG = "https://image.tmdb.org/t/p/w185"
 
 DEFAULTS = {"length": "normal", "voice": "persona", "spoilers": "site", "sources": True, "never_genres": [],
             "min_year": None, "max_runtime": None, "about": "", "memory": True,
-            "max_cert": None, "money": True, "critics": True, "recall": True}
+            "max_cert": None, "money": True, "critics": True, "recall": True, "services": []}
+# 4 Nov: the streaming services a person has (settings "services"). Matched against TMDB's US where-to-watch list
+# (JustWatch data, facts.db watch_providers): a provider counts when its name is a pattern or starts with one
+# ("Netflix Standard with Ads", "Max Amazon Channel"). Only subscription / free / with-ads listings count.
+SERVICES = {"netflix": ("Netflix", ["netflix"]), "max": ("Max", ["max", "hbo max"]),
+            "prime": ("Prime Video", ["amazon prime video", "prime video"]), "disney": ("Disney+", ["disney plus", "disney"]),
+            "hulu": ("Hulu", ["hulu"]), "apple": ("Apple TV+", ["apple tv plus", "apple tv"]),
+            "peacock": ("Peacock", ["peacock"]), "paramount": ("Paramount+", ["paramount plus", "paramount"]),
+            "tubi": ("Tubi (free)", ["tubi"]), "pluto": ("Pluto TV (free)", ["pluto tv"]),
+            "roku": ("The Roku Channel (free)", ["the roku channel", "roku channel"]),
+            "criterion": ("Criterion Channel", ["criterion channel"]), "mubi": ("MUBI", ["mubi"]),
+            "kanopy": ("Kanopy (library card)", ["kanopy"])}
+STREAM_KINDS = ("flatrate", "free", "ads")
 CHOICES = {"length": ("short", "normal", "detailed"), "voice": ("persona", "plain"),
            "spoilers": ("site", "never", "warn", "allow")}
 CERTS = ["G", "PG", "PG-13", "R", "NC-17"]               # US MPA ratings, mildest first
@@ -56,13 +68,18 @@ ABOUT_MAX = 500
 
 _lock = threading.Lock()
 _C = {}
-CURRENT = {"settings": None}          # the person whose question is being answered right now
+try:                                   # v7 D4: per-thread (the rag folder is on sys.path)
+    from request_state import LocalDict as _LocalDict
+    CURRENT = _LocalDict(lambda: {"settings": None})
+except ImportError:  # noqa: BLE001
+    CURRENT = {"settings": None}          # the person whose question is being answered right now
 
 
 def _users():
     if "u" not in _C:
         USERS.parent.mkdir(parents=True, exist_ok=True)
         c = sqlite3.connect(str(USERS), check_same_thread=False, timeout=30)
+        c.execute("pragma journal_mode=WAL")      # v7 D4: readers never block the writer
         c.executescript("""
             create table if not exists profiles(user_key text primary key, display_name text, settings_json text,
               groups_json text, onboarded_at real, updated_at real);
@@ -107,6 +124,7 @@ def clean(raw):
             v = None
         s[k] = v if v is None or lo <= v <= hi else None
     s["about"] = " ".join(str(raw.get("about") or "").split())[:ABOUT_MAX]
+    s["services"] = [k for k in dict.fromkeys(raw.get("services") or []) if k in SERVICES]
     return s
 
 
@@ -153,7 +171,7 @@ def filter_tag(settings):
     """Hash of the hard filters only: part of the search-cache key (pipeline.user_tag)."""
     if not settings:
         return ""
-    f = {k: settings.get(k) for k in ("never_genres", "min_year", "max_runtime", "max_cert")}
+    f = {k: settings.get(k) for k in ("never_genres", "min_year", "max_runtime", "max_cert", "services")}
     # hiding money / critic lines changes the tool blocks inside the cached prompt, so it is part of the key too
     f.update({k: False for k in ("money", "critics") if settings.get(k) is False})
     if not any(v not in (None, [], "") for v in f.values()):
@@ -269,6 +287,71 @@ def excluded(settings, hits):
     return out
 
 
+def _norm_provider(n):
+    return " ".join("".join(ch if ch.isalnum() else " " for ch in str(n or "").casefold().replace("+", " plus ")).split())
+
+
+def service_of(provider_name):
+    """The SERVICES key a TMDB / JustWatch provider name belongs to, or None."""
+    n = _norm_provider(provider_name)
+    for key, (_label, pats) in SERVICES.items():
+        if any(n == p or n.startswith(p + " ") for p in pats):
+            return key
+    return None
+
+
+def on_services(settings, ids, region="US"):
+    """{tmdb_id: [service labels]} for the films streaming (subscription, free or with ads) on this person's
+    services. {} when they have none set or the data is missing."""
+    mine = set((settings or {}).get("services") or [])
+    ids = [int(i) for i in ids if str(i).lstrip("-").isdigit() and int(i) > 0]
+    if not mine or not ids:
+        return {}
+    rows = _q(_facts(), "select tmdb_id, provider_name from watch_providers where region = ? and kind in ("
+              + ",".join("?" * len(STREAM_KINDS)) + ") and tmdb_id in (" + ",".join("?" * len(ids)) + ") order by priority",
+              [region, *STREAM_KINDS, *ids])
+    out = {}
+    for fid, name in rows:
+        k = service_of(name)
+        if k in mine:
+            lab = SERVICES[k][0]
+            if lab not in out.setdefault(fid, []):
+                out[fid].append(lab)
+    return out
+
+
+def prefer_services(settings, hits):
+    """Recommendations: films on the person's services first, keeping the order otherwise (stable)."""
+    on = on_services(settings, [h.get("id") for h in hits if h.get("id") is not None])
+    if not on:
+        return hits
+    return sorted(hits, key=lambda h: 0 if h.get("id") in on else 1)
+
+
+_R_WATCH_Q = None
+
+
+def services_block(settings, hits, intent=None, question=""):
+    """A prompt line naming which of the films above are on this person's services, for recommendations and
+    where-to-watch questions; '' otherwise."""
+    global _R_WATCH_Q
+    import re
+    if _R_WATCH_Q is None:
+        _R_WATCH_Q = re.compile(r"\b(where (can|could|do|to) (i |we )?(watch|stream|see)|stream\w*|netflix|hulu|disney|"
+                                r"prime video|on max|peacock|paramount|tubi|watch (it|this|tonight))\b", re.I)
+    s = settings or {}
+    if not s.get("services") or not hits or not (intent == "recommend" or _R_WATCH_Q.search(question or "")):
+        return ""
+    on = on_services(s, [h.get("id") for h in hits if h.get("id") is not None])
+    names = ", ".join(SERVICES[k][0] for k in s["services"])
+    if on:
+        found = "; ".join(f"{h.get('title')} ({', '.join(on[h['id']])})" for h in hits if h.get("id") in on)
+        return ("\n\nThis person streams on " + names + ". Of the films above, these are on their services in the US "
+                "(JustWatch via TMDB): " + found + ". When it fits, say where they can watch a film you suggest.")
+    return ("\n\nThis person streams on " + names + ". None of the films above is listed on those services in the US "
+            "(JustWatch via TMDB); don't claim that one is.")
+
+
 def tools_hide(settings, question=""):
     """What tools.py should leave out of this answer's blocks (tools.REQUEST["hide"])."""
     s = settings or DEFAULTS
@@ -334,6 +417,11 @@ def install(chat_module):
                 tool["blocks"] = blocks
                 tool["filtered_by_settings"] = len(gone)
                 hits = kept
+        if s and hits and s.get("services"):
+            try:
+                hits = prefer_services(s, hits)        # 4 Nov: films on their services first (stable)
+            except Exception as e:  # noqa: BLE001
+                print(f"[cinemack] services order failed: {e!r}", flush=True)
         return hits
     _personalize._mb_orig = orig
     chat_module._personalize = _personalize
@@ -344,18 +432,44 @@ def install(chat_module):
 # About ten taste groups, each a genre plus TMDB keywords. Picking one stores its keywords as stated
 # tastes (personal.record_stated), which personal.rerank already turns into keyword weights.
 GROUPS = [
-    ("scifi", "Mind-bending sci-fi", ["Science Fiction"], ["time travel", "dystopia", "artificial intelligence", "alien", "space"]),
+    ("scifi", "Mind-bending sci-fi", ["Science Fiction"], ["time travel", "artificial intelligence", "dystopia", "parallel world", "dream"]),
+    ("space", "Space and aliens", ["Science Fiction"], ["space", "alien", "spacecraft", "space travel", "planet"]),
+    ("heroes", "Superheroes", ["Action", "Science Fiction", "Fantasy"], ["superhero", "based on comic", "marvel cinematic universe (mcu)", "dc extended universe (dceu)", "super power"]),
     ("thrill", "Edge-of-your-seat thrillers", ["Thriller"], ["serial killer", "conspiracy", "kidnapping", "revenge", "heist"]),
+    ("mystery", "Mysteries and whodunits", ["Mystery"], ["whodunit", "murder", "investigation", "detective", "plot twist"]),
     ("comedy", "Laugh-out-loud comedy", ["Comedy"], ["parody", "satire", "road trip", "buddy comedy", "friendship"]),
     ("drama", "Big emotional dramas", ["Drama"], ["based on true story", "biography", "coming of age", "family relationships", "grief"]),
     ("horror", "Horror and the supernatural", ["Horror"], ["ghost", "haunted house", "zombie", "demon", "slasher"]),
     ("anim", "Animation for all ages", ["Animation"], ["anthropomorphism", "talking animal", "fairy tale", "magic", "musical"]),
+    ("family", "Family movie night", ["Family"], ["family", "friendship", "christmas", "dog", "kids"]),
     ("crime", "Crime and gangsters", ["Crime"], ["gangster", "mafia", "detective", "police", "drug dealer"]),
-    ("action", "Action and adventure", ["Action", "Adventure"], ["superhero", "martial arts", "treasure hunt", "chase", "spy"]),
+    ("action", "Action and adventure", ["Action", "Adventure"], ["martial arts", "treasure hunt", "chase", "spy", "survival"]),
     ("romance", "Romance", ["Romance"], ["romantic comedy", "love triangle", "wedding", "first love", "falling in love"]),
     ("war", "War and history", ["War", "History"], ["world war ii", "historical figure", "battle", "soldier", "biography"]),
+    ("western", "Westerns", ["Western"], ["western", "cowboy", "gunslinger", "outlaw", "frontier"]),
+    ("music", "Musicals and music", ["Music"], ["musical", "singer", "band", "concert", "dancing"]),
+    ("docs", "Documentaries", ["Documentary"], ["biography", "nature", "history", "sport", "music"]),
     ("classic", "Classics (before 1970)", [], ["film noir", "black and white", "based on novel or book", "musical", "western"]),
 ]
+# 4 Nov: the example posters. They used to be the most-voted films with the group's genre and ANY of its tags, so
+# "Mind-bending sci-fi" showed Avengers: Infinity War (sci-fi + "alien" / "space"). Now each group has its own
+# keywords for the examples ("kw", default: its tags), keywords that rule a film out ("not"), and a vote floor.
+_NO_HEROES = ["superhero", "based on comic", "marvel cinematic universe (mcu)", "dc extended universe (dceu)"]
+EXAMPLES = {
+    "scifi": {"kw": ["time travel", "dream", "parallel world", "alternate reality", "simulated reality", "time loop",
+                     "artificial intelligence", "virtual reality", "memory", "nonlinear timeline", "mindfuck",
+                     "philosophy", "surrealism", "consciousness"], "not": _NO_HEROES + ["space opera"]},
+    "space": {"not": _NO_HEROES},
+    "thrill": {"not": _NO_HEROES},
+    "mystery": {"not": _NO_HEROES},
+    "drama": {"not": _NO_HEROES},
+    "crime": {"not": _NO_HEROES},
+    "action": {"not": _NO_HEROES},
+    "family": {"not_genres": ["Animation"]},
+    "docs": {"kw": [], "min_votes": 150},
+    "western": {"min_votes": 200},
+    "music": {"min_votes": 200},
+}
 _GCACHE = {}
 
 
@@ -366,14 +480,24 @@ def groups():
     used, out = set(), []
     f = _facts()
     for key, label, genres, tags in GROUPS:
-        where, params = ["f.in_catalog = 1", "i.poster_path is not null", "f.vote_count >= 500"], []
+        ex = EXAMPLES.get(key, {})
+        where, params = ["f.in_catalog = 1", "i.poster_path is not null", "f.vote_count >= ?"], [ex.get("min_votes", 500)]
         if genres:
             where.append("(" + " or ".join("f.genres_json like ?" for _ in genres) + ")")
             params += [f'%"{g}"%' for g in genres]
+        for g in ex.get("not_genres", []):
+            where.append("f.genres_json not like ?")
+            params.append(f'%"{g}"%')
         if key == "classic":
             where.append("f.year < 1970")
-        where.append("exists (select 1 from keywords k where k.tmdb_id = f.tmdb_id and k.name in (" + ",".join("?" * len(tags)) + "))")
-        params += tags
+        kw = ex.get("kw", tags)
+        if kw:
+            where.append("exists (select 1 from keywords k where k.tmdb_id = f.tmdb_id and k.name in (" + ",".join("?" * len(kw)) + "))")
+            params += kw
+        if ex.get("not"):
+            where.append("not exists (select 1 from keywords k where k.tmdb_id = f.tmdb_id and k.name in ("
+                         + ",".join("?" * len(ex["not"])) + "))")
+            params += ex["not"]
         rows = _q(f, "select f.tmdb_id, f.title, f.year, i.poster_path from films f join film_images i on i.tmdb_id = f.tmdb_id "
                      "where " + " and ".join(where) + " order by f.vote_count desc limit 15", params)
         films = []
@@ -403,20 +527,24 @@ def famous(n=10):
     return out
 
 
-def set_groups(key, picked):
-    """Replace this person's onboarding taste groups; their keywords become stated tastes."""
+def set_groups(key, picked, avoid=()):
+    """Replace this person's onboarding taste groups; their keywords become stated tastes (4 Nov: groups marked
+    "Not for me" become negative stated tastes, stored as "-<key>" in the same list)."""
     known = {g[0]: g for g in GROUPS}
     picked = [k for k in picked if k in known]
+    avoid = [k for k in avoid if k in known and k not in picked]
     old = load(key)["groups"]
     import personal                                   # rag folder (server.py puts it on sys.path)
     with _lock:
         c = _users()
         for k in old:
-            for t in known.get(k, (None, None, None, []))[3]:
+            for t in known.get(str(k).lstrip("-"), (None, None, None, []))[3]:
                 c.execute("delete from stated_prefs where user_id = ? and text = ?", (key, t))
         c.commit()
-    personal.record_stated(key, [{"text": t, "polarity": 1} for k in picked for t in known[k][3]])
-    return save(key, groups=picked)
+    liked_tags = {t for k in picked for t in known[k][3]}
+    personal.record_stated(key, [{"text": t, "polarity": 1} for t in sorted(liked_tags)]
+                           + [{"text": t, "polarity": -1} for k in avoid for t in known[k][3] if t not in liked_tags])
+    return save(key, groups=picked + ["-" + k for k in avoid])
 
 
 # ------------------------------------------------------------------ welcome back

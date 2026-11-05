@@ -1,0 +1,20 @@
+{
+ "_id": "nyt://article/1",
+ "web_url": "https://www.nytimes.com/2010/07/16/movies/16inception.html",
+ "headline": {
+  "main": "\u2018Inception\u2019 Review: This Time the Mind Is the Battleground",
+  "kicker": "Critic\u2019s Pick"
+ },
+ "keywords": [
+  {
+   "name": "creative_works",
+   "value": "Inception (Movie)"
+  }
+ ],
+ "byline": {
+  "original": "By A. O. Scott"
+ },
+ "pub_date": "2010-07-16T00:00:00+0000",
+ "abstract": "x",
+ "type_of_material": "Review"
+}

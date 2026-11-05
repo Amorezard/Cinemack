@@ -1,0 +1,149 @@
+{
+ "note": "4 Nov: issue questions for the ISSUES rule (written by Claude after building the feature: not blind).",
+ "questions": [
+  {
+   "id": "is01",
+   "category": "issue",
+   "question": "How did audiences react to Joker's portrayal of mental illness?",
+   "notes": "Passes only if it says briefly what the film does with the issue, keeps critics and ordinary viewers apart and names its sources, says where views split, gives sample sizes when it generalises, speaks only for its sources (no claims about 'the public'), and invents no reviewers, quotes or events.",
+   "expect_films": [
+    "Joker"
+   ],
+   "expect_tasks": [
+    "reception"
+   ]
+  },
+  {
+   "id": "is02",
+   "category": "issue",
+   "question": "Was Barbie's feminism divisive among critics and viewers?",
+   "notes": "Passes only if it says briefly what the film does with the issue, keeps critics and ordinary viewers apart and names its sources, says where views split, gives sample sizes when it generalises, speaks only for its sources (no claims about 'the public'), and invents no reviewers, quotes or events.",
+   "expect_films": [
+    "Barbie"
+   ],
+   "expect_tasks": [
+    "reception"
+   ]
+  },
+  {
+   "id": "is03",
+   "category": "issue",
+   "question": "How did critics view American Sniper's depiction of war and of Chris Kyle?",
+   "notes": "Passes only if it says briefly what the film does with the issue, keeps critics and ordinary viewers apart and names its sources, says where views split, gives sample sizes when it generalises, speaks only for its sources (no claims about 'the public'), and invents no reviewers, quotes or events.",
+   "expect_films": [
+    "American Sniper"
+   ],
+   "expect_tasks": [
+    "reception"
+   ]
+  },
+  {
+   "id": "is04",
+   "category": "issue",
+   "question": "How was Green Book's handling of race received?",
+   "notes": "Passes only if it says briefly what the film does with the issue, keeps critics and ordinary viewers apart and names its sources, says where views split, gives sample sizes when it generalises, speaks only for its sources (no claims about 'the public'), and invents no reviewers, quotes or events.",
+   "expect_films": [
+    "Green Book"
+   ],
+   "expect_tasks": [
+    "reception"
+   ]
+  },
+  {
+   "id": "is05",
+   "category": "issue",
+   "question": "What did people think of the violence in The Passion of the Christ?",
+   "notes": "Passes only if it says briefly what the film does with the issue, keeps critics and ordinary viewers apart and names its sources, says where views split, gives sample sizes when it generalises, speaks only for its sources (no claims about 'the public'), and invents no reviewers, quotes or events.",
+   "expect_films": [
+    "The Passion of the Christ"
+   ],
+   "expect_tasks": [
+    "reception"
+   ]
+  },
+  {
+   "id": "is06",
+   "category": "issue",
+   "question": "How did critics react to Fight Club's take on masculinity?",
+   "notes": "Passes only if it says briefly what the film does with the issue, keeps critics and ordinary viewers apart and names its sources, says where views split, gives sample sizes when it generalises, speaks only for its sources (no claims about 'the public'), and invents no reviewers, quotes or events.",
+   "expect_films": [
+    "Fight Club"
+   ],
+   "expect_tasks": [
+    "reception"
+   ]
+  },
+  {
+   "id": "is07",
+   "category": "issue",
+   "question": "Was Zero Dark Thirty's depiction of torture controversial?",
+   "notes": "Passes only if it says briefly what the film does with the issue, keeps critics and ordinary viewers apart and names its sources, says where views split, gives sample sizes when it generalises, speaks only for its sources (no claims about 'the public'), and invents no reviewers, quotes or events.",
+   "expect_films": [
+    "Zero Dark Thirty"
+   ],
+   "expect_tasks": [
+    "reception"
+   ]
+  },
+  {
+   "id": "is08",
+   "category": "issue",
+   "question": "How did viewers react to Don't Look Up's political message?",
+   "notes": "Passes only if it says briefly what the film does with the issue, keeps critics and ordinary viewers apart and names its sources, says where views split, gives sample sizes when it generalises, speaks only for its sources (no claims about 'the public'), and invents no reviewers, quotes or events.",
+   "expect_films": [
+    "Don't Look Up"
+   ],
+   "expect_tasks": [
+    "reception"
+   ]
+  },
+  {
+   "id": "is09",
+   "category": "issue",
+   "question": "How was Avatar's message about colonialism received?",
+   "notes": "Passes only if it says briefly what the film does with the issue, keeps critics and ordinary viewers apart and names its sources, says where views split, gives sample sizes when it generalises, speaks only for its sources (no claims about 'the public'), and invents no reviewers, quotes or events.",
+   "expect_films": [
+    "Avatar"
+   ],
+   "expect_tasks": [
+    "reception"
+   ]
+  },
+  {
+   "id": "is10",
+   "category": "issue",
+   "question": "How did critics discuss Parasite's commentary on class?",
+   "notes": "Passes only if it says briefly what the film does with the issue, keeps critics and ordinary viewers apart and names its sources, says where views split, gives sample sizes when it generalises, speaks only for its sources (no claims about 'the public'), and invents no reviewers, quotes or events.",
+   "expect_films": [
+    "Parasite"
+   ],
+   "expect_tasks": [
+    "reception"
+   ]
+  },
+  {
+   "id": "is11",
+   "category": "issue",
+   "question": "How do people view Gone with the Wind's portrayal of slavery today?",
+   "notes": "Passes only if it says briefly what the film does with the issue, keeps critics and ordinary viewers apart and names its sources, says where views split, gives sample sizes when it generalises, speaks only for its sources (no claims about 'the public'), and invents no reviewers, quotes or events.",
+   "expect_films": [
+    "Gone with the Wind"
+   ],
+   "expect_tasks": [
+    "reception"
+   ]
+  },
+  {
+   "id": "is12",
+   "category": "issue",
+   "question": "Was Oppenheimer criticised for how it handled the bombing of Hiroshima and Nagasaki?",
+   "notes": "Passes only if it says briefly what the film does with the issue, keeps critics and ordinary viewers apart and names its sources, says where views split, gives sample sizes when it generalises, speaks only for its sources (no claims about 'the public'), and invents no reviewers, quotes or events.",
+   "expect_films": [
+    "Oppenheimer"
+   ],
+   "expect_tasks": [
+    "reception"
+   ]
+  }
+ ]
+}

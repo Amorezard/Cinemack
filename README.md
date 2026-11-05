@@ -105,6 +105,59 @@ bash run_v6_night.sh                                  # pf3 fit, YouTube, EXTRA_
 bash run_v6_day.sh                                    # nickname rerun, DATE_WORDS test, review sources
 ```
 
+## v7 (23 Oct - 5 Nov): reception, TV, safety, speed
+
+Same principle as v6: every answer-changing piece is a switch in `config.yaml`, **off** until its rule (written before
+the result, plan doc "Tests and rules") passes; tune / check may lose at most 1. `python v7_rules.py ...` prints the
+numbers each rule uses and PASS / FAIL; the switch is then set by hand. Code freeze Tue 3 Nov 18:00 (tag
+`v7.0-lock`); sealed run v6.0 vs v7 that night.
+
+| Piece | File | Switch | Rule to turn it on |
+|---|---|---|---|
+| Critic statements from Wikipedia's Reception sections, with the outlet / critic each `<ref>` cites (R2) | `critics.py` | data | outlet right on >= 90% of 50 hand-checked (`critics.py score`) |
+| Review sentiment (RoBERTa + head fitted on TMDB ratings), joke / sarcasm, bursts / review bombing, rating-text mismatch (R3, R5, H7) | `sentiment.py` | data | macro-F1 >= 0.80 on hand labels and beats llama3.2; flag precision >= 0.8 |
+| Reception card per film: critics vs audiences (0-100), gap, polarisation, trend, legacy, bombing, praise / complaints, summaries (R8, R12, R13, E2-E4, H9) | `reception_cards.py` | data | summary sentences supported >= 95% (`claimcheck.py summaries`) |
+| Review scores stated on Wikidata (E1) | `v7_data.py wd-scores` | data | coverage reported |
+| Evidence search over critic statements, standfirsts, user reviews, TV reviews, analysis videos (R14) | `evidence.py` | with RECEPTION | evidence hit@5 reported (`evidence.py hit`) |
+| Reception answers: card + cited evidence + numbered sources (R15) | `tools.py`, `chat.py` | `RECEPTION=1` | reception set (40): judge passes >= off + 6, unsupported rate not higher, grounding not lower |
+| Claim checker (NLI): unsupported rate, citation precision / recall (R16) | `claimcheck.py` | measure | - |
+| Video essays from 23 allow-listed channels: title, description, chapters only (R11) | `youtube_analysis.py` | data | right film >= 90% of 50 checked |
+| Nightly refresh, purge (YouTube 30 days), rebuild (R17) | `nightly.sh` | cron | dry run clean |
+| Connectors registry + tests on saved samples (R1); Letterboxd stays off until API approval | `connectors/` | - | `python -m pytest tests/` |
+| TV shows: search, answers, cards (D1) | `tv.py` | `TV=1` | TV set >= 20 / 30; tune / check / analytic each lose <= 1 |
+| Director / actor filters (D2) | `people.py` | `PEOPLE=1` | every film returned has the person (`people.py check`) |
+| IMDb rating line; IMDb alternate titles as aliases (D2) | `tools.py`, `aliases.py` | `IMDB=1`, `ALIAS_IMDB=1` | regression rule (tested with the D arm on Thursday) |
+| Recall earlier chats by meaning (D3) | `web/memory.py`, `memory_eval.py` | `MEM_EMBED=1` | hit@1 higher, false recall not higher |
+| Two users at once: per-request state (D4) | `request_state.py` | always | `tests/test_two_users.py` |
+| Injection defences: spotlighting, sanitising, link allow-list, leak check (D5) | `safety.py` | `GUARD=1` | >= 36 / 40 attacks defended (`attack_eval.py`); normal sets lose <= 1 |
+| Moderation: Llama Guard 3 1B + Detoxify (D6) | `moderation.py` | `MODERATION=1` | <= 1 false block across the normal sets |
+| Fact fast path from facts.db (D7) | `fastpath.py` | `FAST=1` | every fast answer holds the required facts; no non-factual question takes it |
+| Recommendation clean-up: no TV movies, concerts, shorts, unreleased, low-vote, off-genre (D8) | `rec_clean.py` | `REC_CLEAN=1` | 0 bad items in the 10 discovery prompts' top 10 |
+| Ollama speed A/B: flash attention, q8_0 KV cache, 2 parallel (D9) | `speed_ab.sh` | Ollama env | faster with tune / check within 1 |
+| Context builder, prompt order (D10) | `chat.py` | `CTX_BUILDER=1`, `PROMPT_ORDER=1` | regression rule |
+| Semantic answer cache (D11) | `web/semcache.py` | `SEMCACHE=1` | 0 wrong reuses on 20 near-miss pairs |
+| MRR and per-retriever hit rates (D12) | `metrics.py` | report | - |
+| Confidence model refit on identify questions (D13) | `confidence.py fit --identify` | report | calibration error down |
+| Personal taste weights on MovieLens 32M (D14) | `personal.py sweep32` | `PERSONAL_W` | bootstrap CI beats the live weights |
+| Money: euro legacy currencies, nearest-year fallback (H2) | `money_extra.py` | data | `money_extra.py diagnose` |
+| Reception panel in the film details (E5) | `web/index.html`, `web/film_info.py` | site | - |
+| Judge check: 30 answers graded by hand vs gemma3 (E7) | `judge_check.py` | report | >= 80% agreement and kappa >= 0.6 |
+| Licensing register (E6) | `v7_data.py register` | docs | - |
+
+Terms decisions (E8, 27 Oct): New York Times text never goes into a prompt or through a model (only critic, date,
+Critic's Pick and a link are shown); Guardian article bodies are not analysed until the text-mining terms are
+confirmed (stars and standfirsts are shown and may be quoted with a link); YouTube data is refreshed or deleted within
+30 days and captions / comments are not analysed. Letterboxd is used only if API access is approved in writing.
+
+```bash
+bash run_v7_night.sh TUE            # reception data, critics, sentiment, flags, samples, aspects, cards, summaries
+bash run_v7_night.sh WED            # evidence, cards, reception A/B, claim check, hit@5, analytic regression, rules
+bash run_v7_night.sh THU            # TV build + TV set A/B, people, discovery, aliases, fast path, recall, attacks
+bash run_v7_night.sh FRI            # speed A/B, context builder / prompt order, recent A/B, confidence, sweep32
+python v7_data.py register          # rewrite the licensing register below and on the About page
+python judge_check.py sample results/v3eval_<tag>.json   # E7 grading page
+```
+
 ## Quick start (a machine that already has the data)
 
 ```bash
@@ -221,3 +274,24 @@ awards, box office and cost: Wikidata (CC0). News headlines (v4): The New York T
 ("Data provided by The New York Times"; headline, abstract, date and link only) and Wikipedia's dated
 event lists (CC BY-SA). Audience ratings: MovieLens (F. Maxwell Harper and
 Joseph A. Konstan, 2015, ACM TiiS 5(4)), used under the GroupLens licence.
+
+### Licensing register (v7, from `v7_data.py SOURCES`)
+
+<!-- register:start -->
+| Source | What | Tables | Terms and our rule | Credit | Refresh (days) |
+|---|---|---|---|---|---|
+| [tmdb](https://www.themoviedb.org/api-terms-of-use) | film and TV metadata, cast, keywords, trailers, posters, age ratings, audience reviews | `films people credits keywords reviews film_videos film_images certifications tv_*` | TMDB API terms: free, non-commercial, attribution required | This product uses the TMDB API but is not endorsed or certified by TMDB. | 30 |
+| [justwatch](https://www.justwatch.com) | where to watch (via TMDB) | `watch_providers tv_providers` | TMDB watch-provider data must credit JustWatch | Streaming availability data by JustWatch. | 7 |
+| [wikipedia](https://en.wikipedia.org/wiki/Wikipedia:Copyrights) | lead, plot, production, reception and box-office text; reception wikitext with citations | `wiki.db sections wiki_reception recent_wiki tv_wiki` | CC BY-SA 4.0: credit and link each article, share alike | Text from Wikipedia (CC BY-SA 4.0), linked under each answer. | 30 |
+| [wikipedia-critics](https://en.wikipedia.org/wiki/Wikipedia:Copyrights) | critic statements from Reception sections, each with the outlet / critic its <ref> cites | `critic_statements review_sentiment evidence` | CC BY-SA 4.0 for the Wikipedia sentence; the quoted outlet is credited and its review linked when the citation has a URL; short quotes only | Critic statements as reported by Wikipedia (CC BY-SA 4.0), with the outlet each one cites. | 30 |
+| [wikidata](https://www.wikidata.org/wiki/Wikidata:Licensing) | budget, box office, awards, ids, review scores stated on each item (P444) | `facts awards wikidata_scores` | CC0 | Data from Wikidata (CC0). | 30 |
+| [imdb](https://developer.imdb.com/non-commercial-datasets/) | ratings and votes, title types, alternate titles, directors, writers, principal cast, episodes | `imdb_ratings imdb_titles imdb_akas imdb_crew imdb_principals imdb_names imdb_episodes` | IMDb Non-Commercial Datasets: personal and non-commercial use only | Data courtesy of IMDb. | 7 |
+| [movielens](https://grouplens.org/datasets/movielens/) | 32M audience ratings: distributions and change over time; tag genome (25M) | `ml32_stats ml_dist ml_year film_tags` | GroupLens research licence: non-commercial, cite the dataset paper; do not redistribute | MovieLens data: F. M. Harper and J. A. Konstan, ACM TiiS 5(4), 2015. Tag genome: Vig, Sen and Riedl, ACM TiiS 2(3), 2012. | - |
+| [omdb](https://www.omdbapi.com/legal.htm) | Rotten Tomatoes %, Metacritic, IMDb rating, awards text | `omdb` | OMDb API: free key 1,000 requests/day (CC BY-NC 4.0 for the data) | Scores via OMDb. | 30 |
+| [guardian](https://open-platform.theguardian.com/access/) | film reviews: star rating, standfirst, critic, link | `critic_reviews (source = guardian)` | Guardian Open Platform developer key: non-commercial. Decision (E8, 27 Oct): stars and the one-line standfirst are shown and may go in prompts with a link; article bodies are NOT analysed by any model until the terms for text mining are confirmed | Reviews from The Guardian (powered by the Guardian Open Platform), linked. | 7 |
+| [nyt](https://developer.nytimes.com/terms) | film reviews: critic, date, Critic's Pick, link (no text) | `critic_reviews nyt_meta (source = nyt)` | NYT Developer APIs: non-commercial, attribution. Decision (E8, 27 Oct): the NYT terms bar using content to ground or train AI without consent, so NYT text never goes into a prompt or through a model; only critic, date, Critic's Pick and a link are shown | Data provided by The New York Times. | 7 |
+| [youtube](https://developers.google.com/youtube/terms/developer-policies) | trailer statistics, review / analysis videos of allow-listed channels (title, description, chapters), public comments | `yt_videos yt_comments yt_channels yt_analysis yt_analysis_film yt_analysis_units` | YouTube API Services terms. Decision (E8): stored data is refreshed or deleted within 30 days (nightly.sh purge); no captions or transcripts; comments are counted, not analysed by a model | Video data from YouTube, linked to each video. | 30 |
+| [netflix](https://about.netflix.com/en/news/what-we-watched) | hours viewed and views per film per half-year | `netflix_views` | Netflix engagement reports (public); TidyTuesday CSV (CC0) | Viewing figures: Netflix What We Watched. | 180 |
+| [letterboxd](https://letterboxd.com/api-beta/) | ratings, distributions, reviews (only if API access is approved) | `-` | API by request only; terms forbid scraping. connectors/letterboxd.py stays APPROVED = False until written approval arrives | - | - |
+| [rottentomatoes](https://www.rottentomatoes.com/help_desk/licensing) | official RT API (licensed, not used) | `-` | Licensed through a business proposal; scores come from OMDb and Wikipedia instead | - | - |
+<!-- register:end -->

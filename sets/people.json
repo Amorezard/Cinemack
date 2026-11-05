@@ -1,0 +1,45 @@
+{
+ "about": "v7 D2 people examples, written 27 Oct before results. Rule: PEOPLE=1 kept if every film returned for every example has the named person in that role (people.py check) and tune / check / analytic lose <= 1.",
+ "questions": [
+  {
+   "id": "p01",
+   "question": "movies directed by Kathryn Bigelow"
+  },
+  {
+   "id": "p02",
+   "question": "Tom Hanks comedies from the 90s"
+  },
+  {
+   "id": "p03",
+   "question": "a thriller starring Denzel Washington"
+  },
+  {
+   "id": "p04",
+   "question": "something with Florence Pugh in it"
+  },
+  {
+   "id": "p05",
+   "question": "Christopher Nolan films"
+  },
+  {
+   "id": "p06",
+   "question": "recommend a western starring Clint Eastwood"
+  },
+  {
+   "id": "p07",
+   "question": "horror movies directed by John Carpenter"
+  },
+  {
+   "id": "p08",
+   "question": "Meryl Streep dramas"
+  },
+  {
+   "id": "p09",
+   "question": "films by Hayao Miyazaki"
+  },
+  {
+   "id": "p10",
+   "question": "action movies starring Keanu Reeves"
+  }
+ ]
+}

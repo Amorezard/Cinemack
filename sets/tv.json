@@ -1,0 +1,263 @@
+{
+ "about": "v7 TV set (written 27 Oct 2026, before any TV result): 10 identify, 10 facts, 10 recommend. Rule: TV=1 kept if the judge passes >= 20 of 30 AND tune / check / analytic each lose <= 1 (v7_rules.py tv / stage / regression). expect_films: the show(s) the route must be about (identify / facts) or must not recommend (21, 23, 24, 29).",
+ "questions": [
+  {
+   "id": "tv01",
+   "category": "identify",
+   "question": "What's that TV show where a chemistry teacher with cancer starts making meth?",
+   "expect_films": [
+    "Breaking Bad"
+   ],
+   "notes": "Names Breaking Bad (2008-2013) first."
+  },
+  {
+   "id": "tv02",
+   "category": "identify",
+   "question": "A series about a mob boss in New Jersey who sees a therapist",
+   "expect_films": [
+    "The Sopranos"
+   ],
+   "notes": "Names The Sopranos."
+  },
+  {
+   "id": "tv03",
+   "category": "identify",
+   "question": "the show where kids in the 80s look for their missing friend and find a monster from another dimension",
+   "expect_films": [
+    "Stranger Things"
+   ],
+   "notes": "Names Stranger Things."
+  },
+  {
+   "id": "tv04",
+   "category": "identify",
+   "question": "tv series about noble families fighting for the iron throne with dragons and zombies",
+   "expect_films": [
+    "Game of Thrones"
+   ],
+   "notes": "Names Game of Thrones."
+  },
+  {
+   "id": "tv05",
+   "category": "identify",
+   "question": "a sitcom about the employees of a paper company in Scranton filmed like a documentary",
+   "expect_films": [
+    "The Office"
+   ],
+   "notes": "Names The Office (US)."
+  },
+  {
+   "id": "tv06",
+   "category": "identify",
+   "question": "a show about six friends living in New York who hang out at a coffee shop",
+   "expect_films": [
+    "Friends"
+   ],
+   "notes": "Names Friends."
+  },
+  {
+   "id": "tv07",
+   "category": "identify",
+   "question": "the anthology show where each episode is a dark story about technology",
+   "expect_films": [
+    "Black Mirror"
+   ],
+   "notes": "Names Black Mirror."
+  },
+  {
+   "id": "tv08",
+   "category": "identify",
+   "question": "series about Baltimore police and drug dealers told from both sides",
+   "expect_films": [
+    "The Wire"
+   ],
+   "notes": "Names The Wire."
+  },
+  {
+   "id": "tv09",
+   "category": "identify",
+   "question": "a show about a family that owns a funeral home",
+   "expect_films": [
+    "Six Feet Under"
+   ],
+   "notes": "Names Six Feet Under."
+  },
+  {
+   "id": "tv10",
+   "category": "identify",
+   "question": "TV show about a high school teacher and his former student cooking drugs in Albuquerque",
+   "expect_films": [
+    "Breaking Bad"
+   ],
+   "notes": "Names Breaking Bad."
+  },
+  {
+   "id": "tv11",
+   "category": "facts",
+   "question": "Who created Breaking Bad?",
+   "expect_films": [
+    "Breaking Bad"
+   ],
+   "notes": "Vince Gilligan, with the source."
+  },
+  {
+   "id": "tv12",
+   "category": "facts",
+   "question": "How many seasons does The Sopranos have?",
+   "expect_films": [
+    "The Sopranos"
+   ],
+   "notes": "Six seasons (86 episodes) per the data."
+  },
+  {
+   "id": "tv13",
+   "category": "facts",
+   "question": "What network aired Mad Men?",
+   "expect_films": [
+    "Mad Men"
+   ],
+   "notes": "AMC."
+  },
+  {
+   "id": "tv14",
+   "category": "facts",
+   "question": "When did Game of Thrones end?",
+   "expect_films": [
+    "Game of Thrones"
+   ],
+   "notes": "2019, with the last air date if given."
+  },
+  {
+   "id": "tv15",
+   "category": "facts",
+   "question": "Who stars in Stranger Things?",
+   "expect_films": [
+    "Stranger Things"
+   ],
+   "notes": "Names the main cast from the data (Winona Ryder, David Harbour, Millie Bobby Brown ...)."
+  },
+  {
+   "id": "tv16",
+   "category": "facts",
+   "question": "Is Succession still running?",
+   "expect_films": [
+    "Succession"
+   ],
+   "notes": "Says it ended (2023) per the data's status."
+  },
+  {
+   "id": "tv17",
+   "category": "facts",
+   "question": "Where can I stream The Office?",
+   "expect_films": [
+    "The Office"
+   ],
+   "notes": "US streaming services from the data with the JustWatch credit."
+  },
+  {
+   "id": "tv18",
+   "category": "facts",
+   "question": "How long are episodes of Fleabag?",
+   "expect_films": [
+    "Fleabag"
+   ],
+   "notes": "About 25 minutes per the data."
+  },
+  {
+   "id": "tv19",
+   "category": "facts",
+   "question": "What is the highest-rated episode of Breaking Bad?",
+   "expect_films": [
+    "Breaking Bad"
+   ],
+   "notes": "Names the top IMDb-rated episode from the data (e.g. Ozymandias) with its rating."
+  },
+  {
+   "id": "tv20",
+   "category": "facts",
+   "question": "How many episodes of Friends are there?",
+   "expect_films": [
+    "Friends"
+   ],
+   "notes": "236 episodes over 10 seasons per the data."
+  },
+  {
+   "id": "tv21",
+   "category": "recommend",
+   "question": "Recommend a crime TV series like The Wire",
+   "expect_films": [
+    "The Wire"
+   ],
+   "notes": "Suggests 2-3 crime series (not The Wire itself) from the data, each with a reason; no films."
+  },
+  {
+   "id": "tv22",
+   "category": "recommend",
+   "question": "What's a good sitcom to binge?",
+   "expect_films": [],
+   "notes": "Suggests 2-3 comedy series from the data with reasons."
+  },
+  {
+   "id": "tv23",
+   "category": "recommend",
+   "question": "shows like Breaking Bad",
+   "expect_films": [
+    "Breaking Bad"
+   ],
+   "notes": "2-3 similar shows, each tied to what Breaking Bad is like."
+  },
+  {
+   "id": "tv24",
+   "category": "recommend",
+   "question": "I loved Game of Thrones, what fantasy series should I watch next?",
+   "expect_films": [
+    "Game of Thrones"
+   ],
+   "notes": "Fantasy series from the data with reasons."
+  },
+  {
+   "id": "tv25",
+   "category": "recommend",
+   "question": "a short miniseries I can finish in a weekend",
+   "expect_films": [],
+   "notes": "Limited series / miniseries from the data with episode counts."
+  },
+  {
+   "id": "tv26",
+   "category": "recommend",
+   "question": "any good animated series for adults?",
+   "expect_films": [],
+   "notes": "Adult animated series from the data."
+  },
+  {
+   "id": "tv27",
+   "category": "recommend",
+   "question": "recommend a British comedy series",
+   "expect_films": [],
+   "notes": "British comedy series from the data."
+  },
+  {
+   "id": "tv28",
+   "category": "recommend",
+   "question": "what documentary series are worth watching?",
+   "expect_films": [],
+   "notes": "Documentary series from the data."
+  },
+  {
+   "id": "tv29",
+   "category": "recommend",
+   "question": "series like Stranger Things for teenagers",
+   "expect_films": [
+    "Stranger Things"
+   ],
+   "notes": "Similar shows suitable for teens, with reasons."
+  },
+  {
+   "id": "tv30",
+   "category": "recommend",
+   "question": "a sci-fi TV show with a mystery to solve",
+   "expect_films": [],
+   "notes": "Sci-fi mystery series from the data."
+  }
+ ]
+}

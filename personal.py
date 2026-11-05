@@ -22,6 +22,7 @@ and every pick carries the features that matched, so the answer can say *why*
 
     python personal.py eval            # offline test on MovieLens users (hit@10, leave-out likes)
     python personal.py sweep [300]     # choose the mixing weights on half the users, report on the rest
+    python personal.py sweep32 [2000]  # v7 D14: the same on MovieLens 32M (1 in 40 users), with a bootstrap rule
     python personal.py show <user_id>
 """
 import json
@@ -64,6 +65,7 @@ def users():
     if _U["conn"] is None:
         os.makedirs(os.path.dirname(USERS_DB), exist_ok=True)
         c = sqlite3.connect(USERS_DB, check_same_thread=False, timeout=30)
+        c.execute("pragma journal_mode=WAL")      # v7 D4: readers never block the writer
         c.executescript("""
             create table if not exists film_prefs(user_id text, tmdb_id integer, title text, signal integer,
               source text, message_id text, created_at text, primary key (user_id, tmdb_id));
@@ -352,7 +354,7 @@ def evaluate(movielens_zip="data/movielens/ml-latest-small.zip", users_n=150, se
     open("results/personal_eval.txt", "w").write("\n".join(lines) + "\n")
 
 
-def sweep(movielens_zip="data/movielens/ml-latest-small.zip", users_n=300, seed=3):
+def sweep(movielens_zip="data/movielens/ml-latest-small.zip", users_n=300, seed=3, user_mod=0):
     """5 Oct the hybrid (0.246) lost to neighbours alone (0.370): content scores grow with the
     number of liked films, so they swamped the other signals. Here each signal is min-max scaled
     per user over that user's candidates, the weights (content, neighbours, popularity) are
@@ -375,6 +377,8 @@ def sweep(movielens_zip="data/movielens/ml-latest-small.zip", users_n=300, seed=
     known = {r[0]: r[1] or 0 for r in conn.execute("select tmdb_id, vote_count from films")}
     ratings = {}
     for r in read("ratings.csv"):
+        if user_mod and int(r["userId"]) % user_mod:      # v7 D14: 32M has 200k users; a fixed slice of them
+            continue
         t = to_tmdb.get(r["movieId"])
         if t in known:
             ratings.setdefault(r["userId"], []).append((t, float(r["rating"])))
@@ -427,6 +431,36 @@ def sweep(movielens_zip="data/movielens/ml-latest-small.zip", users_n=300, seed=
         lines.append(f"  {k:28s} {v:.3f}")
     hb = out[f"hybrid {best}"]
     ok = hb > out["popularity"] and hb > out["content"] and hb >= out["neighbours"] - 0.02
+    # v7 D14 (27 Oct): the 6 Oct pick (0.25, 2, 0.5) led the next weights by 0.006 on 300 users - within noise. On a
+    # bigger sample, the live weights change only if the new best beats them on the held-out half with a 95%
+    # bootstrap interval (over users) that excludes 0.
+    try:
+        cur = tuple(float(x) for x in (os.environ.get("PERSONAL_W") or "0.25,2,0.5").split(","))
+    except ValueError:
+        cur = (0.25, 2, 0.5)
+    out[f"live weights {cur}"] = recall(test, cur)
+
+    def per_user(w):
+        r = []
+        for hidden, cand, comp in test:
+            sc = {f: w[0] * comp["c"][f] + w[1] * comp["n"][f] + w[2] * comp["p"][f] for f in cand}
+            top = sorted(cand, key=lambda f: (-sc[f], f))[:10]
+            r.append((len(hidden & set(top)), len(hidden)))
+        return r
+    pb, pc = per_user(best), per_user(cur)
+    diffs = []
+    brnd = random.Random(11)
+    for _ in range(1000):
+        idx = [brnd.randrange(len(pb)) for _ in range(len(pb))]
+        hb_, tb_ = sum(pb[i][0] for i in idx), sum(pb[i][1] for i in idx)
+        hc_, tc_ = sum(pc[i][0] for i in idx), sum(pc[i][1] for i in idx)
+        diffs.append(hb_ / max(tb_, 1) - hc_ / max(tc_, 1))
+    diffs.sort()
+    lo_, hi_ = diffs[25], diffs[974]
+    change = best != cur and lo_ > 0
+    lines.append(f"D14: best {best} vs live {cur} on the held-out half: {out[f'hybrid {best}'] - out[f'live weights {cur}']:+.3f} "
+                 f"[95% CI {lo_:+.3f}, {hi_:+.3f}] -> "
+                 + (f"CHANGE PERSONAL_W to {','.join(str(x) for x in best)}" if change else "keep the live weights"))
     lines.append(f"Decision rule: beats popularity and content, within 0.02 of neighbours -> "
                  f"{'PASS: PERSONAL=1 PERSONAL_W=' + ','.join(str(x) for x in best) if ok else 'FAIL: PERSONAL stays 0'}")
     lines.append("Note: MovieLens neighbours come from the same ratings, so 'neighbours' and any mix "
@@ -438,7 +472,9 @@ def sweep(movielens_zip="data/movielens/ml-latest-small.zip", users_n=300, seed=
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "sweep":
+    if len(sys.argv) > 1 and sys.argv[1] == "sweep32":       # v7 D14: MovieLens 32M, 2,000 users
+        sweep("data/movielens/ml-32m.zip", users_n=int(sys.argv[2]) if len(sys.argv) > 2 else 2000, user_mod=40)
+    elif len(sys.argv) > 1 and sys.argv[1] == "sweep":
         sweep(users_n=int(sys.argv[2]) if len(sys.argv) > 2 else 300)
     elif len(sys.argv) > 1 and sys.argv[1] == "eval":
         evaluate(users_n=int(sys.argv[2]) if len(sys.argv) > 2 else 150)

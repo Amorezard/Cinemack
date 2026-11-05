@@ -48,6 +48,7 @@ def conn():
     if _C["c"] is None:
         DB.parent.mkdir(parents=True, exist_ok=True)
         c = sqlite3.connect(str(DB), check_same_thread=False, timeout=30)
+        c.execute("pragma journal_mode=WAL")      # v7 D4: readers never block the writer
         c.executescript("""
             create table if not exists notes(id integer primary key autoincrement, user_key text, text text,
               source_conv text, source_question text, created_at real, updated_at real);
@@ -181,7 +182,7 @@ def _chat_rows(key, skip_conv, limit=400):
         return []
     try:
         c = sqlite3.connect(f"file:{CHATS_DB}?mode=ro", uri=True, timeout=10)
-        rows = c.execute("""select t.conv_id, t.question, t.answer, t.films_json, t.created_at, ch.title
+        rows = c.execute("""select t.conv_id, t.question, t.answer, t.films_json, t.created_at, ch.title, t.seq
             from turns t join chats ch on ch.conv_id = t.conv_id where ch.user_id = ? and t.conv_id != ?
             order by t.created_at desc limit ?""", (key, skip_conv or "", limit)).fetchall()
         c.close()
@@ -197,12 +198,90 @@ def _films_of(fj):
         return []
 
 
+# v7 (27 Oct) D3: MEM_EMBED=1 - recall also matches by meaning: each stored exchange (question + the start of the
+# answer) is embedded once (mxbai, Ollama) and compared with the new question, so "the sad film you suggested when I
+# was grieving" finds "a good movie about grief". An exchange is recalled when its cosine similarity is at least
+# MEM_MIN_COS (cut-off tested on the recall set, memory_eval.py) or the old word/film overlap rule fires. Off until
+# the recall set's rule passes: hit@1 higher and false recall not higher.
+MEM_EMBED = os.environ.get("MEM_EMBED", "0") == "1"
+MEM_MIN_COS = float(os.environ.get("MEM_MIN_COS", "0.72"))
+# 3 Nov fix (1 Nov recall set: hit@1 0.63 -> 0.57, false recall 0.47 -> 0.07): with MEM_EMBED=1 the word rule also
+# needed RECALL_MIN + 1.5, so 8 of 30 refer-back questions recalled nothing at all - not "meaning OR the old rule" as
+# described above. Now (MEM_EMBED_V=2) a question that clearly refers back to an earlier chat (R_REFER: "you
+# recommended", "remind me", "last time", ...) is matched by the old word rule OR by meaning at MEM_BACK_COS, ranked by
+# meaning; any other question needs a close match by meaning (MEM_MIN_COS) or a strong word match, as on 1 Nov.
+# MEM_BACK_COS is chosen by `python memory_eval.py --pick` on chats c1-c8 only (written to results/mem_back_cos.txt)
+# and checked on c9-c15. MEM_EMBED_V=1 = the 27 Oct rule.
+MEM_EMBED_V = os.environ.get("MEM_EMBED_V", "2")
+
+
+def _back_cos():
+    if os.environ.get("MEM_BACK_COS"):
+        return float(os.environ["MEM_BACK_COS"])
+    try:
+        p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "results", "mem_back_cos.txt")
+        return float(open(p).read().split()[0])
+    except (OSError, ValueError, IndexError):
+        return 0.60
+
+
+R_REFER = re.compile(r"\b(last time|earlier|previous(ly)?|remember|other day|yesterday|last (week|month|night)|"
+                     r"remind me|(was|were) (i|we) (supposed|meant|going) to|(you|did you) (say|said|tell|told|"
+                     r"recommend(ed)?|suggest(ed)?|mention(ed)?|give|gave|explain(ed)?|list(ed)?|describe[d]?|name[d]?|"
+                     r"show(ed)?|pick(ed)?|point(ed)? out|talk(ed)? about)|we (talked|spoke|discussed|chatted)|"
+                     r"(i|we) (asked|talked|chatted) (you )?about)\b", re.I)
+EMBED_MODEL = os.environ.get("EMBED_MODEL", "mxbai-embed-large")
+QUERY_PREFIX = "Represent this sentence for searching relevant passages: "
+
+
+def _embed(texts):
+    import ollama
+    return ollama.embed(model=EMBED_MODEL, input=texts, keep_alive="30m")["embeddings"]
+
+
+def _turn_vectors(key, rows):
+    """{(conv_id, seq): unit vector} for these rows, embedding the ones not stored yet (one batch)."""
+    import numpy as np
+    with _lock:
+        c = conn()
+        c.execute("create table if not exists turn_vec(conv_id text, seq integer, user_key text, emb blob, "
+                  "primary key (conv_id, seq))")
+        have = {(cid, sq): e for cid, sq, e in c.execute("select conv_id, seq, emb from turn_vec where user_key = ?", (key,))}
+    todo = [r for r in rows if (r[0], r[6]) not in have][:96]
+    if todo:
+        try:
+            vecs = _embed([f"{r[1]}\n{(r[2] or '')[:300]}" for r in todo])
+            with _lock:
+                conn().executemany("insert or replace into turn_vec values (?,?,?,?)",
+                                   [(r[0], r[6], key, np.asarray(v, dtype=np.float32).tobytes()) for r, v in zip(todo, vecs)])
+                conn().commit()
+            for r, v in zip(todo, vecs):
+                have[(r[0], r[6])] = np.asarray(v, dtype=np.float32).tobytes()
+        except Exception as e:  # noqa: BLE001 - recall falls back to words
+            print(f"[movie-buff] recall embedding failed: {e!r}", flush=True)
+    out = {}
+    for k, e in have.items():
+        v = np.frombuffer(e, dtype=np.float32)
+        out[k] = v / (np.linalg.norm(v) + 1e-9)
+    return out
+
+
 def recall(key, question, conv_id=""):
     """Up to RECALL_N earlier exchanges (other chats) related to the question: [{date, question, answer, films}]."""
     rows = _chat_rows(key, conv_id)
     if not rows:
         return []
     import math
+    cos = {}
+    if MEM_EMBED:
+        try:
+            import numpy as np
+            vecs = _turn_vectors(key, rows)
+            qv = np.asarray(_embed([QUERY_PREFIX + (question or "")])[0], dtype=np.float32)
+            qv /= np.linalg.norm(qv) + 1e-9
+            cos = {k: float(v @ qv) for k, v in vecs.items()}
+        except Exception as e:  # noqa: BLE001
+            print(f"[movie-buff] recall by meaning failed: {e!r}", flush=True)
     qw = set(_rwords(question))
     ql = (question or "").casefold()
     docs = [(r, set(_rwords(r[1])) | set(_rwords(r[2])[:120])) for r in rows]
@@ -212,12 +291,22 @@ def recall(key, question, conv_id=""):
         for w in ws:
             df[w] = df.get(w, 0) + 1
     scored = []
+    refer = MEM_EMBED and MEM_EMBED_V != "1" and bool(R_REFER.search(question or ""))
+    back_cos = _back_cos() if refer else None
     for r, ws in docs:
         sc = sum(math.log(1 + n / df[w]) for w in qw & ws)
         films = _films_of(r[3])[:3]
         if any(t and len(t) > 3 and t.casefold() in ql for t in films):
             sc += 3.0                                   # the new question names a film that chat was about
-        if sc >= RECALL_MIN:
+        if refer and cos:                               # 3 Nov: refers back - either rule, ranked by meaning
+            cs = cos.get((r[0], r[6]), 0.0)
+            if cs >= back_cos or sc >= RECALL_MIN:
+                scored.append((cs * 10 + 0.2 * sc, r[4], r, films))
+        elif MEM_EMBED and cos:
+            cs = cos.get((r[0], r[6]), 0.0)
+            if cs >= MEM_MIN_COS or sc >= RECALL_MIN + 1.5:
+                scored.append((cs * 10 + 0.2 * sc, r[4], r, films))
+        elif sc >= RECALL_MIN:
             scored.append((sc, r[4], r, films))
     scored.sort(key=lambda x: (-x[0], -x[1]))
     out, seen_q = [], set()
@@ -228,7 +317,8 @@ def recall(key, question, conv_id=""):
         seen_q.add(k)
         ans = " ".join((r[2] or "").split())
         out.append({"date": time.strftime("%d %b", time.localtime(r[4])), "question": " ".join(r[1].split())[:200],
-                    "answer": ans[:300] + ("..." if len(ans) > 300 else ""), "films": films, "score": round(sc, 2)})
+                    "answer": ans[:300] + ("..." if len(ans) > 300 else ""), "films": films, "score": round(sc, 2),
+                    "conv": r[0], "seq": r[6] if len(r) > 6 else None})
         if len(out) >= RECALL_N:
             break
     return out
@@ -238,7 +328,7 @@ def summaries(key, conv_id="", n=3):
     """One line per recent other chat: its title, date and the films it was about (from the stored cards)."""
     rows = _chat_rows(key, conv_id, limit=120)
     by = {}
-    for cid, _q, _a, fj, t, title in rows:
+    for cid, _q, _a, fj, t, title, *_seq in rows:
         d = by.setdefault(cid, {"title": title, "date": t, "films": []})
         for f in _films_of(fj)[:2]:
             if f not in d["films"]:

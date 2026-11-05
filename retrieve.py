@@ -36,6 +36,7 @@ lower it if irrelevant films are still getting through.
 """
 
 import re
+import sys
 import sqlite3
 import unicodedata
 
@@ -450,7 +451,7 @@ def wiki_distance(conn, movie_id, q_vec):
 # passage beats those bounds it is exactly the passage the lookups would pick - same
 # result, no lookups. Otherwise it falls back to the lookups. 0 = always look up.
 WIKI_PASSAGE_FAST = _os_w.environ.get("WIKI_PASSAGE_FAST", "1") != "0"
-_PASSAGE_STATS = {"fast": 0, "lookup": 0, "ms": 0.0}
+_PASSAGE_STATS = __import__("request_state").LocalDict(lambda: {"fast": 0, "lookup": 0, "ms": 0.0})
 
 
 def _best_chunk_from_search(movie_id, arg):
@@ -855,9 +856,32 @@ def knn(conn, q_vec, pool):
     """, (sqlite_vec.serialize_float32(q_vec), pool)).fetchall()
 
 
+# v7 (27 Oct) H1: RECENT=0 hides the films add_recent.py added (facts.db recent_added) from every search list, so
+# tune / check can be run with and without them (the A/B never run in v4). RECENT=1 (default) = today's behaviour.
+RECENT = _os_m.environ.get("RECENT", "1") == "1"
+_RECENT_IDS = {"ids": None}
+
+
+def _recent_ids():
+    if _RECENT_IDS["ids"] is None:
+        ids = set()
+        try:
+            import facts_db as _F
+            c = _F.connect(readonly=True)
+            if c is not None:
+                ids = {r[0] for r in c.execute("select tmdb_id from recent_added")}
+        except Exception:  # noqa: BLE001
+            ids = set()
+        _RECENT_IDS["ids"] = ids
+    return _RECENT_IDS["ids"]
+
+
 def hydrate(conn, ids_with_distance):
     out = []
+    hide = _recent_ids() if not RECENT else ()
     for mid, distance in ids_with_distance:
+        if hide and mid in hide:
+            continue
         row = conn.execute(
             "SELECT id, title, release_year, genres, director, top_cast, "
             "embed_text, vote_count FROM movies WHERE id = ?", (mid,)
@@ -909,7 +933,7 @@ def backfill(conn, filters, need, exclude_ids):
 
     out = []
     for row in conn.execute(sql, params):
-        if row[0] in exclude_ids:
+        if row[0] in exclude_ids or (not RECENT and row[0] in _recent_ids()):
             continue
         out.append({
             "id": row[0], "title": row[1], "release_year": row[2],
@@ -992,13 +1016,17 @@ def backfill_discover(conn, filters, need, exclude_ids, mode):
     params.append(need + len(exclude_ids) + 5)
     out = []
     for row in conn.execute(sql, params):
-        if row[0] in exclude_ids:
+        if row[0] in exclude_ids or (not RECENT and row[0] in _recent_ids()):
             continue
         out.append({"id": row[0], "title": row[1], "release_year": row[2], "genres": row[3], "director": row[4],
                     "top_cast": row[5], "text": row[6], "vote_count": row[7] or 0, "distance": None})
         if len(out) >= need:
             break
     return out
+
+
+# v7 (27 Oct) D8: REC_CLEAN=1 - recommendations drop what is not a released feature film (rec_clean.py)
+REC_CLEAN = _os_m.environ.get("REC_CLEAN", "0") == "1"
 
 
 # ---------------------------------------------------------------- main entry
@@ -1285,7 +1313,7 @@ def llm_options(opts=None):
 # vs. writing, in ms and tokens), plus the re-ranker's listing build (Wikipedia passage
 # lookups for ~50 films). Summed per retrieve() call and copied into trace["llm"].
 # Replayed (cached) calls carry no counters, so only --no-cache runs fill it.
-_LLM_STATS = {}
+_LLM_STATS = __import__("request_state").LocalDict(dict)
 
 
 def _note_llm(name, r=None, build_ms=None):
@@ -2025,7 +2053,8 @@ def understand(question, recent_titles=None, conv_block=""):
 
 # 21 Oct: the web site puts the person's own film choices here for the one question being answered
 # (web/server.py, from user_prefs.past_films_block); empty for the eval harness and the terminal chat.
-PERSON = {"block": ""}
+from request_state import LocalDict as _LocalDict   # v7 D4: per-thread
+PERSON = _LocalDict(lambda: {"block": ""})
 
 
 def _understand_with(question, recent_titles, model, stat, conv_block=""):
@@ -2150,7 +2179,7 @@ def _snap(hits):
     return [(h["id"], h["title"], h.get("release_year"), h.get("distance")) for h in hits]
 
 
-LAST = {}     # v3: the last retrieve() call's plan and unknown films, for tools.py (even when hits == [])
+LAST = _LocalDict(dict)     # v7 D4 per-thread; v3: the last retrieve() call's plan and unknown films, for tools.py (even when hits == [])
 
 
 def _start_presearch(question, k, db_path):
@@ -2618,6 +2647,13 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
             hits = pool_for_rank + rest
             notes["reranked_by_popularity"] = min(len(hits), RERANK_POOL)
 
+        if REC_CLEAN and recommending:
+            # v7 D8: no concerts, specials, shorts, TV, unreleased or off-genre films in recommendations
+            import rec_clean as _rc
+            hits, _dropped = _rc.clean(hits, filters, question, discover)
+            if _dropped:
+                notes["rec_clean_dropped"] = _dropped[:12]
+
         # Backfill only for browse/recommendation questions. A question about
         # one specific film must be allowed to come back empty - that is the
         # whole point of the relevance cutoff. Backfilling here is what turned
@@ -2626,8 +2662,11 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
             have = {h["id"] for h in hits}
             if subject:
                 have.add(subject["id"])
-            extra = (backfill_discover(conn, filters, want - len(hits), have, discover) if discover
-                     else backfill(conn, filters, want - len(hits), have))
+            need = (want - len(hits)) * (4 if REC_CLEAN else 1)
+            extra = (backfill_discover(conn, filters, need, have, discover) if discover
+                     else backfill(conn, filters, need, have))
+            if REC_CLEAN:
+                extra = _rc.clean(extra, filters, question, discover)[0][:want - len(hits)]
             hits.extend(extra)
             notes["backfilled"] = len(extra)
 
@@ -2705,14 +2744,184 @@ def _did_you_mean(hits):
     LAST["did_you_mean"] = hits[0]["_ambiguous"]
 
 
+# v7 (27 Oct) D1: TV=1 sends TV questions (show / series / season words, a title that is only a TV show, or a
+# follow-up to an answer about a show) to tv.py's search over the TV tables; anything else - and any TV question
+# tv.py finds nothing for - takes the film path unchanged. TV=0 = exactly the v6 function.
+TV = _os_m.environ.get("TV", "0") == "1"
+SWITCHES["TV"] = TV
+SWITCHES["REC_CLEAN"] = REC_CLEAN
+
+
+def _tv_hits(question, k, recent_titles, conv, trace):
+    try:
+        import tv as _tv
+        if recent_titles is None and conv:
+            import conv as _conv
+            recent_titles = _conv.recent_titles(_conv.coerce(conv)) or None
+        why = _tv.wants_tv(question, recent_titles)
+        if not why:
+            return None
+        hits = _tv.retrieve_tv(question, k=k, recent_titles=recent_titles, why=why)
+    except Exception as e:  # noqa: BLE001 - TV data missing: the film path
+        print(f"[retrieve] TV search failed: {e!r}", file=sys.stderr)
+        return None
+    if not hits:
+        return None
+    LAST.clear()
+    LAST["plan"] = dict(hits[0]["_plan"])
+    LAST["plan_films"] = [{"title": t, "year": None} for t in hits[0]["_plan"].get("films") or []]
+    if trace is not None:
+        trace.update(path=f"tv:{why}", plan=hits[0]["_plan"], final=_snap(hits), total_ms=0)
+    return hits
+
+
+# v7 (1 Nov): SHORTS=1 sends a question that says it is about a short film to shorts.py's search over the shorts
+# in the catalogue only; nothing found -> the film path. SHORTS=0 = exactly the earlier function.
+SHORTS = _os_m.environ.get("SHORTS", "0") == "1"
+SWITCHES["SHORTS"] = SHORTS
+
+
+# 3 Nov fix (1 Nov shorts set: on 7/15, off 10/15): the shorts-only search replaced the normal path for every short-film
+# question, so a named short ("Who directed the short film Bao?") lost the facts tool's structured data and Wikipedia
+# text and got unrelated shorts added (Quay, Loop); the normal path had already found the right short in 10 of 11.
+# Now only recommendations ("recommend some animated shorts") use the shorts-only search - there it keeps feature films
+# out of the list; every other short-film question takes the normal path, with the "Format: short film, N min" line
+# (chat.context_for). SHORTS_V=1 = the 1 Nov behaviour.
+SHORTS_V = _os_m.environ.get("SHORTS_V", "2")
+if SHORTS:
+    SWITCHES["SHORTS_V"] = SHORTS_V
+
+
+def _short_hits(question, k, db_path, trace):
+    try:
+        import shorts as _sh
+        if not _sh.wants_short(question):
+            return None
+        if SHORTS_V != "1" and not (_sh.R_REC.search(question) or is_recommendation(question)):
+            return None
+        conn = open_db(db_path)
+        try:
+            hits = _sh.retrieve_short(question, k=k, conn=conn)
+        finally:
+            conn.close()
+    except Exception as e:  # noqa: BLE001 - shorts data missing: the film path
+        print(f"[retrieve] short-film search failed: {e!r}", file=sys.stderr)
+        return None
+    if not hits:
+        return None
+    LAST.clear()
+    LAST["plan"] = dict(hits[0]["_plan"])
+    LAST["plan_films"] = [{"title": t, "year": None} for t in hits[0]["_plan"].get("films") or []]
+    if trace is not None:
+        trace.update(path="short", plan=hits[0]["_plan"], final=_snap(hits), total_ms=0)
+    return hits
+
+
+# 3 Nov (user's idea): CLARIFY=1 (with TV=1) - a question that names a title that is both a well-known film and a
+# well-known show, without saying which ("Who stars in Fargo?"), is answered for the film in one or two sentences
+# (tv.py sends it to the film path) and offers two choices; the site shows them as buttons, and a click asks the same
+# question again with "(I mean the TV series Fargo)" / "(I mean the 1996 film Fargo)", which routes it.
+# hits[0]["_choices"] = [{"label", "question"}, ...]; hits[0]["_ambiguous"] makes the answer ask (chat.py amb_line).
+CLARIFY = _os_m.environ.get("CLARIFY", "0") == "1"
+CLARIFY_MIN_VOTES = int(_os_m.environ.get("CLARIFY_MIN_VOTES", "300"))
+if CLARIFY:
+    SWITCHES["CLARIFY"] = CLARIFY
+_R_FILM_WORD = re.compile(r"\b(film|movie|feature|picture|flick)s?\b", re.I)
+
+
+def clarify_show(question, title):
+    """(show name, first year, votes) when `title` is also a well-known show and the question doesn't say film or TV."""
+    if not (TV and CLARIFY and title) or _R_FILM_WORD.search(question or ""):
+        return None
+    try:
+        import tv as _tv
+        if _tv.tv_words(question):
+            return None
+        n = _tv.norm(title)
+        for nt, _sid, name, y, vc in _tv.show_index()[0]:
+            if nt == n and (vc or 0) >= CLARIFY_MIN_VOTES:
+                return name, y, vc
+    except Exception as e:  # noqa: BLE001 - no TV data: no choice offered
+        print(f"[retrieve] clarify check failed: {e!r}", file=sys.stderr)
+    return None
+
+
+def _clarify(question, hits):
+    if not (TV and CLARIFY and hits) or hits[0].get("_tv") or hits[0].get("_ambiguous"):
+        return
+    if ((hits[0].get("_plan") or LAST.get("plan") or {}).get("intent")) != "named_film":
+        return
+    f = hits[0]
+    s = clarify_show(question, f.get("title"))
+    if not s:
+        return
+    name, y, _vc = s
+    fy = str(f.get("release_year") or "")[:4]
+    film_label = f"{f['title']} ({fy} film)" if fy else f"{f['title']} (film)"
+    show_label = f"{name} (TV series{', ' + str(y) if y else ''})"
+    q = (question or "").rstrip()
+    f["_ambiguous"] = [film_label, show_label]
+    f["_choices"] = [{"label": film_label, "question": f"{q} (I mean the {fy + ' ' if fy else ''}film {f['title']})"},
+                     {"label": show_label, "question": f"{q} (I mean the TV series {name})"}]
+    LAST["clarify"] = f["_choices"]
+
+
 def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=False,  # noqa: F811
              trace=None, conv=None):
     """v4 wrapper around _retrieve_core (same signature: web/pipeline.py inspects it for trace/explain)."""
     question = expand_aliases(question)
+    if TV:
+        hits = _tv_hits(question, k, recent_titles, conv, trace)
+        if hits:
+            return hits
+    if SHORTS:
+        hits = _short_hits(question, k, db_path, trace)
+        if hits:
+            return hits
     hits = _retrieve_core(question, k=k, db_path=db_path, recent_titles=recent_titles, explain=explain,
                           trace=trace, conv=conv)
+    if PEOPLE:
+        hits = _people_filter(question, hits, k, db_path, trace)
+    _clarify(question, hits)
     _did_you_mean(hits)
     return hits
+
+
+# v7 (27 Oct) D2: PEOPLE=1 - a recommendation / browse question that names a director or actor gets only that
+# person's films (people.py), topped up from their filmography within the question's year / genre filters.
+PEOPLE = _os_m.environ.get("PEOPLE", "0") == "1"
+SWITCHES["PEOPLE"] = PEOPLE
+
+
+def _people_filter(question, hits, k, db_path, trace):
+    intent = (LAST.get("plan") or {}).get("intent")
+    if intent in ("named_film", "identify"):
+        return hits
+    try:
+        import people as _pp
+        c = open_db(db_path)
+        try:
+            want = max(k, RECOMMEND_K) if intent == "recommend" else max(k, len(hits or []))
+            new, who = _pp.apply(question, hits or [], want, c, parse_filters(question), intent)
+        finally:
+            c.close()
+    except Exception as e:  # noqa: BLE001
+        print(f"[retrieve] people filter failed: {e!r}", file=sys.stderr)
+        return hits
+    if not who:
+        return hits
+    plan = (hits[0].get("_plan") if hits else None) or {"intent": intent}
+    notes = (hits[0].get("_notes") if hits else None)
+    if new:
+        new[0]["_plan"] = plan
+        if notes is not None:
+            for h in new:
+                h["_notes"] = dict(notes, people=who)
+    LAST["people"] = who
+    if trace is not None:
+        trace["people"] = who
+        trace["final"] = _snap(new)
+    return new
 
 
 if __name__ == "__main__":

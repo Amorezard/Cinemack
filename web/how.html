@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>How Movie Buff works</title>
+<title>How Cinemack works</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%237b5cff'/%3E%3Cstop offset='1' stop-color='%23ff3d7f'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='9' fill='url(%23g)'/%3E%3Cpath d='M9 13h14l-1.6 11H10.6z' fill='white'/%3E%3Ccircle cx='12' cy='11' r='3' fill='white'/%3E%3Ccircle cx='16' cy='9.5' r='3.2' fill='white'/%3E%3Ccircle cx='20' cy='11' r='3' fill='white'/%3E%3C/svg%3E">
 <style>
   :root{
@@ -126,9 +126,9 @@
 <body>
 <header>
   <div class="bar">
-    <a class="brand" href="/" aria-label="Movie Buff home">
+    <a class="brand" href="/" aria-label="Cinemack home">
       <span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 10h14l-1.4 10H6.4z" fill="#fff"/><circle cx="8" cy="8" r="2.6" fill="#fff"/><circle cx="12" cy="6.6" r="2.9" fill="#fff"/><circle cx="16" cy="8" r="2.6" fill="#fff"/></svg></span>
-      <span class="name">Movie Buff</span>
+      <span class="name">Cinemack</span>
     </a>
     <div class="spacer"></div>
     <a class="back" href="/">Back to chat</a>
@@ -234,8 +234,8 @@
     </g>
   </g>
 </svg>
-    <h1>How <span class="hl">Movie Buff</span> finds your film</h1>
-    <p>Movie Buff is a language model that answers from a database of real film records instead of from memory. That's what lets it find a film from a vague description, and say plainly when it doesn't know.</p>
+    <h1>How <span class="hl">Cinemack</span> finds your film</h1>
+    <p>Cinemack is a language model that answers from a database of real film records instead of from memory. That's what lets it find a film from a vague description, and say plainly when it doesn't know.</p>
     <div class="flow" aria-label="Question, understand, search, read, answer, check">
       <span>Your question</span><i>→</i><span>Understand</span><i>→</i><span>Search ×3</span><i>→</i><span>Read</span><i>→</i><span>Answer</span><i>→</i><span>Check</span>
     </div>
@@ -254,14 +254,21 @@
   </section>
 
   <section class="section">
-    <header><h2>More than finding the film</h2><p class="lead">Once it knows which film you mean, Movie Buff looks up what the question needs, from sources it names in the answer.</p></header>
+    <header><h2>More than finding the film</h2><p class="lead">Once it knows which film you mean, Cinemack looks up what the question needs, from sources it names in the answer.</p></header>
     <ol class="timeline">
       <li style="--c:#16b7a7; --c2:var(--teal)"><h3>Facts and money <small>TMDB, Wikipedia, Wikidata</small></h3><p>Budgets and box office from more than one source (shown side by side when they disagree, and in today's dollars), cast and crew, awards, release dates and US age ratings.</p></li>
-      <li style="--c:#ff3d7f; --c2:var(--pink)"><h3>What people thought <small>reviews</small></h3><p>Rotten Tomatoes and Metacritic scores, Guardian and New York Times reviews (a short summary, with a link to the full review), and what audiences praised or criticised, counted by aspect with a quote for each.</p></li>
+      <li style="--c:#ff3d7f; --c2:var(--pink)"><h3>What people thought <small>reviews</small></h3><p>Rotten Tomatoes and Metacritic scores, Guardian reviews (the star rating and a one-line summary, with a link), which New York Times critic reviewed it (with a link; their text is never given to the model), and what audiences praised or criticised, counted by aspect with a quote for each.</p></li>
+      <li style="--c:#16b7a7; --c2:var(--teal)"><h3>Critics and audiences side by side <small>the Reception panel</small></h3><p>A film's details show critics and audiences on one 0&ndash;100 scale. Critics: Metacritic, or else the Rotten Tomatoes average rating (out of 10, times 10), or else its percentage. Audiences: the IMDb rating times 10, or else MovieLens (out of 5, times 20), or else TMDB. A gap of 15 points or more is called out. "Divided" means many very high and very low audience ratings; ratings that rose or fell later come from when MovieLens users rated it. A sudden burst of extreme low ratings (review bombing) and joke reviews are left out of the counts. Critic lines come from Wikipedia's Reception section, with the outlet each one cites.</p></li>
       <li style="--c:#ff8a3d; --c2:var(--orange)"><h3>Why it did well or badly <small>a statistical model</small></h3><p>A model trained on about 12,000 films with known budgets and grosses estimates what a film like this usually earns before release, and which factors moved that estimate. Answers call it an estimate and give its typical error.</p></li>
       <li style="--c:#7b5cff; --c2:var(--violet)"><h3>Links that fit the question <small>trailers, reviews, where to watch</small></h3><p>Under each answer: the trailer (it plays only when you press play), the full reviews, box-office pages, or where to stream, rent or buy it in the US, depending on what you asked.</p></li>
       <li style="--c:#f5b400; --c2:var(--gold)"><h3>Made for you <small>accounts, settings, memory</small></h3><p>An optional account keeps your chats on any browser. Settings set the answer length and voice, spoilers, genres, years, running time and age rating for recommendations. Memory keeps short notes of what you tell it about yourself, and can connect a new question to an earlier chat. You can see, edit or delete all of it, or use a private chat.</p></li>
     </ol>
+    <!-- v7: uncomment each line when its switch is turned on in config.yaml (rule passed)
+      TV=1:   <li style="--c:#7b5cff; --c2:var(--violet)"><h3>TV shows too <small>TMDB, Wikipedia</small></h3><p>About 8,000 of the most-watched TV shows: who made them, seasons, cast, where to watch and what viewers thought. Ask about a show by name, or describe one.</p></li>
+      PEOPLE=1: <li style="--c:#ff3d7f; --c2:var(--pink)"><h3>By director or actor <small>credits</small></h3><p>"Tom Hanks comedies from the 90s" keeps only films that person directed or starred in, from TMDB and IMDb credits.</p></li>
+      GUARD=1 / MODERATION=1: <li style="--c:#f5b400; --c2:var(--gold)"><h3>Safe to use <small>safety checks</small></h3><p>Text from reviews and web pages is treated as data, never as instructions; links in answers go only to known film and news sites; questions and answers are screened for harmful requests.</p></li>
+      FAST=1: <li style="--c:#16b7a7; --c2:var(--teal)"><h3>Quick facts <small>fast path</small></h3><p>Simple fact questions about one film (who directed it, how long it is, when it came out) are answered straight from the database in under a second.</p></li>
+    -->
   </section>
 
   <section class="section" id="stats-section" hidden>
@@ -280,6 +287,7 @@
         <li>Saying "I don't have that film" instead of inventing one</li>
         <li>Follow-ups like "who directed it?" or "what about the sequel?"</li>
         <li>"Why did it flop?" and "what did critics say?": answers built from figures and reviews it can show you</li>
+        <li>Telling critics and audiences apart, and saying where they disagree</li>
       </ul>
     </div>
     <div class="limits">
@@ -305,7 +313,7 @@
   </ul>
   </section>
 </main>
-<footer>Movie Buff · answers can be wrong · <a href="/">back to the chat</a></footer>
+<footer>Cinemack · answers can be wrong · <a href="/">back to the chat</a></footer>
 
 <script>
 (async () => {

@@ -1,0 +1,651 @@
+{
+ "about": "v7 reception set (written 27 Oct 2026, before any RECEPTION result): 8 types x 5 from the brief's examples. Rule (fixed now): RECEPTION=1 kept if judge passes >= RECEPTION=0 passes + 6, the claim checker's unsupported rate is not higher and judge grounding is not lower. Also reported: citation precision / recall, sources used, evidence hit@5 (expect_evidence: any of the top 5 evidence units matches one condition). The judge's pass needs: sources named, critics and audiences kept apart, sample sizes where it generalises.",
+ "questions": [
+  {
+   "id": "rc01",
+   "category": "why_popular",
+   "question": "Why was Barbie so popular with audiences?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Says what audiences liked, with the numbers and sources it has; marks any reason it infers as interpretation.",
+   "expect_films": [
+    "Barbie"
+   ],
+   "expect_tasks": [
+    "reception"
+   ],
+   "expect_evidence": [
+    {
+     "side": "audiences"
+    }
+   ]
+  },
+  {
+   "id": "rc02",
+   "category": "why_popular",
+   "question": "Why do people love The Shawshank Redemption so much?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Explains its standing from audience data (ratings, reviews) and critics separately; may note its slow start at the box office if the data has it.",
+   "expect_films": [
+    "The Shawshank Redemption"
+   ],
+   "expect_tasks": [
+    "reception"
+   ],
+   "expect_evidence": [
+    {
+     "side": "audiences"
+    },
+    {
+     "source_type": "legacy"
+    }
+   ]
+  },
+  {
+   "id": "rc03",
+   "category": "why_popular",
+   "question": "What made Everything Everywhere All at Once such a hit with critics and audiences?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Gives what critics praised and what viewers praised, apart.",
+   "expect_films": [
+    "Everything Everywhere All at Once"
+   ],
+   "expect_tasks": [
+    "reception"
+   ],
+   "expect_evidence": [
+    {
+     "side": "critics"
+    }
+   ]
+  },
+  {
+   "id": "rc04",
+   "category": "why_popular",
+   "question": "Why was Top Gun: Maverick so well received?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Critics and audiences apart, specific praised aspects with sources.",
+   "expect_films": [
+    "Top Gun: Maverick"
+   ],
+   "expect_tasks": [
+    "reception"
+   ],
+   "expect_evidence": [
+    {
+     "side": "critics"
+    }
+   ]
+  },
+  {
+   "id": "rc05",
+   "category": "why_popular",
+   "question": "Why is Spirited Away so beloved?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Uses critics' statements and audience data; no invented awards or quotes.",
+   "expect_films": [
+    "Spirited Away"
+   ],
+   "expect_tasks": [
+    "reception"
+   ],
+   "expect_evidence": [
+    {
+     "side": "critics"
+    }
+   ]
+  },
+  {
+   "id": "rc06",
+   "category": "disagree",
+   "question": "Did critics and audiences disagree about Venom?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Gives the critics' and the audiences' scores and says how far apart they are, with sources.",
+   "expect_films": [
+    "Venom"
+   ],
+   "expect_tasks": [
+    "reception"
+   ],
+   "expect_evidence": [
+    {
+     "source_type": "aggregator"
+    }
+   ]
+  },
+  {
+   "id": "rc07",
+   "category": "disagree",
+   "question": "How did critics' and audiences' opinions of Joker differ?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Compares both sides with numbers and what each praised or criticised.",
+   "expect_films": [
+    "Joker"
+   ],
+   "expect_tasks": [
+    "reception"
+   ],
+   "expect_evidence": [
+    {
+     "side": "critics"
+    }
+   ]
+  },
+  {
+   "id": "rc08",
+   "category": "disagree",
+   "question": "Which films did critics love but audiences hated?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Lists films from the gap table with both scores; explains the scale in a sentence; names only listed films.",
+   "expect_tasks": [
+    "reception_list"
+   ]
+  },
+  {
+   "id": "rc09",
+   "category": "disagree",
+   "question": "Which movies did audiences love but critics panned?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Lists films from the gap table with both scores; names only listed films.",
+   "expect_tasks": [
+    "reception_list"
+   ]
+  },
+  {
+   "id": "rc10",
+   "category": "disagree",
+   "question": "Was Star Wars: The Last Jedi more popular with critics or with fans?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Answers which side liked it more, with both sides' numbers and sources; mentions review bombing only if the data shows it.",
+   "expect_films": [
+    "Star Wars: The Last Jedi"
+   ],
+   "expect_tasks": [
+    "reception"
+   ],
+   "expect_evidence": [
+    {
+     "source_type": "aggregator"
+    },
+    {
+     "side": "audiences"
+    }
+   ]
+  },
+  {
+   "id": "rc11",
+   "category": "nyt",
+   "question": "What did The New York Times think of The Dark Knight?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Reports the NYT critic's view as Wikipedia quotes it (cited), or says the data only has the review's existence and link.",
+   "expect_films": [
+    "The Dark Knight"
+   ],
+   "expect_tasks": [
+    "reception"
+   ],
+   "expect_evidence": [
+    {
+     "outlet": "The New York Times"
+    }
+   ]
+  },
+  {
+   "id": "rc12",
+   "category": "nyt",
+   "question": "How did the New York Times review Parasite?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Reports what the data says the NYT critic wrote, cited; nothing from memory.",
+   "expect_films": [
+    "Parasite"
+   ],
+   "expect_tasks": [
+    "reception"
+   ],
+   "expect_evidence": [
+    {
+     "outlet": "The New York Times"
+    }
+   ]
+  },
+  {
+   "id": "rc13",
+   "category": "nyt",
+   "question": "What did the New York Times critic say about Mad Max: Fury Road?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Names the critic only if the data names them; cites.",
+   "expect_films": [
+    "Mad Max: Fury Road"
+   ],
+   "expect_tasks": [
+    "reception"
+   ],
+   "expect_evidence": [
+    {
+     "outlet": "The New York Times"
+    }
+   ]
+  },
+  {
+   "id": "rc14",
+   "category": "nyt",
+   "question": "What did The New York Times say about Titanic?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. NYT view from the data with a citation, or an honest 'not in the data'.",
+   "expect_films": [
+    "Titanic"
+   ],
+   "expect_tasks": [
+    "reception"
+   ],
+   "expect_evidence": [
+    {
+     "outlet": "The New York Times"
+    }
+   ]
+  },
+  {
+   "id": "rc15",
+   "category": "nyt",
+   "question": "Did The New York Times like Get Out?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. A yes / no / mixed verdict grounded in the NYT statement in the data, cited.",
+   "expect_films": [
+    "Get Out"
+   ],
+   "expect_tasks": [
+    "reception"
+   ],
+   "expect_evidence": [
+    {
+     "outlet": "The New York Times"
+    }
+   ]
+  },
+  {
+   "id": "rc16",
+   "category": "complaints",
+   "question": "What did audiences complain about in Tenet?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Names the most common audience complaints with counts or sample size and short quotes; does not mix in critics.",
+   "expect_films": [
+    "Tenet"
+   ],
+   "expect_tasks": [
+    "reception"
+   ],
+   "expect_evidence": [
+    {
+     "side": "audiences",
+     "label": [
+      "negative",
+      "mixed"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "rc17",
+   "category": "complaints",
+   "question": "What were the main criticisms of Justice League?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Gives critics' and audiences' criticisms apart, with sources.",
+   "expect_films": [
+    "Justice League"
+   ],
+   "expect_tasks": [
+    "reception"
+   ],
+   "expect_evidence": [
+    {
+     "side": "critics"
+    }
+   ]
+  },
+  {
+   "id": "rc18",
+   "category": "complaints",
+   "question": "What did viewers dislike about Cats?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Audience complaints with sample size; critics only if kept apart.",
+   "expect_films": [
+    "Cats"
+   ],
+   "expect_tasks": [
+    "reception"
+   ],
+   "expect_evidence": [
+    {
+     "side": "audiences"
+    }
+   ]
+  },
+  {
+   "id": "rc19",
+   "category": "complaints",
+   "question": "What did people complain about in Interstellar?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Specific complaints (e.g. sound mix, length, exposition) only if in the data, with sources.",
+   "expect_films": [
+    "Interstellar"
+   ],
+   "expect_tasks": [
+    "reception"
+   ],
+   "expect_evidence": [
+    {
+     "label": [
+      "negative",
+      "mixed"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "rc20",
+   "category": "complaints",
+   "question": "What were the biggest complaints about Star Wars: The Rise of Skywalker?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Critics' and fans' complaints apart, cited.",
+   "expect_films": [
+    "Star Wars: The Rise of Skywalker"
+   ],
+   "expect_tasks": [
+    "reception"
+   ],
+   "expect_evidence": [
+    {
+     "side": "critics"
+    }
+   ]
+  },
+  {
+   "id": "rc21",
+   "category": "technique",
+   "question": "What do critics and analysts say about the cinematography of Blade Runner 2049?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Reports what critics (and analysts, if present) said about the cinematography, cited; says if no analysis videos are in the data.",
+   "expect_films": [
+    "Blade Runner 2049"
+   ],
+   "expect_tasks": [
+    "reception"
+   ],
+   "expect_evidence": [
+    {
+     "text": "cinematograph"
+    }
+   ]
+  },
+  {
+   "id": "rc22",
+   "category": "technique",
+   "question": "What did reviewers say about the editing of Whiplash?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Editing / pacing comments from the data with sources; honest if absent.",
+   "expect_films": [
+    "Whiplash"
+   ],
+   "expect_tasks": [
+    "reception"
+   ],
+   "expect_evidence": [
+    {
+     "side": "critics"
+    }
+   ]
+  },
+  {
+   "id": "rc23",
+   "category": "technique",
+   "question": "How did critics describe the visual effects in Avatar?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Critics' statements on the effects, cited.",
+   "expect_films": [
+    "Avatar"
+   ],
+   "expect_tasks": [
+    "reception"
+   ],
+   "expect_evidence": [
+    {
+     "text": "effects"
+    }
+   ]
+  },
+  {
+   "id": "rc24",
+   "category": "technique",
+   "question": "What do video essayists say about the one-take style of 1917?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Uses analysis-video evidence if present, else says none is in the data and gives critics' view of the technique instead, labelled as critics.",
+   "expect_films": [
+    "1917"
+   ],
+   "expect_tasks": [
+    "reception"
+   ],
+   "expect_evidence": [
+    {
+     "text": "take"
+    }
+   ]
+  },
+  {
+   "id": "rc25",
+   "category": "technique",
+   "question": "What did critics say about the score of Dune?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Critics on the music, cited; nothing invented about the composer's other work.",
+   "expect_films": [
+    "Dune"
+   ],
+   "expect_tasks": [
+    "reception"
+   ],
+   "expect_evidence": [
+    {
+     "side": "critics"
+    }
+   ]
+  },
+  {
+   "id": "rc26",
+   "category": "mixed_money",
+   "question": "Which films got mixed reviews but still made a lot of money?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Lists films from the table with critics' score and gross/budget; defines 'mixed' and 'profitable' as the table does.",
+   "expect_tasks": [
+    "reception_list"
+   ]
+  },
+  {
+   "id": "rc27",
+   "category": "mixed_money",
+   "question": "Why did Venom make so much money despite mixed reviews?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Separates the reviews (with numbers) from the money (with sources) and marks reasons as interpretation.",
+   "expect_films": [
+    "Venom"
+   ],
+   "expect_tasks": [
+    "reception"
+   ],
+   "expect_evidence": [
+    {
+     "source_type": "aggregator"
+    }
+   ]
+  },
+  {
+   "id": "rc28",
+   "category": "mixed_money",
+   "question": "Did Transformers: Age of Extinction make money despite its reviews?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Gives critics' numbers and the gross vs budget with sources.",
+   "expect_films": [
+    "Transformers: Age of Extinction"
+   ],
+   "expect_tasks": [
+    "reception"
+   ],
+   "expect_evidence": [
+    {
+     "source_type": "aggregator"
+    }
+   ]
+  },
+  {
+   "id": "rc29",
+   "category": "mixed_money",
+   "question": "Which action movies were profitable even with mixed reviews?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Lists action films from the table; names only listed films.",
+   "expect_tasks": [
+    "reception_list"
+   ]
+  },
+  {
+   "id": "rc30",
+   "category": "mixed_money",
+   "question": "Did Pirates of the Caribbean: On Stranger Tides do well despite mixed reviews?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Reviews and box office apart, with sources.",
+   "expect_films": [
+    "Pirates of the Caribbean: On Stranger Tides"
+   ],
+   "expect_tasks": [
+    "reception"
+   ],
+   "expect_evidence": [
+    {
+     "source_type": "aggregator"
+    }
+   ]
+  },
+  {
+   "id": "rc31",
+   "category": "reactions",
+   "question": "What are the most divisive movies among audiences?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Lists films from the polarisation table with the low / high shares; explains bimodality in a sentence.",
+   "expect_tasks": [
+    "reception_list"
+   ]
+  },
+  {
+   "id": "rc32",
+   "category": "reactions",
+   "question": "Was mother! a divisive film?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Uses the audience spread line and both sides' views, with numbers and sources (CinemaScore if present).",
+   "expect_films": [
+    "mother!"
+   ],
+   "expect_tasks": [
+    "reception"
+   ],
+   "expect_evidence": [
+    {
+     "source_type": "audience_poll"
+    },
+    {
+     "side": "audiences"
+    }
+   ]
+  },
+  {
+   "id": "rc33",
+   "category": "reactions",
+   "question": "Which horror movies polarized audiences the most?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Lists horror films from the table only.",
+   "expect_tasks": [
+    "reception_list"
+   ]
+  },
+  {
+   "id": "rc34",
+   "category": "reactions",
+   "question": "Did Napoleon Dynamite split audiences?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Audience spread and reviews with sample sizes; critics apart.",
+   "expect_films": [
+    "Napoleon Dynamite"
+   ],
+   "expect_tasks": [
+    "reception"
+   ],
+   "expect_evidence": [
+    {
+     "side": "audiences"
+    }
+   ]
+  },
+  {
+   "id": "rc35",
+   "category": "reactions",
+   "question": "Which films became cult classics after release?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Lists films from the table; quotes the Wikipedia line or the MovieLens change for each; names only listed films.",
+   "expect_tasks": [
+    "reception_list"
+   ]
+  },
+  {
+   "id": "rc36",
+   "category": "critics_analysts",
+   "question": "How do critics' views of 2001: A Space Odyssey at release compare with how it is seen today?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Release-time critics (cited) vs later standing (Legacy text, MovieLens trend), clearly dated.",
+   "expect_films": [
+    "2001: A Space Odyssey"
+   ],
+   "expect_tasks": [
+    "reception"
+   ],
+   "expect_evidence": [
+    {
+     "source_type": "legacy"
+    },
+    {
+     "side": "critics"
+    }
+   ]
+  },
+  {
+   "id": "rc37",
+   "category": "critics_analysts",
+   "question": "How was Blade Runner received at first, and how is it seen now?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. First reception vs reappraisal, each cited.",
+   "expect_films": [
+    "Blade Runner"
+   ],
+   "expect_tasks": [
+    "reception"
+   ],
+   "expect_evidence": [
+    {
+     "source_type": "legacy"
+    }
+   ]
+  },
+  {
+   "id": "rc38",
+   "category": "critics_analysts",
+   "question": "Was The Thing reappraised after release?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Says yes / no from the Legacy text or trend line, quoting it with the source.",
+   "expect_films": [
+    "The Thing"
+   ],
+   "expect_tasks": [
+    "reception"
+   ],
+   "expect_evidence": [
+    {
+     "source_type": "legacy"
+    }
+   ]
+  },
+  {
+   "id": "rc39",
+   "category": "critics_analysts",
+   "question": "How do critics and video essayists differ on The Shining?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Critics' views cited; analysts' views only from analysis-video evidence; says plainly if there is none.",
+   "expect_films": [
+    "The Shining"
+   ],
+   "expect_tasks": [
+    "reception"
+   ],
+   "expect_evidence": [
+    {
+     "side": "critics"
+    }
+   ]
+  },
+  {
+   "id": "rc40",
+   "category": "critics_analysts",
+   "question": "How has Fight Club's reputation changed since release?",
+   "notes": "Passes only if it names its sources, keeps critics and audiences apart, gives sample sizes where it generalises, and invents no reviewers, quotes or scores. Release reception vs later standing, with sources and dates.",
+   "expect_films": [
+    "Fight Club"
+   ],
+   "expect_tasks": [
+    "reception"
+   ],
+   "expect_evidence": [
+    {
+     "source_type": "legacy"
+    },
+    {
+     "side": "critics"
+    }
+   ]
+  }
+ ]
+}

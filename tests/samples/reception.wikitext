@@ -1,0 +1,8 @@
+== Release ==
+Text about release.
+=== Box office ===
+''Inception'' grossed $292.6 million in the United States and Canada and $546.9 million elsewhere.<ref name="BOM">{{cite web|url=https://www.boxofficemojo.com/x|website=[[Box Office Mojo]]}}</ref>
+=== Critical response ===
+{{Rotten Tomatoes prose|87|8.1|364}} [[Roger Ebert]] of the ''[[Chicago Sun-Times]]'' gave it four stars, calling it "wholly original".<ref>{{cite news|last=Ebert|first=Roger|url=https://www.rogerebert.com/reviews/inception-2010|work=Chicago Sun-Times}}</ref> ''Variety'''s [[Justin Chang]] praised the visuals.<ref>{{cite magazine|author=Justin Chang|url=https://variety.com/x|magazine=Variety}}</ref>
+== Legacy ==
+The film has since been named one of the best films of the decade by several critics and publications, and its ending is still debated.<ref name="BOM"/>

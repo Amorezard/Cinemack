@@ -28,6 +28,7 @@ no usable budget. This script adds:
     python money_extra.py rates --fx-csv fx.csv --cpi-csv cpi.csv    # offline: your own rate files
     python money_extra.py remove         # take everything above out again, then rebuild money
     python money_extra.py show "Slumdog Millionaire"
+    python money_extra.py diagnose       # v7 H2: rate coverage per currency + the last convert run's skip reasons
 
 Nothing here changes an answer by itself: converted figures reach answers through the money table (as
 "[Wikipedia infobox, converted to USD]"); today's-dollar lines and critic scores only with
@@ -110,6 +111,14 @@ FIXED = {
     "JPY": [(1949, 1971, 1 / 360)],
     "INR": [(1949, 1965, 1 / 4.76), (1966, 1971, 1 / 7.50)],
 }
+
+# v7 H2 (27 Oct): the euro's irrevocable conversion rates (units per euro). The World Bank reports France, Germany ...
+# in euros for every year (old francs / marks converted at these rates), so the old currency's yearly rate is
+# recovered as WB value x this rate. Used when FRED (the 15 Oct source of these rates) does not answer.
+EURO_LEGACY = {"FRF": ("FRA", 6.55957), "DEM": ("DEU", 1.95583), "ITL": ("ITA", 1936.27), "ESP": ("ESP", 166.386),
+               "NLG": ("NLD", 2.20371), "BEF": ("BEL", 40.3399), "ATS": ("AUT", 13.7603), "PTE": ("PRT", 200.482),
+               "FIM": ("FIN", 5.94573), "IEP": ("IRL", 0.787564), "GRD": ("GRC", 340.750)}
+NEAREST_YEARS = 2          # convert(): a missing year may use the nearest year within this many years (noted)
 
 # Wikidata currency items -> ISO codes, used only if the P498 lookup fails.
 QID_FALLBACK = {"Q4917": "USD", "Q4916": "EUR", "Q25224": "GBP", "Q8146": "JPY", "Q80524": "INR",
@@ -199,17 +208,30 @@ def cmd_rates(a):
                 rows += [(cur, y, 1 / v, f"World Bank {country}") for y, v in ym.items() if v > 0]
                 print(f"  {cur}: World Bank {country} {min(ym)}-{max(ym)}", flush=True)
             time.sleep(0.3)
-        have_cur = {r[0] for r in rows}
-        fred_ok = _get(FRED + "AEXUSUK", tries=1, timeout=20) is not None      # one quick try; skip FRED if it times out
+        for cur, (country, per_eur) in EURO_LEGACY.items():   # v7 H2: old European currencies without FRED
+            ym = wb_series(country, "PA.NUS.FCRF")
+            if ym:
+                rows += [(cur, y, 1 / (v * per_eur), f"World Bank {country} x euro rate") for y, v in ym.items()
+                         if v > 0 and y <= 2001]
+                print(f"  {cur}: World Bank {country} (euro-converted) {min(ym)}-{min(max(ym), 2001)}", flush=True)
+            time.sleep(0.3)
+        have_cy = {(r[0], r[1]) for r in rows}
+        fred_ok = _get(FRED + "AEXUSUK", tries=2, timeout=40) is not None
+        if not fred_ok:
+            print("  FRED did not answer: currency-years only FRED has (before 1960, some currencies) stay missing")
         for cur, series in FX_SERIES.items():
-            if cur in have_cur or not fred_ok:
+            if not fred_ok:
+                continue
+            # v7 H2: before, a currency the World Bank had skipped FRED entirely, so its years before 1960 had no rate
+            if all((cur, y) in have_cy for y in range(1950, datetime.date.today().year)):
                 continue
             for sid in series:
                 txt = _get(FRED + sid, tries=1, timeout=20)
                 ym = yearly_mean(txt) if txt else {}
                 if ym:
                     direct = usd_per_unit_series(sid)
-                    rows += [(cur, y, (v if direct else 1 / v), sid) for y, v in ym.items() if v > 0]
+                    rows += [(cur, y, (v if direct else 1 / v), sid) for y, v in ym.items() if v > 0
+                             and (cur, y) not in have_cy]
                     n_cur += 1
                     print(f"  {cur}: {sid} {min(ym)}-{max(ym)}", flush=True)
                     break
@@ -274,6 +296,37 @@ def comment_only(text):
     return "<!--" in t and not re.search(r"\d", _COMMENT.sub("", t))
 
 
+def clean_amount(vt):
+    """v7 H2: the infobox text behind a figure, without <ref> citations, templates' markup or comments (the 21 Oct
+    eye-check printed raw '<ref>...' wikitext)."""
+    t = re.sub(r"<!--.*?(-->|$)", "", str(vt or ""), flags=re.S)
+    t = re.sub(r"<ref[^>]*/>|<ref[^>]*>.*?</ref>", "", t, flags=re.S | re.I)
+    t = re.sub(r"\{\{\s*(?:efn|sfn|refn|citation needed|cn|r)\b[^{}]*\}\}", "", t, flags=re.I)
+    t = re.sub(r"\{\{[^{}|]*\|([^{}]*)\}\}", lambda m: m.group(1).replace("|", " "), t)
+    t = re.sub(r"\[\[(?:[^\]|]*\|)?([^\]]*)\]\]", r"\1", t)
+    t = re.sub(r"<[^>]+>", " ", t)
+    return " ".join(t.split())[:120]
+
+
+def cmd_diagnose(_a):
+    """v7 H2: why conversions fell (1,185 -> 985 films on 21 Oct): rate coverage per currency and the skip reasons of
+    the last convert run, with the films converted per source."""
+    c = conn()
+    print("exchange-rate coverage (currency: years, first-last, source):")
+    for cur, n, lo, hi, src in c.execute("select currency, count(*), min(year), max(year), group_concat(distinct series) "
+                                         "from fx_annual group by currency order by currency"):
+        print(f"  {cur}: {n} years {lo}-{hi} ({(src or '')[:60]})")
+    need = c.execute("""select x.currency, count(*) from facts x where x.field in ('budget','box_office','revenue')
+        and x.currency is not null and x.currency != 'USD' and x.source in ('wikipedia_infobox','wikidata')
+        group by x.currency order by 2 desc limit 15""").fetchall()
+    print("non-USD figures by currency (top 15): " + ", ".join(f"{c_} {n:,}" for c_, n in need))
+    last = F.get_meta(c, "money_fx_last_run")
+    print(f"last convert run: {last}")
+    for src, n in c.execute("select source, count(distinct tmdb_id) from facts where source like '%\\_fx' escape '\\' "
+                            "group by source"):
+        print(f"  converted from {src}: {n:,} films")
+
+
 def cmd_convert(_a):
     c = conn()
     fx = rate_table(c)
@@ -299,6 +352,12 @@ def cmd_convert(_a):
             skipped["no currency code or year"] = skipped.get("no currency code or year", 0) + 1
             continue
         r = fx.get((code, y))
+        near = None
+        if r is None:                                  # v7 H2: the nearest year within NEAREST_YEARS, said in the note
+            for dy in range(1, NEAREST_YEARS + 1):
+                for yy in (y - dy, y + dy):
+                    if r is None and fx.get((code, yy)) is not None:
+                        r, near = fx[(code, yy)], yy
         if r is None:
             skipped[f"no {code} rate for the year"] = skipped.get(f"no {code} rate for the year", 0) + 1
             continue
@@ -306,10 +365,13 @@ def cmd_convert(_a):
         if usd > (MAX_BUDGET if field == "budget" else MAX_GROSS) or usd < 1e4:
             skipped["implausible after conversion"] = skipped.get("implausible after conversion", 0) + 1
             continue
-        note = f"{vt or ''} = {v:,.0f} {code} at the {y} average rate ({r:.4g} USD per {code})".strip()
+        note = (f"{clean_amount(vt)} = {v:,.0f} {code} at the {near or y} average rate ({r:.4g} USD per {code})"
+                + (f"; no {y} rate, nearest year used" if near else "")).strip(" =")
         rows.append((fid, field, usd, note[:300], "USD", f"{src}_fx", ref, as_of, F.now(), (rel or 0.7) - 0.15))
     c.executemany("insert into facts values (?,?,?,?,?,?,?,?,?,?)", rows)
     F.set_meta(c, "money_fx_converted_at", F.now())
+    F.set_meta(c, "money_fx_last_run", json.dumps({"converted_rows": len(rows), "films": len({r[0] for r in rows}),
+                                                   "skipped": skipped, "at": F.now()}))
     c.commit()
     print(f"converted to USD: {len(rows):,} figures for {len({r[0] for r in rows}):,} films")
     for k, n in sorted(skipped.items(), key=lambda x: -x[1])[:12]:
@@ -320,8 +382,28 @@ def cmd_convert(_a):
 _PCT = re.compile(r"(\d{1,3}(?:\.\d)?)\s?%")
 _RT_N = re.compile(r"(?:based on|of|from|among|out of)\s+(\d[\d,]{0,6})\s+(?:\w+\s){0,2}?(?:critics|reviews|critic)", re.I)
 _AVG10 = re.compile(r"(\d{1,2}(?:\.\d{1,2})?)\s?/\s?10\b|(\d{1,2}(?:\.\d{1,2})?) out of 10\b")
-_MC = re.compile(r"(?:score|average|rating|metascore)\s+(?:of\s+)?(\d{1,3})\s*(?:out of 100|/\s?100|\b)", re.I)
-_MC_N = re.compile(r"based on\s+(\d[\d,]{0,5})\s+(?:\w+\s){0,2}?(?:critics|reviews|critic)", re.I)
+# 28 Oct: the old pattern read "a score of 1-100" as 1 (Frida), and the Rotten Tomatoes "average rating of 9.30/10"
+# after a Metacritic sentence as 9 (Lawrence of Arabia, The White Ribbon, Three Colors: Red). A Metacritic number must
+# not be a range start, a decimal, or out of 10 / a percentage, and the search stops at the next aggregator's name.
+_MC = re.compile(r"(?:score|scored|average|rating|metascore|perfect)\s+(?:rating\s+|score\s+)?(?:of\s+)?(\d{1,3})"
+                 r"(?![\d.,]?\d|\s*(?:[–\-−]|to)\s*\d|\s*/\s*(?!100\b)\d|\s*out of (?!100\b)\d|\s*%|\s*stars?\b)",
+                 re.I)   # 28 Oct: also "scored 84 out of 100"; not "a perfect 4/4 star rating" (My Winnipeg)
+_WORDNUM = {w: i for i, w in enumerate("zero one two three four five six seven eight nine ten eleven twelve thirteen "
+                                       "fourteen fifteen sixteen seventeen eighteen nineteen twenty".split())}
+_MC_N = re.compile(r"based on\s+(\d[\d,]{0,5}|" + "|".join(_WORDNUM) + r")\s+(?:\w+\s){0,2}?(?:critics|reviews|critic)",
+                   re.I)
+_OTHER_AGG = re.compile(r"Rotten Tomatoes|CinemaScore|IMDb|Letterboxd|PostTrak")
+
+
+def _upto_next(w, own):
+    """The window w cut at the next aggregator other than `own`."""
+    m = [x for x in _OTHER_AGG.finditer(w) if x.group(0) != own]
+    return w[: m[0].start()] if m else w
+
+
+def _count(x):
+    x = x.lower().replace(",", "")
+    return _WORDNUM[x] if x in _WORDNUM else int(x)
 _CS = re.compile(r"(?:grade(?: of)?|gave (?:the|it|the film|the movie) an?(?: rare| average| overall)?)\s*[\"“'‘]?\s*([ABCDF])\s*([+\-–−]?)\s*[\"”'’]?"
                  r"(?=[^A-Za-z]|$)(?!\s*(?:to|-|–)\s*F)")
 CS_NUM = {"A+": 12, "A": 11, "A-": 10, "B+": 9, "B": 8, "B-": 7, "C+": 6, "C": 5, "C-": 4, "D+": 3, "D": 2,
@@ -334,7 +416,13 @@ def parse_critics(text):
     t = re.sub(r"\s+", " ", text or "")
     for m in re.finditer(r"Rotten Tomatoes", t):
         w = t[m.end(): m.end() + 420]
+        w = w[: w.find("Metacritic")] if "Metacritic" in w else w
         p = _PCT.search(w)
+        if not p:                              # "a 100% approval rating on Rotten Tomatoes, based on 54 reviews"
+            pre = t[max(0, m.start() - 120): m.start()]
+            pre = re.split(r"(?<=[.;])\s", pre)[-1]
+            ps = list(_PCT.finditer(pre))
+            p = ps[-1] if ps else None
         if not p or not (0 <= float(p.group(1)) <= 100):
             continue
         out["rt_pct"] = float(p.group(1))
@@ -349,14 +437,19 @@ def parse_critics(text):
         out["rt_text"] = w[:260]
         break
     for m in re.finditer(r"Metacritic", t):
-        w = t[m.end(): m.end() + 360]
+        w = _upto_next(t[m.end(): m.end() + 360], "Metacritic")
         s = _MC.search(w)
+        if not s:                              # "It has a score of 100 on Metacritic and ..."
+            pre = re.split(r"(?<=[.;])\s", t[max(0, m.start() - 160): m.start()])[-1]
+            pre = pre[[x.end() for x in _OTHER_AGG.finditer(pre)][-1]:] if _OTHER_AGG.search(pre) else pre
+            ss = list(_MC.finditer(pre))
+            s = ss[-1] if ss else None
         if not s or not (0 <= int(s.group(1)) <= 100):
             continue
         out["mc_score"] = float(s.group(1))
         n = _MC_N.search(w)
         if n:
-            out["mc_n"] = int(n.group(1).replace(",", ""))
+            out["mc_n"] = _count(n.group(1))
         out["mc_text"] = w[:220]
         break
     for m in re.finditer(r"CinemaScore", t):
@@ -451,7 +544,7 @@ def cmd_report(_a):
     for t, y, field, v, note in c.execute("""select f.title, f.year, x.field, x.value_num, x.value_text from facts x
             join films f on f.tmdb_id = x.tmdb_id where x.source like '%\\_fx' escape '\\'
             order by random() limit 20"""):
-        lines.append(f"  {t} ({y}) {field}: ${v / 1e6:,.1f}M  <- {note[:120]}")
+        lines.append(f"  {t} ({y}) {field}: ${v / 1e6:,.1f}M  <- {clean_amount(note)[:140]}")
     lines.append("\nCritic scores to check by eye (10 random):")
     try:
         for t, y, rt, rn, mc, cs, txt in c.execute("""select f.title, f.year, s.rt_pct, s.rt_n, s.mc_score, s.cinemascore,
@@ -494,13 +587,14 @@ def cmd_show(a):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("cmd", choices=["all", "rates", "currencies", "convert", "critics", "money", "real", "report",
-                                    "remove", "show"])
+                                    "remove", "show", "diagnose"])
     ap.add_argument("title", nargs="?")
     ap.add_argument("--fx-csv")
     ap.add_argument("--cpi-csv")
     a = ap.parse_args()
     steps = {"rates": cmd_rates, "currencies": cmd_currencies, "convert": cmd_convert, "critics": cmd_critics,
-             "money": cmd_money, "real": cmd_real, "report": cmd_report, "remove": cmd_remove, "show": cmd_show}
+             "money": cmd_money, "real": cmd_real, "report": cmd_report, "remove": cmd_remove, "show": cmd_show,
+             "diagnose": cmd_diagnose}
     if a.cmd == "all":
         for s in ("rates", "currencies", "convert", "critics", "money", "real", "report"):
             print(f"=== {s} {datetime.datetime.now():%H:%M}", flush=True)

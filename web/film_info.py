@@ -45,6 +45,7 @@ def _users():
     if "users" not in _C:
         os.makedirs(os.path.dirname(USERS), exist_ok=True)
         c = sqlite3.connect(USERS, check_same_thread=False, timeout=30)
+        c.execute("pragma journal_mode=WAL")      # v7 D4: readers never block the writer
         c.executescript("""
             create table if not exists film_prefs(user_id text, tmdb_id integer, title text, signal integer,
               source text, message_id text, created_at text, primary key (user_id, tmdb_id));
@@ -161,6 +162,13 @@ def enrich(cards, user=""):
             except sqlite3.Error:
                 imdb = {}
         mine = user_choices(user, ids)
+        on = {}
+        if user:                                     # 4 Nov: films on the person's streaming services
+            try:
+                import user_prefs
+                on = user_prefs.on_services(user_prefs.load(user)["settings"], ids)
+            except Exception as e:  # noqa: BLE001
+                print(f"[cinemack] services badge failed: {e!r}", flush=True)
         for c in cards:
             fid = c.get("id")
             if fid is None:
@@ -168,6 +176,8 @@ def enrich(cards, user=""):
             if posters.get(fid):
                 c["poster"] = img(posters[fid], "w185")
                 c["poster_lg"] = img(posters[fid], "w342")
+            if on.get(fid):
+                c["on_services"] = on[fid]
             row = films.get(fid)
             if row:
                 if row[0]:
@@ -246,6 +256,24 @@ def detail(fid, user=""):
     if w and w[0][1]:
         out["wiki"] = {"title": w[0][0], "url": w[0][1]}
     out["tmdb_url"] = f"https://www.themoviedb.org/movie/{fid}"
+    rc = _q(f, "select critic_score, critic_score_src, audience_score, audience_score_src, gap, gap_label, polar_label, "
+               "trend_label, legacy_label, n_critic_stmts, n_aud_reviews, aud_pos, aud_mixed, aud_neg, bombing, data_json "
+               "from reception_card where tmdb_id = ?", (fid,))
+    if rc:                                  # v7 E5: the reception panel (reception_cards.py)
+        cs, css, au, aus, gap, gl, pl, tl, lg, ncs, nau, ap, am, an, bomb, dj = rc[0]
+        try:
+            data = json.loads(dj or "{}")
+        except ValueError:
+            data = {}
+        out["reception"] = {"critics": None if cs is None else round(cs), "critics_src": css,
+                            "audiences": None if au is None else round(au), "audiences_src": aus,
+                            "gap": gap, "gap_label": gl, "polar": pl, "trend": tl, "legacy": lg,
+                            "n_critic_statements": ncs, "n_audience_reviews": nau,
+                            "audience_split": {"positive": ap, "mixed": am, "negative": an} if nau else None,
+                            "bombing": bomb, "praise": (data.get("praise") or [])[:4],
+                            "complaints": (data.get("complaints") or [])[:4],
+                            "named": [{"outlet": o, "critic": c, "tone": t} for o, c, t in (data.get("critics") or {}).get("named", [])[:6]],
+                            "videos": data.get("videos")}
     out["mine"] = user_choices(user, [fid]).get(fid, "")
     try:                                    # v6 (20 Oct night): trailer, where to watch, review + box-office links
         import links

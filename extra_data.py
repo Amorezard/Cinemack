@@ -75,26 +75,37 @@ def critic_line(fid):
 
 def critic_reviews(fid, n=3):
     """Guardian first (it has stars), then NYT; newest first within each."""
-    rows = _q("select source, critic, stars, published, url, summary, headline from critic_reviews "
+    rows = _q("select source, critic, stars, published, url, summary, headline, review_key from critic_reviews "
               "where tmdb_id = ? and match >= 1 order by source = 'guardian' desc, published desc", (fid,))
     firsts, rest, seen = [], [], set()
-    for src, critic, stars, pub, url, summary, head in rows:
+    for src, critic, stars, pub, url, summary, head, key in rows:
         d = {"source": src, "critic": critic, "stars": stars, "published": pub, "url": url,
-             "summary": summary, "headline": head}
+             "summary": summary, "headline": head, "key": key}
         (rest if src in seen else firsts).append(d)      # one per outlet before a second from the same one
         seen.add(src)
     return (firsts + rest)[:n]
 
 
+def nyt_pick(review_key):
+    r = _q("select critics_pick from nyt_meta where review_key = ?", (review_key,))
+    return bool(r and r[0][0])
+
+
 def critic_review_lines(fid, n=3):
+    """v7 (27 Oct, E8): NYT text is no longer put in the prompt - NYT's terms bar using its content to ground AI
+    systems without written consent. NYT lines say only that the paper reviewed the film (critic, date, Critic's
+    Pick); the link is shown under the answer. Guardian standfirsts stay (display with credit)."""
     lines = []
     for r in critic_reviews(fid, n):
-        outlet = "The Guardian" if r["source"] == "guardian" else "The New York Times"
         who = ", ".join(x for x in (r["critic"], r["published"]) if x)
+        if r["source"] == "nyt":
+            pick = "; a NYT Critic's Pick" if nyt_pick(r.get("key") or "") else ""
+            lines.append(f"The New York Times reviewed it ({who}{pick}); its text is not available to Movie Buff, "
+                         f"the review is linked under the answer [NYT review]")
+            continue
         stars = f", {r['stars']:g}/5 stars" if r["stars"] is not None else ""
         text = " ".join((r["summary"] or r["headline"] or "").split())[:300]
-        tag = "Guardian review" if r["source"] == "guardian" else "NYT review"
-        lines.append(f"{outlet} ({who}{stars}): \"{text}\" [{tag}]")
+        lines.append(f"The Guardian ({who}{stars}): \"{text}\" [Guardian review]")
     return lines
 
 

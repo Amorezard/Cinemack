@@ -80,6 +80,7 @@ import links          # v6 (20 Oct night): trailer / review / box-office / where
 import accounts
 import user_prefs
 import memory
+import semcache       # v7 D11
 
 import sys
 if str(pipeline.RAG_DIR) not in sys.path:      # feedback.py / personal.py live next to chat.py
@@ -179,7 +180,7 @@ async def lifespan(app):
     yield
 
 
-app = FastAPI(title="Movie Buff", lifespan=lifespan, docs_url=None, redoc_url=None)
+app = FastAPI(title="Cinemack", lifespan=lifespan, docs_url=None, redoc_url=None)
 
 gpu_lock = asyncio.Lock()   # FIFO: asyncio wakes waiters in arrival order
 line = []                   # requests holding or waiting for the lock, in order
@@ -396,7 +397,8 @@ def _who(request):
     return {"account": {"username": a["username"], "display_name": a["display_name"]} if a else None,
             "name": name, "settings": prof["settings"], "onboarded": prof["onboarded"], "groups": prof["groups"],
             "greeting": greet, "memory_count": len(memory.notes(key)), "genres": user_prefs.GENRES, "certs": user_prefs.CERTS[:4],
-            "about_max": user_prefs.ABOUT_MAX}
+            "about_max": user_prefs.ABOUT_MAX,
+            "services_all": [[k, v[0]] for k, v in user_prefs.SERVICES.items()]}
 
 
 def _gate(request):
@@ -521,6 +523,7 @@ async def onboarding_get(request: Request):
 class Onboarding(BaseModel):
     name: Optional[str] = None
     groups: List[str] = []
+    avoid: List[str] = []                 # 4 Nov: groups marked "Not for me"
     settings: Optional[dict] = None
 
 
@@ -532,11 +535,41 @@ async def onboarding_save(body: Onboarding, request: Request):
     if not key:
         return JSONResponse({"error": "need a user id"}, status_code=400)
     try:
-        user_prefs.set_groups(key, body.groups[:20])
+        user_prefs.set_groups(key, body.groups[:20], body.avoid[:20])
     except Exception as e:  # noqa: BLE001
         print(f"[movie-buff] onboarding groups failed: {e!r}", flush=True)
     user_prefs.save(key, settings=body.settings, display_name=body.name, onboarded=True)
     return JSONResponse(await asyncio.get_running_loop().run_in_executor(None, _who, request))
+
+
+class LetterboxdImport(BaseModel):
+    files: dict = {}                      # {filename: csv text} from the person's own Letterboxd export
+
+
+@app.post("/api/import/letterboxd")
+async def import_letterboxd(body: LetterboxdImport, request: Request):
+    """4 Nov: the person's own Letterboxd export (ratings / watched / watchlist CSVs) -> their taste profile."""
+    if (g := _gate(request)):
+        return g
+    key = user_of(request)
+    if not key:
+        return JSONResponse({"error": "need a user id"}, status_code=400)
+    files = {str(k)[:80]: str(v) for k, v in list((body.files or {}).items())[:6]}
+    if sum(len(v) for v in files.values()) > 8_000_000:
+        return JSONResponse({"error": "Those files are too big (8 MB at most). Choose ratings.csv, watched.csv and watchlist.csv."},
+                            status_code=413)
+    import imports
+
+    def run():
+        parsed = imports.parse_letterboxd(files)
+        return imports.apply(key, parsed, film_info.FACTS, film_info.choose, film_info.user_choices)
+    try:
+        counts = await asyncio.get_running_loop().run_in_executor(None, run)
+    except Exception as e:  # noqa: BLE001
+        print(f"[cinemack] letterboxd import failed: {e!r}", flush=True)
+        return JSONResponse({"error": "Couldn't read those files. Choose the CSV files from your Letterboxd export."},
+                            status_code=400)
+    return JSONResponse({"ok": True, **counts})
 
 
 @app.get("/api/memory")
@@ -619,6 +652,12 @@ async def chat(req: ChatRequest, request: Request):
         utag = f"{utag}|{extra_tag}"
     key = site_cache.answer_key(question, req.recent_titles, history, conv_in, utag)
     hit = None if req.think else site_cache.get_answer(key)
+    single_turn = not history and not req.recent_titles and not (conv_in or {}).get("turns")
+    if hit is None and not req.think and single_turn and semcache.SEMCACHE:
+        # v7 D11: a strict same-meaning match with an earlier single-turn question (web/semcache.py)
+        k2 = await asyncio.get_running_loop().run_in_executor(None, semcache.lookup, question, utag)
+        if k2:
+            hit = site_cache.get_answer(k2)
 
     if hit:
         # Change 24: a repeat (same question, same point in the conversation) - replay
@@ -653,6 +692,17 @@ async def chat(req: ChatRequest, request: Request):
         return StreamingResponse(replay(), media_type="text/event-stream",
                                  headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
+    if MODERATION and not getattr(pipeline, "MOCK", False):
+        mres = await asyncio.get_running_loop().run_in_executor(None, _moderate, question)
+        if mres and not mres["ok"]:
+            log_line("safety", {"time": time.strftime("%Y-%m-%d %H:%M:%S"), "id": rid, "question": question,
+                                "blocked": mres["why"]})
+            return _plain_reply(mres["reply"], rid, question, req)
+    if FAST and not req.think and not getattr(pipeline, "MOCK", False) and not memory.FIRST_PERSON.search(question):
+        fast = await asyncio.get_running_loop().run_in_executor(None, _fast_answer, question, req.recent_titles)
+        if fast:
+            return _fast_reply(fast, question, req, rid, user, conv_id, conv_in, private, key)
+
     out = asyncio.Queue()
     cancel = threading.Event()
     state = {"started": False}
@@ -682,11 +732,20 @@ async def chat(req: ChatRequest, request: Request):
             if intent == "recommend":
                 hits = user_prefs.filter_hits(prefs, hits)   # already done before the prompt; the cards match
             prompt += user_prefs.prompt_block(prefs, intent, question)
+            try:                                       # 4 Nov: which films above are on their streaming services
+                prompt += user_prefs.services_block(prefs, hits, intent, question)
+            except Exception as e:  # noqa: BLE001
+                print(f"[cinemack] services line failed: {e!r}", flush=True)
             if mem_on:
-                prompt += memory.block(user)
-                prompt += rec_block
+                mb = memory.block(user) + rec_block
+                if GUARD and mb:                       # v7 D5: the person's notes and old answers are data too
+                    import safety
+                    mb = safety.sanitize(mb)
+                prompt += mb
             src = dict(films=film_info.enrich([pipeline.card(h) for h in hits], user), steps=pipeline.steps(hits),
                        alternatives=pipeline.alternatives(hits), retrieve_s=round(retrieve_s, 2), intent=intent)
+            if hits and hits[0].get("_choices"):           # 3 Nov (CLARIFY=1): "did you mean the film or the show?"
+                src["choices"] = hits[0]["_choices"]
             put(sse("sources", id=rid, **src))
             if cancel.is_set():
                 return
@@ -716,12 +775,40 @@ async def chat(req: ChatRequest, request: Request):
                 put(sse("token", text=tail))
 
             final = "".join(answer).strip()
+            if final and not cancel.is_set() and (GUARD or MODERATION):
+                notes = []
+                if GUARD:                              # v7 D5: leak check + link allow-list on the finished answer
+                    import safety
+                    final2, notes = safety.post_check(final)
+                else:
+                    final2 = final
+                if MODERATION:                         # v7 D6: the answer itself
+                    try:
+                        import moderation
+                        mres = moderation.check(question, final2)
+                        if not mres["ok"]:
+                            final2, notes = mres["reply"], notes + [mres["why"]]
+                    except Exception as e:  # noqa: BLE001
+                        print(f"[movie-buff] answer moderation failed: {e!r}", flush=True)
+                if final2 != final:
+                    final = final2
+                    put(sse("replace", text=final))
+                    log_line("safety", {"time": time.strftime("%Y-%m-%d %H:%M:%S"), "id": rid, "question": question,
+                                        "notes": notes})
             if final and not cancel.is_set() and not getattr(pipeline, "MOCK", False) and prefs.get("sources", True):
                 try:                                   # v4 WIKI_CREDIT=1: sources line added in code
                     import chat as _chat
                     credit = _chat.wiki_credit(hits) if hasattr(_chat, "wiki_credit") else ""
                 except Exception:  # noqa: BLE001
                     credit = ""
+                try:                                   # v7 R16: the evidence the answer cited, as links
+                    import tools as _tools
+                    cites = (hits[0].get("_citations") if hits else None) or {}
+                    footer = _tools.citation_footer(final, cites) if cites else ""
+                except Exception:  # noqa: BLE001
+                    footer = ""
+                if footer:
+                    credit = footer + (credit.replace("\n\n*Sources: ", "\n*Wikipedia articles: ", 1) if credit else "")
                 if credit:
                     put(sse("token", text=credit))
                     final += credit
@@ -753,6 +840,8 @@ async def chat(req: ChatRequest, request: Request):
             if final and not cancel.is_set() and not req.think and hits:
                 site_cache.put_answer(key, question, src, done,
                                       pipeline.last_ttl() if hasattr(pipeline, "last_ttl") else None)
+                if single_turn and semcache.SEMCACHE:
+                    semcache.add(question, utag, key)
             # v4: the prompt itself, the history sent with it and the fact check, so a liked answer
             # can become a training example in the real RAG format (feedback.py, like_filter.py).
             RECENT[rid] = {"question": question, "conversation_id": conv_id, "films": done.get("recent_titles"),
@@ -828,6 +917,97 @@ async def chat(req: ChatRequest, request: Request):
                 task.cancel()
 
     return StreamingResponse(stream(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+# ------------------------------------------------------------------ v7 D5 / D6: guard + moderation switches
+GUARD = os.environ.get("GUARD", "0") == "1"
+MODERATION = os.environ.get("MODERATION", "0") == "1"
+
+
+def _moderate(question):
+    try:
+        import moderation
+        return moderation.check(question)
+    except Exception as e:  # noqa: BLE001 - moderation down: answer as usual
+        print(f"[movie-buff] moderation failed: {e!r}", flush=True)
+        return None
+
+
+def _plain_reply(text, rid, question, req):
+    """A fixed reply (moderation): no films, no GPU."""
+    async def gen():
+        yield sse("sources", id=rid, films=[], steps=[], alternatives=[], retrieve_s=0, intent=None)
+        yield sse("status", stage="answering")
+        yield sse("token", text=text)
+        yield sse("done", id=rid, answer=text, recent_titles=req.recent_titles, conv=req.conv, stopped=False,
+                  check={"ok": None, "flags": [], "checked": 0}, cached=False, timings={"total_s": 0.0})
+    return StreamingResponse(gen(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+# ------------------------------------------------------------------ v7 D7: the fact fast path (FAST=1)
+FAST = os.environ.get("FAST", "0") == "1"
+
+
+def _fast_answer(question, recent_titles):
+    """fastpath.answer() plus the film's card, or None. Never raises."""
+    try:
+        import fastpath
+        import retrieve as _Rq
+        if getattr(_Rq, "TV", False):                  # 3 Nov: the fast path knows only films - a show question,
+            import tv as _tvq                          # or a title that is also a show (CLARIFY), takes the pipeline
+            if _tvq.wants_tv(question, recent_titles):
+                return None
+        r = fastpath.answer(question, recent_titles)
+        if not r:
+            return None
+        import retrieve as _R
+        hits = _R.hydrate(pipeline.chat._CTX_DB, [(r["tmdb_id"], 0.0)]) if hasattr(pipeline, "chat") else []
+        if not hits:
+            import tools as _tools
+            t = _tools.film_row(r["tmdb_id"])
+            hits = _tools.facts_hits([t[1]], year=t[2]) if t else []
+        if hits and getattr(_Rq, "CLARIFY", False) and _Rq.clarify_show(question, hits[0].get("title")):
+            return None                                # also a show: the pipeline answers and offers the choice
+        if hits:
+            hits[0]["_plan"] = {"intent": "named_film", "films": [hits[0]["title"]], "fast": r["kind"]}
+        r["hits"] = hits
+        return r
+    except Exception as e:  # noqa: BLE001 - the normal pipeline answers instead
+        print(f"[movie-buff] fast path failed: {e!r}", flush=True)
+        return None
+
+
+def _fast_reply(fast, question, req, rid, user, conv_id, conv_in, private, key):
+    """Stream a fast-path answer: same events as a normal answer, no GPU, no queue."""
+    t0 = time.perf_counter()
+    hits = fast["hits"]
+    films = film_info.enrich([pipeline.card(h) for h in hits], user)
+    src = dict(films=films, steps=[f"Answered straight from the database ({fast['kind']}, {fast['ms']} ms)"],
+               alternatives=[], retrieve_s=round(fast["ms"] / 1000, 3), intent="named_film")
+    final = fast["answer"]
+    done = dict(answer=final, recent_titles=pipeline.next_recent_titles(hits, req.recent_titles),
+                conv=pipeline.next_conv(conv_in, question, hits, final), stopped=False,
+                check={"ok": None, "flags": [], "checked": 0}, cached=False, fast=True,
+                timings={"retrieve_s": round(fast["ms"] / 1000, 3), "first_text_s": round(time.perf_counter() - t0, 3),
+                         "generate_s": 0.0, "total_s": round(time.perf_counter() - t0, 3)})
+
+    async def gen():
+        yield sse("sources", id=rid, **src)
+        yield sse("status", stage="answering")
+        yield sse("token", text=final)
+        lk = links.for_answer(question, films, "named_film", final)
+        if lk:
+            yield sse("links", groups=lk)
+        yield sse("done", id=rid, **done)
+    if not private:
+        chats.save_turn(user, conv_id, question, final, films, done["recent_titles"], done["conv"], rid)
+    site_cache.put_answer(key, question, src, done, getattr(pipeline, "TTL_RECENT", None))
+    log_line("requests", {"time": time.strftime("%Y-%m-%d %H:%M:%S"), "id": rid, "question": question, "fast": fast["kind"],
+                          "films": [f"{c['title']} ({c['year']})" for c in films], "answer": final,
+                          "timings": done["timings"], "versions": pipeline.versions()})
+    return StreamingResponse(gen(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 

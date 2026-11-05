@@ -86,7 +86,9 @@ def fingerprint():
         return _fp
     h = hashlib.md5()
     names = set()
-    for name in ("retrieve.py", "chat.py", "answer_style.py", "conv.py", "tools.py", "personal.py"):
+    # 4 Nov: + the modules whose switches change answers since v7 (TV_REVIEWS, SHORTS_V, YT_COMMENTS / ISSUES evidence)
+    for name in ("retrieve.py", "chat.py", "answer_style.py", "conv.py", "tools.py", "personal.py", "tv.py", "shorts.py",
+                 "evidence.py", "extra_data.py", "fastpath.py", "performance.py"):
         p = RAG_DIR / name
         if p.exists():
             src = p.read_bytes()

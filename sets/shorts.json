@@ -1,0 +1,20 @@
+{
+ "about": "v7 short-film set (1 Nov 2026), written before any SHORTS result. A TUNING set (not sealed): used for the SHORTS rule (on >= off + 4 judge passes) and may be looked at. notes = what a good answer must do (the judge grades against them). If a short is not in the catalogue (python shorts.py coverage), the right answer says it does not have it rather than inventing.",
+ "questions": [
+  {"id": "sh01", "category": "identify", "question": "What's the Pixar short about a Chinese-Canadian mom whose dumpling comes to life?", "expect_films": ["Bao"], "notes": "Names Bao (2018) first; may add Domee Shi as director if in the context."},
+  {"id": "sh02", "category": "identify", "question": "the animated short film where a baby sandpiper is scared of the waves", "expect_films": ["Piper"], "notes": "Names Piper (2016) first."},
+  {"id": "sh03", "category": "identify", "question": "a black and white Disney short where a man chases paper airplanes across New York to find a woman he met", "expect_films": ["Paperman"], "notes": "Names Paperman (2012) first."},
+  {"id": "sh04", "category": "identify", "question": "the short film about a dog who gets fed scraps by his owner and sees his owner's love life through the food", "expect_films": ["Feast"], "notes": "Names Feast (2014) first."},
+  {"id": "sh05", "category": "identify", "question": "an animated short where an old man plays chess against himself in a park", "expect_films": ["Geri's Game"], "notes": "Names Geri's Game (1997) first."},
+  {"id": "sh06", "category": "identify", "question": "the short film about a dad trying to do his daughter's hair for the first time", "expect_films": ["Hair Love"], "notes": "Names Hair Love (2019) first."},
+  {"id": "sh07", "category": "facts", "question": "Who directed the short film Bao?", "expect_films": ["Bao"], "notes": "Domee Shi, from the context."},
+  {"id": "sh08", "category": "facts", "question": "When did the Pixar short Luxo Jr. come out?", "expect_films": ["Luxo Jr."], "notes": "1986, from the context."},
+  {"id": "sh09", "category": "facts", "question": "How long is the short film Paperman?", "expect_films": ["Paperman"], "notes": "Gives its running time from the context (about 7 minutes) and says it is a short."},
+  {"id": "sh10", "category": "facts", "question": "What is the animated short La Luna about?", "expect_films": ["La Luna"], "notes": "A boy who joins his father and grandfather on a job sweeping fallen stars off the moon; from the context, no invented details."},
+  {"id": "sh11", "category": "facts", "question": "Who voices the characters in the Aardman short A Grand Day Out?", "expect_films": ["A Grand Day Out"], "notes": "Peter Sallis as Wallace if in the context; otherwise says what the context has without inventing."},
+  {"id": "sh12", "category": "recommend", "question": "recommend some animated short films", "expect_films": [], "notes": "Lists several real animated SHORT films (not features), each with a reason; says they are shorts."},
+  {"id": "sh13", "category": "recommend", "question": "any good Pixar shorts to show my kids?", "expect_films": [], "notes": "Lists several Pixar shorts (not feature films) suitable for children."},
+  {"id": "sh14", "category": "recommend", "question": "what are some sad animated shorts?", "expect_films": [], "notes": "Lists several animated shorts with a sad or bittersweet story; no feature films presented as shorts."},
+  {"id": "sh15", "category": "honesty", "question": "What's the short film about a talking toaster who becomes mayor of Paris?", "expect_films": [], "notes": "Says it cannot find such a short, without inventing a title, director or plot."}
+ ]
+}

@@ -1,0 +1,223 @@
+v7 night summary  Wed Nov  4 10:20:10 PM EST 2026
+
+--- step results
+  status: ok (0 min)
+  featfetch: ok (73 min)
+  featprep: ok (12 min)
+  featbase: ok (17 min)
+  featissues: ok (14 min)
+  featyt: ok (27 min)
+  feattv: ok (10 min)
+  featperf: ok (6 min)
+  featrules: ok (0 min)
+
+--- disk / GPU
+/dev/mapper/ubuntu--vg-ubuntu--lv  3.5T  875G  2.5T  26% /
+8.4G	facts.db
+1.2G	data
+18435 MiB, 23028 MiB
+
+--- critic statements (R2)
+critic statements: 326,177 from 22,407 films
+  by kind: other 128,607, critic 108,742, aggregator 39,828, box_office 37,263, summary 11,662, audience 75
+  critic statements with an outlet: 100,435 of 108,742; with a named critic 76,533
+  outlet from: text 64,702, ref 35,733, none 8,307
+  films with a critic statement from Variety / THR / RogerEbert.com: Variety 5,938, The Hollywood Reporter 2,903, RogerEbert.com 2,104, Chicago Sun-Times 3,186
+  top outlets: The New York Times 7,784, Variety 7,218, Chicago Sun-Times 3,713, Los Angeles Times 3,669, The Hollywood Reporter 3,599, The Guardian 3,357, RogerEbert.com 2,486, The Washington Post 2,246, Entertainment Weekly 2,139, Time 2,090, IndieWire 1,551, Empire 1,453, The Times 1,441, Rolling Stone 1,428, Chicago Tribune 1,389
+
+--- sentiment (R3)
+  audience      27,720  positive 17,526  mixed 3,954  negative 6,240  mean confidence 0.66
+  critic_stmt  118,855  positive 71,455  mixed 1,654  negative 45,746  mean confidence 0.75
+  tv_audience    2,808  positive 1,650  mixed 304  negative 854  mean confidence 0.68
+  head: test macro-F1 0.612 (binary model alone 0.478), ECE 0.041, fitted 2026-10-28T03:45
+
+--- flags (R5)
+   bursts (rows, films, low = bombing): 1 1 0
+   flags (joke, in a burst, mismatch, irony scored): 196 7 78 27812
+
+--- reception cards (R12, R13, E2, E4)
+reception cards: 25,835; with a critic-audience gap 15,644 (critics warmer by >= 15: 1,031, audiences warmer: 3,777)
+  divisive 47, rose over time 118, fell 454, cult / reappraised (Wikipedia) 1655, review-bombed 0
+  with a level-3 summary: 3044
+  biggest critic-audience gaps:
+  Seoul Station (2016): critics 100 (Rotten Tomatoes %) vs audiences 61 (IMDb), gap +39
+  The Birth of a Nation (1915): critics 91 (Rotten Tomatoes %) vs audiences 60 (IMDb), gap +31
+  Sharknado (2013): critics 61 (Rotten Tomatoes average) vs audiences 33 (IMDb), gap +28
+  I Saw the TV Glow (2024): critics 86 (Metacritic) vs audiences 58 (IMDb), gap +28
+  Snow White (2025): critics 50 (Metacritic) vs audiences 22 (IMDb), gap +28
+  Four Rooms (1995): critics 13 (Rotten Tomatoes %) vs audiences 67 (IMDb), gap -54
+  Half Baked (1998): critics 16 (Metacritic) vs audiences 66 (IMDb), gap -50
+  Heist (2015): critics 11 (Metacritic) vs audiences 61 (IMDb), gap -50
+  Death Wish II (1982): critics 11 (Metacritic) vs audiences 60 (IMDb), gap -49
+  A Little Bit of Heaven (2011): critics 14 (Metacritic) vs audiences 63 (IMDb), gap -49
+
+--- rules: featrules
+v7 decisions, 4 Nov switches (each arm = the lock + one switch, against the lock, same day)
+  base: ALIAS_IMDB=1 RECEPTION=1 TV=1 PEOPLE=1 REC_CLEAN=1 IMDB=0 GUARD=0 MODERATION=1 MEM_EMBED=1 CTX_BUILDER=0 PROMPT_ORDER=1 FAST=1 SEMCACHE=1 SHORTS=1 RECENT=1 CLARIFY=1
+  ISSUES (issue questions -> reception with themes / controversy evidence):
+    issues set (head to head, margin 3): FAIL
+      head to head: off wins 3, on wins 2, ties 7 (need on >= off + 3 = 6)
+      judge passes: off 12/12, on 12/12 (need on >= off); grounding 5.0 -> 5.0
+      RULE head to head (margin 3): FAIL
+    reception set (lose <= 1): PASS
+      lost 1 ['rc05'], gained 0 []; grounding 5.0 -> 5.0
+      RULE regression (lose <= 1, grounding not lower): PASS
+    analytic (lose <= 1): PASS
+      lost 0 [], gained 0 []; grounding 4.666666666666667 -> 4.666666666666667
+      RULE regression (lose <= 1, grounding not lower): PASS
+  YT_COMMENTS (YouTube stats line + viewer comments as evidence):
+    reception set (head to head, margin 0): FAIL
+      head to head: off wins 9, on wins 4, ties 27 (need on >= off + 0 = 9)
+      judge passes: off 37/40, on 33/40 (need on >= off); grounding 5.0 -> 4.95
+      RULE head to head (margin 0): FAIL
+    analytic (lose <= 1): PASS
+      lost 0 [], gained 0 []; grounding 4.666666666666667 -> 4.666666666666667
+      RULE regression (lose <= 1, grounding not lower): PASS
+  TV_REVIEWS (critics from the show's Wikipedia reception section):
+    TV set (not worse): FAIL
+      lost 6 ['tv10', 'tv14', 'tv17', 'tv24', 'tv27', 'tv29'], gained 3 ['tv09', 'tv13', 'tv18']; grounding 4.466666666666667 -> 3.933333333333333
+      RULE regression (lose <= 1, grounding not lower): FAIL
+      passes: off 24, on 21 (need on >= off)
+      RULE not worse: FAIL
+  PERF (box-office expectation model in 'why did it do well / badly' answers):
+    success set (head to head, margin 2): FAIL
+      head to head: off wins 1, on wins 2, ties 9 (need on >= off + 2 = 3)
+      judge passes: off 11/12, on 11/12 (need on >= off); grounding 4.666666666666667 -> 4.666666666666667
+      RULE head to head (margin 2): FAIL
+    analytic (lose <= 1): PASS
+      lost 0 [], gained 0 []; grounding 4.666666666666667 -> 4.666666666666667
+      RULE regression (lose <= 1, grounding not lower): PASS
+
+LOCK: ALIAS_IMDB=1 RECEPTION=1 TV=1 PEOPLE=1 REC_CLEAN=1 IMDB=0 GUARD=0 MODERATION=1 MEM_EMBED=1 CTX_BUILDER=0 PROMPT_ORDER=1 FAST=1 SEMCACHE=1 SHORTS=1 RECENT=1 CLARIFY=1 ISSUES=0 YT_COMMENTS=0 TV_REVIEWS=0 PERF=0
+wrote v7_lock.env and results/v7_decisions_feat.txt
+
+--- reception A/B (R15 rule) and analytic regression
+judge passes: off 36/40, on 36/40 (need on >= off + 6 = 42)
+grounding: off 4.72, on 4.92
+unsupported rate: off 0.685, on 0.601; citation precision on 0.217, recall on 0.632, sources used per answer on 2.73
+on, by type: why_popular 4/5, disagree 5/5, nyt 4/5, complaints 5/5, technique 4/5, mixed_money 4/5, reactions 5/5, critics_analysts 5/5
+RULE RECEPTION: FAIL -> RECEPTION stays 0
+lost 1 ['a16'], gained 1 ['a24']; grounding 4.647058823529412 -> 4.607843137254902
+RULE regression (lose <= 1, grounding not lower): FAIL
+
+evidence units by source: critic 101,337, audience 66,738, aggregator 39,828, legacy 38,567, video_comment 29,783, guardian 13,973, critic_summary 11,219, themes 9,677, video 7,384, tv_audience 6,638, nyt 5,122, audience_poll 70
+  with vectors: 311,241; films 23,343
+evidence hit@5: 29/33 = 0.88; search time median 85 ms, max 136 ms (budget 1000 ms)
+
+--- aspects (R4): films covered by source
+   audience 3457 25059
+   critic 3862 24381
+   pro 1101 7974
+   ytc 1145 6035
+   films with a TMDB review: 12598
+
+v7 data coverage (facts.db; 32,884 films, catalogue 32,484)
+  TV shows: listed 8,000, fetched 8,000; with IMDb id 7,952; with Wikidata id 7,771
+    seasons 25,753; credits 243,585; keywords 56,613; trailers 12,855; US age ratings 6,293; US where-to-watch shows 6,875; reviews 2,832
+    Wikipedia: 7,244 found, 756 not found
+  IMDb: titles 646,162; ratings 371,036; alternate titles 1,172,305; crew 38,882; principals 734,244; people 276,098; episodes 607,361
+    films with an IMDb rating: 30,476; shows with one: 7,941
+    our films by IMDb title type: movie 27,297, tvMovie 1,163, short 1,093, video 882, tvSpecial 269, tvEpisode 159, tvShort 45, tvMiniSeries 32, tvSeries 8   (non-'movie' types feed the discovery fix, D8)
+  MovieLens distributions: 84,275 films (12,183 with >= 100 ratings); film-years 487,225
+    most divisive (sd, n >= 1,000; check by eye):
+      The Room                                 n  1,179 mean 2.48 sd 1.64 low 50% high 19% bc 0.6598
+      The Twilight Saga: Breaking Dawn - Part  n  2,362 mean 2.54 sd 1.46 low 44% high 14% bc 0.5518
+      The Twilight Saga: Breaking Dawn - Part  n  2,703 mean 2.37 sd 1.43 low 49% high 11% bc 0.5547
+      Plan 9 from Outer Space                  n  2,521 mean 2.59 sd 1.41 low 46% high 12% bc 0.5746
+      The Twilight Saga: Eclipse               n  4,060 mean 2.36 sd 1.40 low 49% high 10% bc 0.5388
+      The Twilight Saga: New Moon              n  4,038 mean 2.32 sd 1.37 low 51% high 9% bc 0.529
+      High School Musical 2                    n  1,064 mean 2.56 sd 1.37 low 41% high 11% bc 0.5027
+      Freddy Got Fingered                      n  2,105 mean 2.16 sd 1.36 low 56% high 7% bc 0.5866
+      Saw 3D                                   n  1,094 mean 2.71 sd 1.35 low 34% high 13% bc 0.495
+      High School Musical                      n  1,825 mean 2.62 sd 1.35 low 40% high 12% bc 0.5008
+    risen most since release (early = release year to +2, late = +5 on):
+      Fear and Loathing in Las Vegas           1998  3.13 (n 1,134) -> 3.84 (n 11,595)
+      Kung Pow: Enter the Fist                 2002  2.35 (n 479) -> 3.01 (n 1,152)
+      Pokémon the Movie 2000                   2000  1.68 (n 361) -> 2.31 (n 895)
+      American Psycho                          2000  3.19 (n 2,410) -> 3.79 (n 15,348)
+      Event Horizon                            1997  2.60 (n 1,073) -> 3.18 (n 6,328)
+      Jakob the Liar                           1999  2.59 (n 543) -> 3.13 (n 314)
+      Pokémon: The First Movie                 1998  1.94 (n 438) -> 2.48 (n 1,338)
+      Sweet November                           2001  2.77 (n 646) -> 3.27 (n 1,098)
+  tag genome: 13,798 films
+  Wikipedia reception wikitext: 26,530 pages checked, 22,417 with sections; 28,811 sections box_office 1,597, legacy 5,167, reception 22,047
+  Wikidata review scores: 44,793 rows on 17,752 films; Rotten Tomatoes % 17,542, Metacritic 9,404; sources: Rotten Tomatoes 17,585, Metacritic 9,404, IMDb 1,066, Letterboxd 82, None 33, Q123434360 18
+  films whose Rotten Tomatoes % comes only from Wikidata (not OMDb, not Wikipedia text): 4,973
+  sources last run: imdb 2026-10-24T02:37, movielens 2026-10-28T15:25, tmdb 2026-10-24T02:35, wikidata 2026-10-29T04:48, wikipedia 2026-10-29T17:41
+
+--- background network jobs (netbg)
+--- youtube fetch 00:48
+  @RedLetterMedia: 0 new videos
+  @JeremyJahns: 0 new videos
+  @kermodeandmayo: 0 new videos
+  (22 API calls)
+--- youtube match 00:48
+match: 12,248 videos; 6,601 confident video-film matches; 13,212 evidence units
+  channels 22, videos 12,248, films with a confident video 2,490, units 7,384
+--- H4 pageviews 00:49
+  pageviews: 7,851 films checked, 6,336 with views before release; median 28-day views 7,594
+  meta images_fetched_at = 2026-10-20T15:28:18+00:00
+  meta imdb_fetched_at = 2026-10-20T15:07:26+00:00
+  meta pageviews_fetched_at = 2026-10-29T04:49:27+00:00
+--- done 00:49
+--- pageviews restart 21:18
+  pageviews: 8,208 films checked, 6,641 with views before release; median 28-day views 8,444
+  meta images_fetched_at = 2026-10-20T15:28:18+00:00
+  meta imdb_fetched_at = 2026-10-20T15:07:26+00:00
+  meta pageviews_fetched_at = 2026-11-02T02:20:14+00:00
+--- pageviews done 21:20
+
+--- files for you
+-rw-r--r-- 1 burchamw student  38844 Oct 27 23:46 results/critic_outlet_check.csv
+-rw-r--r-- 1 burchamw student 220280 Nov  3 20:07 results/judge_check.html
+-rw-r--r-- 1 burchamw student 153251 Oct 27 23:46 results/label_reviews.html
+-rw-r--r-- 1 burchamw student  28216 Oct 29 03:57 results/reception_card_check.md
+-rw-r--r-- 1 burchamw student 137655 Oct 27 23:46 results/review_labels.csv
+-rw-r--r-- 1 burchamw student   7415 Nov  3 20:07 results/video_match_check.csv
+
+--- jobs still running
+2398 /usr/local/bin/ollama serve
+
+--- check and rule results in tonight's log (RULE / PASS / FAIL lines)
+  su10 why       gro5 dir5 spe5 hon5 con5 sou5 inf0 yes    PASS
+  su11 why       gro5 dir5 spe5 hon5 con5 sou5 inf0 yes    PASS
+  su12 why       gro5 dir5 spe5 hon5 con5 sou5 inf0 yes    PASS
+  tv27 recommend gro5 dir5 spe5 hon5 con5 sou5 inf0 yes    PASS
+  tv28 recommend gro5 dir5 spe5 hon5 con5 sou5 inf0 yes    PASS
+  tv29 recommend gro5 dir5 spe5 hon5 con5 sou0 inf0 yes    PASS
+  tv30 recommend gro5 dir5 spe5 hon5 con5 sou0 inf0 yes    PASS
+  is07 issue     gro5 dir5 spe0 hon5 con5 sou0 inf0 no     PASS
+  is08 issue     gro5 dir5 spe5 hon5 con4 sou5 inf0 yes    PASS
+  is09 issue     gro5 dir5 spe5 hon5 con5 sou5 inf0 yes    PASS
+  is10 issue     gro5 dir5 spe5 hon5 con4 sou5 inf0 yes    PASS
+  is11 issue     gro5 dir5 spe5 hon5 con4 sou5 inf2 yes    PASS
+  is12 issue     gro5 dir5 spe5 hon5 con5 sou5 inf0 yes    PASS
+  tv27 recommend gro3 dir5 spe3 hon5 con5 sou0 inf0 yes    FAIL
+  tv28 recommend gro5 dir5 spe5 hon5 con5 sou5 inf0 yes    PASS
+  tv29 recommend gro3 dir5 spe3 hon5 con5 sou0 inf0 yes    FAIL
+  tv30 recommend gro5 dir5 spe5 hon5 con5 sou5 inf0 yes    PASS
+  su07 why       gro5 dir5 spe5 hon5 con4 sou5 inf4 yes    PASS
+  su08 why       gro5 dir5 spe5 hon5 con5 sou5 inf5 yes    PASS
+  su09 why       gro5 dir5 spe5 hon5 con5 sou5 inf0 yes    PASS
+  su10 why       gro5 dir3 spe5 hon5 con4 sou5 inf5 yes    PASS
+  su11 why       gro5 dir5 spe5 hon5 con5 sou5 inf0 yes    PASS
+  su12 why       gro5 dir5 spe5 hon5 con5 sou5 inf0 yes    PASS
+    issues set (head to head, margin 3): FAIL
+      RULE head to head (margin 3): FAIL
+    reception set (lose <= 1): PASS
+      RULE regression (lose <= 1, grounding not lower): PASS
+    analytic (lose <= 1): PASS
+      RULE regression (lose <= 1, grounding not lower): PASS
+    reception set (head to head, margin 0): FAIL
+      RULE head to head (margin 0): FAIL
+    analytic (lose <= 1): PASS
+      RULE regression (lose <= 1, grounding not lower): PASS
+    TV set (not worse): FAIL
+      RULE regression (lose <= 1, grounding not lower): FAIL
+      RULE not worse: FAIL
+    success set (head to head, margin 2): FAIL
+      RULE head to head (margin 2): FAIL
+    analytic (lose <= 1): PASS
+      RULE regression (lose <= 1, grounding not lower): PASS
+
+--- errors in tonight's log

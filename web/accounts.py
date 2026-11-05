@@ -52,6 +52,7 @@ def conn():
     if _C["c"] is None:
         DB.parent.mkdir(parents=True, exist_ok=True)
         c = sqlite3.connect(str(DB), check_same_thread=False, timeout=30)
+        c.execute("pragma journal_mode=WAL")      # v7 D4: readers never block the writer
         c.executescript("""
             create table if not exists accounts(id integer primary key autoincrement, username text unique collate nocase,
               display_name text, pw_hash text, created_at real, last_login real);
@@ -218,6 +219,7 @@ def move_data(old_key, new_key):
         if not path.exists():
             continue
         c = sqlite3.connect(str(path), timeout=30)
+        c.execute("pragma journal_mode=WAL")      # v7 D4: readers never block the writer
         try:
             n = c.execute(f"update or ignore {table} set {col} = ? where {col} = ?", (new_key, old_key)).rowcount
             c.execute(f"delete from {table} where {col} = ?", (old_key,))
@@ -238,6 +240,7 @@ def delete_data(key):
         if not path.exists():
             continue
         c = sqlite3.connect(str(path), timeout=30)
+        c.execute("pragma journal_mode=WAL")      # v7 D4: readers never block the writer
         try:
             if table == "chats":
                 c.execute("delete from turns where conv_id in (select conv_id from chats where user_id = ?)", (key,))

@@ -32,6 +32,7 @@ def conn():
     if _conn["c"] is None:
         DB.parent.mkdir(parents=True, exist_ok=True)
         c = sqlite3.connect(str(DB), check_same_thread=False, timeout=30)
+        c.execute("pragma journal_mode=WAL")      # v7 D4: readers never block the writer
         c.executescript("""
             create table if not exists chats(conv_id text primary key, user_id text, title text,
               created_at real, updated_at real, turns integer default 0, state_json text);

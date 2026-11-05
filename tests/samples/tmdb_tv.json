@@ -1,0 +1,146 @@
+{
+ "id": 1396,
+ "name": "Breaking Bad",
+ "original_name": "Breaking Bad",
+ "first_air_date": "2008-01-20",
+ "last_air_date": "2013-09-29",
+ "status": "Ended",
+ "type": "Scripted",
+ "in_production": false,
+ "number_of_seasons": 5,
+ "number_of_episodes": 62,
+ "episode_run_time": [
+  45,
+  47
+ ],
+ "original_language": "en",
+ "origin_country": [
+  "US"
+ ],
+ "genres": [
+  {
+   "id": 18,
+   "name": "Drama"
+  },
+  {
+   "id": 80,
+   "name": "Crime"
+  }
+ ],
+ "networks": [
+  {
+   "name": "AMC"
+  }
+ ],
+ "production_companies": [
+  {
+   "name": "Sony Pictures Television"
+  }
+ ],
+ "created_by": [
+  {
+   "id": 66633,
+   "name": "Vince Gilligan",
+   "profile_path": "/x.jpg"
+  }
+ ],
+ "overview": "A chemistry teacher ...",
+ "popularity": 300.1,
+ "vote_average": 8.9,
+ "vote_count": 13000,
+ "external_ids": {
+  "imdb_id": "tt0903747",
+  "tvdb_id": 81189,
+  "wikidata_id": "Q1079"
+ },
+ "seasons": [
+  {
+   "season_number": 1,
+   "name": "Season 1",
+   "air_date": "2008-01-20",
+   "episode_count": 7
+  }
+ ],
+ "aggregate_credits": {
+  "cast": [
+   {
+    "id": 17419,
+    "name": "Bryan Cranston",
+    "order": 0,
+    "roles": [
+     {
+      "character": "Walter White"
+     }
+    ],
+    "total_episode_count": 62
+   }
+  ],
+  "crew": [
+   {
+    "id": 66633,
+    "name": "Vince Gilligan",
+    "total_episode_count": 62,
+    "jobs": [
+     {
+      "job": "Executive Producer"
+     },
+     {
+      "job": "Writer"
+     }
+    ]
+   }
+  ]
+ },
+ "keywords": {
+  "results": [
+   {
+    "id": 1,
+    "name": "drug dealer"
+   }
+  ]
+ },
+ "videos": {
+  "results": [
+   {
+    "key": "abc",
+    "site": "YouTube",
+    "type": "Trailer",
+    "name": "Trailer",
+    "official": true
+   }
+  ]
+ },
+ "content_ratings": {
+  "results": [
+   {
+    "iso_3166_1": "US",
+    "rating": "TV-MA"
+   }
+  ]
+ },
+ "watch/providers": {
+  "results": {
+   "US": {
+    "flatrate": [
+     {
+      "provider_id": 8,
+      "provider_name": "Netflix",
+      "display_priority": 1
+     }
+    ]
+   }
+  }
+ },
+ "reviews": {
+  "results": [
+   {
+    "id": "r1",
+    "author": "a",
+    "author_details": {
+     "rating": 10
+    },
+    "content": "Great."
+   }
+  ]
+ }
+}

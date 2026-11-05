@@ -113,6 +113,8 @@ create table if not exists netflix_views(period text, title text, tmdb_id intege
   hours real, runtime text, views real, global_ text, match text, primary key (period, title));
 create table if not exists ml32_stats(tmdb_id integer primary key, n_ratings integer, mean real,
   n_tags integer, top_tags_json text);
+create table if not exists nyt_meta(review_key text primary key, kicker text, critics_pick integer, type_of_material text,
+  word_count integer, section text, fetched_at text);
 create table if not exists fetch_progress(source text, unit text, status text, n integer, fetched_at text,
   primary key (source, unit));
 """
@@ -484,6 +486,7 @@ def cmd_nyt(a, conn):
         y, m = int(ym[:4]), int(ym[5:])
         last = (datetime.date(y + (m == 12), m % 12 + 1, 1) - datetime.timedelta(days=1)).day
         rows, page, ok = [], 0, True
+        meta_rows_all = []
         while page < 100:
             d = get({"fq": fq["v"], "begin_date": f"{y:04d}{m:02d}01", "end_date": f"{y:04d}{m:02d}{last:02d}",
                      "page": page, "sort": "oldest", "api-key": key})
@@ -500,6 +503,14 @@ def cmd_nyt(a, conn):
             resp = d.get("response") or {}
             docs = resp.get("docs") or []
             ts = F.now()
+            meta_rows = []                                  # v7 R6 (27 Oct): kicker = "Critic's Pick", material, length
+            for doc in docs:
+                hk = doc.get("headline") or {}
+                kick = (hk.get("kicker") if isinstance(hk, dict) else None) or None
+                meta_rows.append(("nyt:" + (doc.get("_id") or doc.get("uri") or doc.get("web_url")), kick,
+                                  1 if kick and re.search(r"critic.?s pick", kick, re.I) else 0,
+                                  doc.get("type_of_material"), doc.get("word_count"),
+                                  doc.get("section_name") or doc.get("section"), ts))
             for doc in docs:
                 pub = (doc.get("pub_date") or "")[:10]
                 fid = mt = None
@@ -517,6 +528,7 @@ def cmd_nyt(a, conn):
                              None, pub,
                              doc.get("web_url") or doc.get("url"),
                              (doc.get("abstract") or doc.get("summary") or doc.get("snippet") or "")[:600], None, mt, ts))
+            meta_rows_all += meta_rows
             meta = resp.get("meta") or resp.get("metadata") or {}
             hits = meta.get("hits") or 0
             if not docs or (page + 1) * 10 >= hits:
@@ -524,7 +536,9 @@ def cmd_nyt(a, conn):
             page += 1
         with _lock:
             conn.executemany("insert or replace into critic_reviews values (?,?,?,?,?,?,?,?,?,?,?,?,?)", rows)
+            conn.executemany("insert or replace into nyt_meta values (?,?,?,?,?,?,?)", meta_rows_all)
             conn.commit()
+        meta_rows_all = []
         progress(conn, "nyt", ym, "done" if ok else "partial", len(rows))
         total += len(rows)
         matched += sum(1 for r in rows if r[2])
