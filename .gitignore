@@ -28,3 +28,10 @@ results/llm_cache.sqlite
 web.bak-*/
 unsloth_compiled_cache/
 results/*.log
+# public copy (v81_public_export.py)
+*.sqlite
+*.env
+!*lock*.env
+inbox/
+facts.db
+sets/sealed_*
