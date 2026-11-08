@@ -38,6 +38,7 @@ A related headline is a coincidence of topics, not evidence the news moved the b
     python news.py fetch --source wiki --from 1990 --to 2026
     python news.py embed                        # vectors for new headlines
     python news.py films [--limit N]            # per-film windows, resonance, themes, documented
+    python news.py films-src [--limit N]        # 6 Nov: the same resonance per source (Wikipedia, NYT) -> news_film_src
     python news.py analyze                      # corpus test -> results/news_link_summary.txt
     python news.py show "Jaws"                  # the block the answer model would see
     python news.py status
@@ -115,6 +116,9 @@ create table if not exists news_film(
   resonance real, top_sim real, related_json text, themes_json text, documented_json text,
   version text, computed_at text);
 create table if not exists news_corpus(key text primary key, value text);
+create table if not exists news_film_src(
+  tmdb_id integer, source text, n_window integer, resonance real, top_sim real, version text, computed_at text,
+  primary key (tmdb_id, source));
 """
 
 
@@ -402,15 +406,20 @@ def film_text(c, fid):
 class Window:
     """Headlines + vectors by date range, loaded a month at a time and cached."""
 
-    def __init__(self, c):
-        self.c, self.cache = c, {}
+    def __init__(self, c, source=None):
+        self.c, self.cache, self.source = c, {}, source      # 6 Nov: source=None = every source (news_film)
 
     def month(self, ym):
         if ym not in self.cache:
             if len(self.cache) > 80:
                 self.cache.pop(next(iter(self.cache)))
-            rows = self.c.execute("select n.news_id, n.date, n.headline, n.source, n.url, v.emb from news_items n "
-                                  "join news_vec v on v.news_id = n.news_id where n.month = ?", (ym,)).fetchall()
+            if self.source:
+                rows = self.c.execute("select n.news_id, n.date, n.headline, n.source, n.url, v.emb from news_items n "
+                                      "join news_vec v on v.news_id = n.news_id where n.month = ? and n.source = ?",
+                                      (ym, self.source)).fetchall()
+            else:
+                rows = self.c.execute("select n.news_id, n.date, n.headline, n.source, n.url, v.emb from news_items n "
+                                      "join news_vec v on v.news_id = n.news_id where n.month = ?", (ym,)).fetchall()
             mat = np.stack([np.frombuffer(r[5], dtype=np.float32) for r in rows]) if rows else np.zeros((0, 1))
             self.cache[ym] = ([r[:5] for r in rows], mat)
         return self.cache[ym]
@@ -545,6 +554,47 @@ def cmd_films(a):
         c.commit()
         if (s // 64) % 20 == 0:
             print(f"  {s + len(part):,}/{len(fids):,} ({time.time() - t0:.0f} s)", flush=True)
+
+
+def cmd_films_src(a):
+    """6 Nov: resonance and closest headline per SOURCE (news_film_src), so the prediction model can use the
+    Wikipedia current-events headlines and the NYT front pages as separate features. news_film mixes both: since
+    the NYT back-fill it is dominated by NYT front pages, while the first corpus test (nw1, Wikipedia only) gave
+    the clearest correlation. Same windows, controls and nw2 self-news filter as `films`; one film vector for all
+    sources."""
+    c = connect()
+    srcs = [s for (s,) in c.execute("select distinct source from news_items order by source")]
+    if not srcs:
+        raise SystemExit("no headlines yet: python news.py fetch ...")
+    done = {s: {r[0] for r in c.execute("select tmdb_id from news_film_src where source = ? and version = ?", (s, VERSION))}
+            for s in srcs}
+    allf = [r[0] for r in c.execute(
+        "select f.tmdb_id from films f join money m on m.tmdb_id = f.tmdb_id where m.gross > 0 and "
+        "coalesce(f.us_release_date, f.release_date) >= '1900' order by coalesce(f.us_release_date, f.release_date)")]
+    fids = [f for f in allf if any(f not in done[s] for s in srcs)]
+    if a.limit:
+        fids = fids[:a.limit]
+    print(f"sources: {', '.join(srcs)}; films to compute: {len(fids):,}")
+    wins = {s: Window(c, s) for s in srcs}
+    t0 = time.time()
+    for s0 in range(0, len(fids), 64):
+        part = fids[s0:s0 + 64]
+        vecs = _unit(_embed([film_text(c, f)[1] or "" for f in part]))
+        rows = []
+        for f, v in zip(part, vecs):
+            for src in srcs:
+                if f in done[src]:
+                    continue
+                rec = compute_film(c, wins[src], f, v)
+                if rec:
+                    rows.append((f, src, rec["n_window"], rec["resonance"], rec["top_sim"], VERSION, F.now()))
+        c.executemany("insert or replace into news_film_src values (?,?,?,?,?,?,?)", rows)
+        c.commit()
+        if (s0 // 64) % 20 == 0:
+            print(f"  {s0 + len(part):,}/{len(fids):,} ({time.time() - t0:.0f} s)", flush=True)
+    for src in srcs:
+        n, nr = c.execute("select count(*), count(resonance) from news_film_src where source = ?", (src,)).fetchone()
+        print(f"  {src}: {n:,} films, {nr:,} with a resonance (10+ headlines in the window)")
 
 
 # ------------------------------------------------------------------ corpus test
@@ -738,7 +788,7 @@ def cmd_status(_a):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["fetch", "embed", "films", "analyze", "show", "status"])
+    ap.add_argument("cmd", choices=["fetch", "embed", "films", "films-src", "analyze", "show", "status"])
     ap.add_argument("title", nargs="?")
     ap.add_argument("--source", default="nyt", choices=["nyt", "wiki"])
     ap.add_argument("--from", dest="year_from", type=int)
@@ -752,8 +802,8 @@ def main():
     a = ap.parse_args()
     if a.source == "wiki":
         a.source = "wikipedia"
-    {"fetch": cmd_fetch, "embed": cmd_embed, "films": cmd_films, "analyze": cmd_analyze, "show": cmd_show,
-     "status": cmd_status}[a.cmd](a)
+    {"fetch": cmd_fetch, "embed": cmd_embed, "films": cmd_films, "films-src": cmd_films_src, "analyze": cmd_analyze,
+     "show": cmd_show, "status": cmd_status}[a.cmd](a)
 
 
 if __name__ == "__main__":

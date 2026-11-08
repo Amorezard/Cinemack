@@ -94,8 +94,9 @@ if hasattr(pipeline, "user_tag") and not getattr(pipeline.user_tag, "_mb_v6", Fa
 
     def _user_tag_v6(user):
         base = _orig_user_tag(user)
-        try:
-            ft = user_prefs.filter_tag(user_prefs.load(user)["settings"]) if user else ""
+        try:                                   # 6 Nov: the settings of the question being answered (saved + chat filters)
+            cur = user_prefs.CURRENT.get("settings")
+            ft = user_prefs.filter_tag(cur if cur is not None else (user_prefs.load(user)["settings"] if user else None))
         except Exception:  # noqa: BLE001
             ft = ""
         try:                                   # 21 Oct: the planner sees the person's films, so they key the search
@@ -197,6 +198,7 @@ class ChatRequest(BaseModel):
     recent_titles: List[str] = []
     conv: Optional[dict] = None        # v3 conversation state (conv.py), echoed back in "done"
     think: bool = False
+    filters: Optional[dict] = None     # 6 Nov: this chat's filter bar (user_prefs.clean_chat); never saved
 
 
 def sse(event, **data):
@@ -638,7 +640,7 @@ async def chat(req: ChatRequest, request: Request):
     user = user_of(request)
     conv_id = request.headers.get("x-mb-conv", "")[:40]
     private = private_of(request)                       # v6: private chat - not saved, no memory either way
-    prefs = user_prefs.load(user)["settings"]
+    prefs = user_prefs.merge_chat(user_prefs.load(user)["settings"], req.filters)   # 6 Nov: + this chat's filters
     mem_on = bool(prefs.get("memory")) and not private
     utag = pipeline.user_tag(user) if hasattr(pipeline, "user_tag") else ""
     rec_block, rec_tag = "", ""
@@ -744,6 +746,8 @@ async def chat(req: ChatRequest, request: Request):
                 prompt += mb
             src = dict(films=film_info.enrich([pipeline.card(h) for h in hits], user), steps=pipeline.steps(hits),
                        alternatives=pipeline.alternatives(hits), retrieve_s=round(retrieve_s, 2), intent=intent)
+            if prefs.get("chat_filters"):                  # 6 Nov: shown under the answer
+                src["chat_filters"] = prefs["chat_filters"]
             if hits and hits[0].get("_choices"):           # 3 Nov (CLARIFY=1): "did you mean the film or the show?"
                 src["choices"] = hits[0]["_choices"]
             put(sse("sources", id=rid, **src))

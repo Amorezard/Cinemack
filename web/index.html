@@ -457,6 +457,29 @@
   .send:hover:not(:disabled){ transform:translateY(-1px); }
   .send:disabled{ background:var(--line-strong); box-shadow:none; cursor:default; }
   .send svg{ width:19px; height:19px; }
+  /* 6 Nov: per-chat filter bar above the message box */
+  .fbar{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin:0 4px 6px; }
+  .fbtn{ display:inline-flex; align-items:center; gap:6px; border:1px solid var(--line-strong); background:var(--surface); color:var(--ink);
+         border-radius:999px; padding:4px 11px; font-size:12.5px; font-weight:700; cursor:pointer; }
+  .fbtn:hover{ background:var(--sunk); }
+  .fbtn[aria-expanded="true"]{ border-color:var(--violet); color:var(--violet); }
+  .fbtn svg{ width:14px; height:14px; }
+  .fcount{ background:var(--accent); color:var(--accent-ink); border-radius:999px; font-size:11px; padding:0 6px; line-height:17px; }
+  .fchip{ display:inline-flex; align-items:center; gap:4px; font-size:12px; background:var(--sunk); color:var(--ink); border-radius:999px; padding:3px 4px 3px 10px; }
+  .fchip button{ border:none; background:none; color:var(--soft); cursor:pointer; font-size:14px; line-height:1; padding:0 5px; border-radius:999px; }
+  .fchip button:hover{ color:var(--ink); background:var(--line); }
+  .fpanel{ background:var(--surface); border:1px solid var(--line-strong); border-radius:16px; padding:12px 14px; margin:0 0 8px; box-shadow:var(--shadow);
+           display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px 12px; }
+  .fpanel label.f{ display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:700; color:var(--soft); min-width:0; }
+  .fpanel select{ font:inherit; font-size:13px; font-weight:400; color:var(--ink); background:var(--sunk); border:1px solid var(--line); border-radius:9px; padding:6px 8px; min-width:0; width:100%; }
+  .fpanel .frow{ grid-column:1 / -1; display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:12.5px; color:var(--soft); }
+  .fpanel .frow .toggle{ padding:4px 2px; }
+  .fpanel .frow .toggle[aria-disabled="true"]{ opacity:.5; cursor:not-allowed; }
+  .fpanel .frow .spacer{ flex:1; }
+  .fpanel .fclear{ border:none; background:none; color:var(--accent); font-weight:700; cursor:pointer; font-size:12.5px; padding:2px 4px; }
+  .fpanel .fnote{ grid-column:1 / -1; font-size:11.5px; color:var(--faint); margin:0; }
+  @media (max-width:640px){ .fpanel{ grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+  .fused{ font-size:11.5px; color:var(--faint); margin-top:6px; }
   .fine{ text-align:center; font-size:11.5px; color:var(--faint); margin-top:8px; }
   .fine a{ color:inherit; }
   @media (hover:none){ .fine .keys{ display:none; } }
@@ -629,6 +652,29 @@
 <div class="dock">
   <div class="dock-inner">
     <div class="private-bar" id="private-bar" hidden>🔒 Private chat: not saved to your chats, nothing remembered <button type="button" id="end-private">End</button></div>
+    <div class="fpanel" id="fpanel" hidden aria-label="Filters for this chat">
+      <label class="f">Era<select id="f-era">
+        <option value="">Any year</option><option value="pre1970">Before 1970</option><option value="1970s">1970s</option>
+        <option value="1980s">1980s</option><option value="1990s">1990s</option><option value="2000s">2000s</option>
+        <option value="2010s">2010s</option><option value="2020s">2020s</option></select></label>
+      <label class="f">Genre<select id="f-genre"><option value="">Any genre</option></select></label>
+      <label class="f">Length<select id="f-runtime">
+        <option value="">Any length</option><option value="90">Up to 1h 30m</option><option value="120">Up to 2h</option>
+        <option value="150">Up to 2h 30m</option><option value="180">Up to 3h</option></select></label>
+      <label class="f">Age rating<select id="f-cert">
+        <option value="">Any rating</option><option value="PG-13">PG-13 or milder</option><option value="PG">PG or milder</option>
+        <option value="G">G only</option></select></label>
+      <div class="frow">
+        <button class="toggle" id="f-services" type="button" role="switch" aria-checked="false"><span class="switch"></span><span>Only on my streaming services</span></button>
+        <span class="spacer"></span>
+        <button class="fclear" id="f-clear" type="button">Clear filters</button>
+      </div>
+      <p class="fnote" id="f-note">Filters apply to recommendations in this chat only, on top of your saved settings. A new chat starts without them.</p>
+    </div>
+    <div class="fbar" id="fbar">
+      <button class="fbtn" id="fbtn" type="button" aria-expanded="false" aria-controls="fpanel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg>Filters<span class="fcount" id="fcount" hidden></span></button>
+      <span id="fchips"></span>
+    </div>
     <form class="composer" id="composer">
       <label for="q" class="sr">Your question</label>
       <textarea id="q" rows="1" placeholder="Ask about a movie…" autocomplete="off"></textarea>
@@ -696,6 +742,7 @@
     code: store.get('mb.code') || '',
     busy: false, ctrl: null,
     private: false, me: null,
+    filters: {},
   };
 
   const hdrs = () => ({ 'Content-Type': 'application/json', 'X-Access-Code': state.code,
@@ -714,11 +761,78 @@
   $('#new-chat').onclick = () => {
     if (state.busy) stop();
     state.history = []; state.recentTitles = []; state.conv = null; state.convId = newId();
+    state.filters = {}; renderFilters();
     log.querySelectorAll('.msg').forEach(m => m.remove());
     $('#intro').hidden = false;
     setPrivate(false);
     q.focus();
   };
+
+  // ---------- 6 Nov: per-chat filters (sent with each question; kept per chat in this browser) ----------
+  const FILTER_KEYS = ['era', 'genre', 'max_runtime', 'max_cert', 'services_only'];
+  const ERA_TXT = { pre1970: 'Before 1970', '1970s': '1970s', '1980s': '1980s', '1990s': '1990s', '2000s': '2000s', '2010s': '2010s', '2020s': '2020s' };
+  const RT_TXT = { 90: 'Up to 1h 30m', 120: 'Up to 2h', 150: 'Up to 2h 30m', 180: 'Up to 3h' };
+  const CERT_TXT = { G: 'G only', PG: 'PG or milder', 'PG-13': 'PG-13 or milder' };
+  const fsel = { era: $('#f-era'), genre: $('#f-genre'), max_runtime: $('#f-runtime'), max_cert: $('#f-cert') };
+  function filterMap() { try { return JSON.parse(store.get('mb.filters') || '{}') || {}; } catch { return {}; } }
+  function saveFilters() {
+    const m = filterMap();
+    if (Object.keys(state.filters).length) m[state.convId] = state.filters; else delete m[state.convId];
+    const ids = Object.keys(m); for (const k of ids.slice(0, Math.max(0, ids.length - 50))) delete m[k];   // keep the last 50 chats
+    store.set('mb.filters', JSON.stringify(m));
+  }
+  function filterLabels(f) {
+    const out = [];
+    if (f.era) out.push(ERA_TXT[f.era] || f.era);
+    if (f.genre) out.push(f.genre);
+    if (f.max_runtime) out.push(RT_TXT[f.max_runtime] || `Up to ${f.max_runtime} min`);
+    if (f.max_cert) out.push(CERT_TXT[f.max_cert] || f.max_cert);
+    if (f.services_only) out.push('On my services');
+    return out;
+  }
+  const hasServices = () => !!(state.me && state.me.settings && (state.me.settings.services || []).length);
+  function renderFilters() {
+    const f = state.filters;
+    const gs = fsel.genre;
+    if (gs.options.length <= 1) for (const g of ((state.me && state.me.genres) || ['Action', 'Adventure', 'Animation', 'Comedy', 'Crime',
+      'Documentary', 'Drama', 'Family', 'Fantasy', 'History', 'Horror', 'Music', 'Mystery', 'Romance', 'Science Fiction', 'Thriller', 'War', 'Western']))
+      gs.append(Object.assign(document.createElement('option'), { value: g, textContent: g }));
+    for (const [k, s] of Object.entries(fsel)) s.value = f[k] != null ? String(f[k]) : '';
+    const sv = $('#f-services'), ok = hasServices();
+    sv.setAttribute('aria-checked', String(!!f.services_only && ok));
+    sv.setAttribute('aria-disabled', String(!ok));
+    sv.title = ok ? 'Only recommend films JustWatch lists on your services (US)' : 'Add your streaming services in Settings (or Personalise) first';
+    const chips = $('#fchips'); chips.innerHTML = '';
+    for (const k of FILTER_KEYS) {
+      if (!f[k] || (k === 'services_only' && !ok)) continue;
+      const c = document.createElement('span'); c.className = 'fchip';
+      c.append(filterLabels({ [k]: f[k] })[0]);
+      const x = document.createElement('button'); x.type = 'button'; x.textContent = '×';
+      x.setAttribute('aria-label', 'Remove filter ' + filterLabels({ [k]: f[k] })[0]);
+      x.onclick = () => { delete state.filters[k]; saveFilters(); renderFilters(); };
+      c.append(x); chips.append(c);
+    }
+    const n = chips.children.length;
+    $('#fcount').hidden = !n; $('#fcount').textContent = n;
+  }
+  for (const [k, s] of Object.entries(fsel)) s.onchange = () => {
+    const v = s.value;
+    if (!v) delete state.filters[k]; else state.filters[k] = k === 'max_runtime' ? parseInt(v, 10) : v;
+    saveFilters(); renderFilters();
+  };
+  $('#f-services').onclick = () => {
+    if (!hasServices()) { toast('Add your streaming services in Settings first (or use Personalise).'); return; }
+    if (state.filters.services_only) delete state.filters.services_only; else state.filters.services_only = true;
+    saveFilters(); renderFilters();
+  };
+  $('#f-clear').onclick = () => { state.filters = {}; saveFilters(); renderFilters(); };
+  $('#fbtn').onclick = () => {
+    const p = $('#fpanel'), open = p.hidden;
+    p.hidden = !open; $('#fbtn').setAttribute('aria-expanded', String(open));
+    if (open) renderFilters();
+  };
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#fpanel').hidden) $('#fbtn').click(); });
+  renderFilters();
 
   // ---------- v3: saved chats ----------
   const drawer = $('#drawer'), drawerBg = $('#drawer-bg'), chatList = $('#chat-list');
@@ -767,6 +881,7 @@
     log.querySelectorAll('.msg').forEach(m => m.remove());
     $('#intro').hidden = true;
     state.convId = c.id; state.recentTitles = c.recent_titles || []; state.conv = c.conv || null;
+    state.filters = filterMap()[c.id] || {}; renderFilters();
     state.history = [];
     for (const t of c.turns) {
       addUser(t.question);
@@ -1359,6 +1474,11 @@
         choices = Array.isArray(data.choices) && data.choices.length ? data.choices : null;
         renderSources(ui, films, null, rid);
         renderAlts(ui, data.alternatives);
+        if (data.chat_filters && intent === 'recommend') {
+          const fu = document.createElement('div'); fu.className = 'fused';
+          fu.textContent = 'Filtered for this chat: ' + filterLabels(data.chat_filters).join(' · ');
+          ui.checkSlot.before(fu);
+        }
       } else if (event === 'thinking') {
         thinking += data.text;
         ui.reasoning.hidden = false;
@@ -1398,7 +1518,7 @@
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: hdrs(),
-        body: JSON.stringify({ message: text, history: state.history, recent_titles: state.recentTitles, conv: state.conv, think: state.think }),
+        body: JSON.stringify({ message: text, history: state.history, recent_titles: state.recentTitles, conv: state.conv, think: state.think, filters: state.filters }),
         signal: state.ctrl.signal,
       });
       if (res.status === 401) { ui.el.remove(); finish(); askForCode("That code didn't work.", () => ask(text, { retry: true })); return; }
@@ -1506,6 +1626,7 @@
     $('#open-me').title = me && me.account ? 'Your account, settings and memory' : 'Sign in, settings and memory';
     renderGreeting();
     $('#personalise').hidden = !me || me.onboarded;
+    renderFilters();                                   // 6 Nov: genres list + whether "on my services" can be used
     return me;
   }
   function renderGreeting() {

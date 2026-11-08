@@ -64,6 +64,19 @@ any result):
             films have no pageviews).
   Reception (AFTER only): Rotten Tomatoes / Metacritic from OMDb where Wikipedia gave none, and the IMDb rating.
   YouTube view counts are NOT used anywhere: they are today's counts, after release.
+
+pf4 (6 Nov 2026, 00:40; rules written before any result):
+  NEWS_SRC  news.py films-src: resonance and closest-headline similarity computed separately for the Wikipedia
+            current-events headlines and the NYT front pages (news_film mixes the two). The window is release -30 /
+            +30 days, with headlines about films or about the film itself removed (nw2), so it carries no box-office
+            news. Two tests on 2016-2019:
+              BEFORE + NEWS (both the mixed and the per-source features) vs BEFORE  - "news helps PREDICT success";
+              AFTER + NEWS vs AFTER                                                  - the pf2/pf3 question again.
+            Each is adopted into the per-film expectations (pre / post) only if the bootstrap 95% CI of the MAE
+            difference excludes 0 (better), like the trailer features.
+  LB        Letterboxd ratings (letterboxd_data.py: mean rating, log number of ratings; post-release, so AFTER
+            only): AFTER + LB vs AFTER on 2016-2019, REPORTED ONLY (the ratings were collected years after release
+            and cover a small set of active users), never used per film.
 """
 import argparse
 import datetime
@@ -80,7 +93,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import facts_db as F  # noqa: E402
 
-VERSION = "pf3"     # 20 Oct night: + trailer timing / pageviews tests, OMDb + IMDb reception (pf2: release context)
+VERSION = "pf4"     # 6 Nov: + news per source (Wikipedia / NYT) and Letterboxd tests (pf3: trailers, pageviews, OMDb + IMDb)
 GENRES = ["Action", "Adventure", "Animation", "Comedy", "Crime", "Documentary", "Drama", "Family", "Fantasy",
           "History", "Horror", "Music", "Mystery", "Romance", "Science Fiction", "Thriller", "War", "Western"]
 TRAIN_TO, TEST = 2015, (2016, 2019)
@@ -115,6 +128,8 @@ RECEPTION = ["rating", "ml_rating", "rt_pct", "rt_avg", "mc_score", "cinemascore
 TRAILER = ["trailer_n_pre", "trailer_lead_days"]           # pf3: pre-release only (published before release)
 BUZZ = ["log_pv_pre28", "pv_last7_share"]                  # pf3: Wikipedia views in the 28 days before release
 NEWSF = ["news_resonance", "news_top_sim"]
+NEWS_SRC = ["news_wiki_resonance", "news_wiki_top_sim", "news_nyt_resonance", "news_nyt_top_sim"]    # pf4
+LB = ["lb_rating", "lb_log_n"]                                                                   # pf4, reported only
 AFTER = BEFORE + RECEPTION
 WITH_NEWS = AFTER + NEWSF
 
@@ -134,6 +149,10 @@ LABEL = {
     "trailer_lead_days": "days from the first trailer to release",
     "log_pv_pre28": "Wikipedia views in the 4 weeks before release", "pv_last7_share": "share of those views in the last week",
     "news_resonance": "news at release matching the film", "news_top_sim": "closest headline at release",
+    "news_wiki_resonance": "Wikipedia current events at release matching the film",
+    "news_wiki_top_sim": "closest Wikipedia current-events item at release",
+    "news_nyt_resonance": "NYT front pages at release matching the film", "news_nyt_top_sim": "closest NYT front-page headline",
+    "lb_rating": "Letterboxd rating", "lb_log_n": "number of Letterboxd ratings",
     "franchise_gap_years": "years since the previous film in the series", "legacy_sequel": "sequel 15+ years later",
     "source_adapted": "adapted from a book / comic", "author_prev_365_n": "same author's adaptations in the past year",
     "author_prev_365_ret": "same author's recent adaptations' returns", "author_prev_n": "same author's earlier adaptations",
@@ -259,6 +278,15 @@ def build_table(c):
     news = {}
     if _has(c, "news_film"):
         news = {fid: (r, t) for fid, r, t in c.execute("select tmdb_id, resonance, top_sim from news_film")}
+    news_src = {}                                   # pf4: per source (news.py films-src)
+    if _has(c, "news_film_src"):
+        for fid, src, r, t in c.execute("select tmdb_id, source, resonance, top_sim from news_film_src"):
+            news_src[(fid, "wiki" if src == "wikipedia" else src)] = (r, t)
+    lbd = {}                                        # pf4: Letterboxd (letterboxd_data.py), best-matched source first
+    if _has(c, "letterboxd"):
+        for fid, n, mean in c.execute("select tmdb_id, n, mean from letterboxd where n >= 20 and match >= 1.0 "
+                                      "order by n"):
+            lbd[fid] = (mean, math.log1p(n))
 
     import bisect
     rows = []
@@ -317,6 +345,11 @@ def build_table(c):
         r, t = news.get(fid, (None, None))
         x["news_resonance"] = np.nan if r is None else r
         x["news_top_sim"] = np.nan if t is None else t
+        for src in ("wiki", "nyt"):
+            r, t = news_src.get((fid, src), (None, None))
+            x[f"news_{src}_resonance"] = np.nan if r is None else r
+            x[f"news_{src}_top_sim"] = np.nan if t is None else t
+        x["lb_rating"], x["lb_log_n"] = lbd.get(fid, (np.nan, np.nan))
         rows.append(x)
     release_context(c, films, money, ret, rows)
     return rows
@@ -646,11 +679,13 @@ def cmd_fit(a):
     print(f"films with a budget: {len(rows):,}; with budget and gross (training universe): {len(uni):,}")
     kind, new = make_model()
     # a feature with no values at all (e.g. no MovieLens file on this server) is left out of every model
-    ALLF = WITH_NEWS + TRAILER + BUZZ
+    ALLF = WITH_NEWS + TRAILER + BUZZ + NEWS_SRC + LB
     usable = {k for k in ALLF if any(not (isinstance(r[k], float) and math.isnan(r[k])) for r in uni)}
     dropped = [k for k in ALLF if k not in usable]
     TR_ = [k for k in TRAILER if k in usable]
     BZ_ = [k for k in BUZZ if k in usable]
+    NW_ = [k for k in NEWSF + NEWS_SRC if k in usable]          # pf4
+    LB_ = [k for k in LB if k in usable]
     if dropped:
         print(f"features with no data, left out: {', '.join(dropped)}")
     BEFORE_, AFTER_, NEWS_, PF1_ = ([k for k in cols if k in usable] for cols in (BEFORE, AFTER, WITH_NEWS, BEFORE_PF1))
@@ -666,6 +701,11 @@ def cmd_fit(a):
     arms = [("before", BEFORE_), ("after", AFTER_), ("news", NEWS_), ("before_no_context", PF1_)]
     if TR_:
         arms.append(("before_trailer", BEFORE_ + TR_))
+    if NW_:                                                     # pf4: does news help the BEFORE model predict?
+        arms.append(("before_news", BEFORE_ + NW_))
+        arms.append(("after_news", AFTER_ + NW_))
+    if LB_:
+        arms.append(("after_lb", AFTER_ + LB_))
     for name, cols in arms:
         m = new()
         m.fit(matrix(tr, cols), ytr)
@@ -706,6 +746,20 @@ def cmd_fit(a):
                                    "test": sum(1 for r in te if not math.isnan(r["trailer_n_pre"]))}
     if BZ_:
         res["buzz"] = buzz_cv(uni, BEFORE_ + (TR_ if trailer_ok else []), BZ_, new)
+    news_pre_ok = news_post_ok = False                          # pf4
+    if NW_:
+        d_bn = boot_diff(err["before_news"], err["before"])
+        d_an = boot_diff(err["after_news"], err["after"])
+        res["diff"]["before_news_minus_before"] = d_bn
+        res["diff"]["after_news_minus_after"] = d_an
+        news_pre_ok, news_post_ok = d_bn[2] < 0, d_an[2] < 0
+        res["news_features"] = NW_
+        res["news_coverage"] = {k: {"train": sum(1 for r in tr if not math.isnan(r[k])),
+                                    "test": sum(1 for r in te if not math.isnan(r[k]))} for k in NW_}
+    if LB_:
+        res["diff"]["after_lb_minus_after"] = boot_diff(err["after_lb"], err["after"])
+        res["lb_coverage"] = {"train": sum(1 for r in tr if not math.isnan(r["lb_rating"])),
+                              "test": sum(1 for r in te if not math.isnan(r["lb_rating"]))}
     res["importance"] = imps
     rel = 1 - res["test"]["before"]["mae"] / res["test"]["genre_baseline"]["mae"]
     rule_a = rel >= 0.05 and d_base[2] < 0
@@ -716,11 +770,18 @@ def cmd_fit(a):
                    "news_adds_information": bool(d_news[2] < 0),
                    "context_adds_information": bool(d_ctx[2] < 0),
                    "trailer_adds_information": bool(trailer_ok),
-                   "buzz_adds_information": bool((res.get("buzz") or {}).get("adds_information"))}
+                   "buzz_adds_information": bool((res.get("buzz") or {}).get("adds_information")),
+                   "news_helps_prediction": bool(news_pre_ok), "news_adds_after_reception": bool(news_post_ok)}
     if trailer_ok:                     # rule: adopted into the per-film expectations only when it helps
         BEFORE_ = BEFORE_ + TR_
         AFTER_ = AFTER_ + TR_
         print("trailer timing adds information on 2016-2019: used in the per-film expectations", flush=True)
+    if news_pre_ok:                    # pf4 rule: news joins the per-film expectations only when it helps
+        BEFORE_ = BEFORE_ + NW_
+        print("news at release helps the before-release model on 2016-2019: used in the 'pre' expectations", flush=True)
+    if news_post_ok:
+        AFTER_ = AFTER_ + [k for k in NW_ if k not in AFTER_]
+        print("news at release adds to the after-release model on 2016-2019: used in the 'post' expectations", flush=True)
 
     # per-film expectations: 5-year blocks, each predicted by a model that did not see its own block
     print("per-film expectations (each 5-year block predicted by a model trained on the others) ...", flush=True)
@@ -803,11 +864,12 @@ def write_summary(res):
     L.append(f"held-out {TEST[0]}-{TEST[1]}      mean abs error (log)  typical miss   Spearman")
     for k, name in (("genre_baseline", "genre median (baseline)"), ("linear_before", "linear, before release"),
                     ("before_no_context", "trees, before, no context"), ("before", "trees, before release"),
-                    ("before_trailer", "trees, before + trailers"), ("after", "trees, + reception"),
-                    ("news", "trees, + reception + news")):
+                    ("before_trailer", "trees, before + trailers"), ("before_news", "trees, before + news (pf4)"),
+                    ("after", "trees, + reception"), ("news", "trees, + reception + news"),
+                    ("after_news", "trees, + reception + news by source"), ("after_lb", "trees, + reception + Letterboxd")):
         if k not in t:
             continue
-        L.append(f"  {name:28s} {t[k]['mae']:8.3f}          x{math.exp(t[k]['mae']):5.2f}       {t[k]['spearman']:+.3f}")
+        L.append(f"  {name:36s} {t[k]['mae']:8.3f}          x{math.exp(t[k]['mae']):5.2f}       {t[k]['spearman']:+.3f}")
     if res.get("late"):
         L.append(f"\n{LATE[0]}-{LATE[1]} (pandemic years, reported separately):")
         for k, v in res["late"].items():
@@ -839,6 +901,20 @@ def write_summary(res):
     L.append(f"news - reception only:   {d['news_minus_after'][0]:+.3f} [{d['news_minus_after'][1]:+.3f}, "
              f"{d['news_minus_after'][2]:+.3f}]  -> news adds measurable information: "
              f"{'YES' if res['rule']['news_adds_information'] else 'no'}")
+    if "before_news_minus_before" in d:            # pf4
+        x, y = d["before_news_minus_before"], d["after_news_minus_after"]
+        L.append(f"pf4 before + news (mixed + Wikipedia + NYT) - before: {x[0]:+.3f} [{x[1]:+.3f}, {x[2]:+.3f}]  -> news helps "
+                 f"predict success: {'YES (used per film)' if res['rule'].get('news_helps_prediction') else 'no'}")
+        L.append(f"pf4 after + news by source - after:  {y[0]:+.3f} [{y[1]:+.3f}, {y[2]:+.3f}]  -> "
+                 f"{'YES (used per film)' if res['rule'].get('news_adds_after_reception') else 'no'}")
+        cov = res.get("news_coverage") or {}
+        L.append("    films with each news feature (train / test): " + ", ".join(
+            f"{LABEL.get(k, k)} {v['train']}/{v['test']}" for k, v in cov.items()))
+    if "after_lb_minus_after" in d:
+        x = d["after_lb_minus_after"]
+        L.append(f"pf4 after + Letterboxd - after:      {x[0]:+.3f} [{x[1]:+.3f}, {x[2]:+.3f}]  (reported only; "
+                 f"films with Letterboxd data train {res.get('lb_coverage', {}).get('train')} / test "
+                 f"{res.get('lb_coverage', {}).get('test')})")
     L.append("")
     if res.get("context_importance"):
         L.append("release-context features (mean effect size, rank among all before-release features): " + ", ".join(
@@ -848,7 +924,7 @@ def write_summary(res):
         cats = sorted({k for g in res["reasons_by_group"].values() for k in g["share"]})
         for gname, g in res["reasons_by_group"].items():
             L.append(f"  {gname} (n={g['n']}): " + ", ".join(f"{k} {100 * g['share'].get(k, 0):.0f}%" for k in cats))
-    for k in ("before", "after", "news"):
+    for k in [k for k in ("before", "after", "news", "before_news") if k in res["importance"]]:
         L.append(f"most influential ({k}): " + ", ".join(f"{LABEL.get(n, n)} {v:.3f}" for n, v in res["importance"][k][:8]))
     r = res["rule"]
     L.append("")

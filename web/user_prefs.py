@@ -160,6 +160,65 @@ def save(key, settings=None, display_name=None, onboarded=None, groups=None):
     return load(key)
 
 
+# 6 Nov: per-chat filters from the filter bar above the message box (ChatRequest.filters). They are never saved
+# with the person's settings; merge_chat() lays them over the saved ones for the one question being answered,
+# always the stricter of the two. Like the saved limits they apply to recommendations only.
+ERAS = {"pre1970": (None, 1969), "1970s": (1970, 1979), "1980s": (1980, 1989), "1990s": (1990, 1999),
+        "2000s": (2000, 2009), "2010s": (2010, 2019), "2020s": (2020, None)}
+CHAT_RUNTIMES = (90, 120, 150, 180)
+
+
+def clean_chat(raw):
+    """Validated per-chat filters: {era, genre, max_runtime, max_cert, services_only}; unknown values dropped."""
+    raw = raw if isinstance(raw, dict) else {}
+    out = {}
+    if raw.get("era") in ERAS:
+        out["era"] = raw["era"]
+    if raw.get("genre") in GENRES:
+        out["genre"] = raw["genre"]
+    try:
+        rt = int(raw.get("max_runtime")) if raw.get("max_runtime") not in (None, "") else None
+    except (TypeError, ValueError):
+        rt = None
+    if rt in CHAT_RUNTIMES:
+        out["max_runtime"] = rt
+    if raw.get("max_cert") in CERTS[:4]:
+        out["max_cert"] = raw["max_cert"]
+    if raw.get("services_only") is True:
+        out["services_only"] = True
+    return out
+
+
+def merge_chat(settings, chat):
+    """The saved settings with this chat's filters on top (the stricter value wins). Adds max_year, only_genres
+    and services_only, which exist only per chat."""
+    s = dict(settings or DEFAULTS)
+    c = clean_chat(chat)
+    if not c:
+        return s
+    lo, hi = ERAS.get(c.get("era"), (None, None))
+    if lo:
+        s["min_year"] = max(lo, s.get("min_year") or lo)
+    if hi:
+        s["max_year"] = hi
+    if c.get("genre"):
+        s["only_genres"] = [c["genre"]]
+    if c.get("max_runtime"):
+        s["max_runtime"] = min(c["max_runtime"], s.get("max_runtime") or c["max_runtime"])
+    if c.get("max_cert"):
+        mine = s.get("max_cert")
+        s["max_cert"] = c["max_cert"] if not mine or CERT_RANK[c["max_cert"]] < CERT_RANK[mine] else mine
+    if c.get("services_only") and s.get("services"):
+        s["services_only"] = True
+    s["chat_filters"] = c
+    return s
+
+
+def _has_limits(s):
+    return bool(s.get("never_genres") or s.get("min_year") or s.get("max_year") or s.get("max_runtime")
+                or s.get("max_cert") or s.get("only_genres") or s.get("services_only"))
+
+
 def tag(settings):
     """Short hash of everything that changes an answer: part of the answer-cache key."""
     if not settings or settings == DEFAULTS:
@@ -171,7 +230,8 @@ def filter_tag(settings):
     """Hash of the hard filters only: part of the search-cache key (pipeline.user_tag)."""
     if not settings:
         return ""
-    f = {k: settings.get(k) for k in ("never_genres", "min_year", "max_runtime", "max_cert", "services")}
+    f = {k: settings.get(k) for k in ("never_genres", "min_year", "max_runtime", "max_cert", "services",
+                                      "max_year", "only_genres", "services_only")}
     # hiding money / critic lines changes the tool blocks inside the cached prompt, so it is part of the key too
     f.update({k: False for k in ("money", "critics") if settings.get(k) is False})
     if not any(v not in (None, [], "") for v in f.values()):
@@ -211,6 +271,15 @@ def prompt_block(settings, intent=None, question=""):
         if s.get("max_cert"):
             lines.append(f"Only recommend films rated {s['max_cert']} or milder in the US. Films without a US rating "
                          "may be among the films above; if you suggest one, say it has no US rating.")
+        if s.get("max_year"):
+            lines.append(f"Only recommend films released in {s['max_year']} or earlier.")
+        if s.get("only_genres"):
+            lines.append("Only recommend films in this genre: " + ", ".join(s["only_genres"]) + ".")
+        if s.get("services_only"):
+            lines.append("Only recommend films listed on this person's streaming services (named below).")
+        if s.get("chat_filters"):
+            lines.append("These limits come partly from filters the person set for this chat. If none of the films above "
+                         "fits them, say so plainly and suggest loosening the filters; never suggest a film outside them.")
     if s.get("money") is False:
         lines.append("This person has turned off budget and box-office figures: leave them out unless the question asks "
                      "about money.")
@@ -263,12 +332,17 @@ def certifications(ids):
 def excluded(settings, hits):
     """Set of hit ids this person's filters remove. Unknown facts never exclude a film."""
     s = settings or DEFAULTS
-    if not (s["never_genres"] or s["min_year"] or s["max_runtime"] or s.get("max_cert")):
+    if not _has_limits(s):
         return set()
     info = _film_facts([h.get("id") for h in hits if h.get("id") is not None])
     limit = CERT_RANK.get(s.get("max_cert")) if s.get("max_cert") else None
     certs = certifications([h.get("id") for h in hits if h.get("id") is not None]) if limit is not None else {}
-    never = set(s["never_genres"])
+    never = set(s.get("never_genres") or [])
+    only = set(s.get("only_genres") or [])
+    max_y = s.get("max_year")
+    # 6 Nov "only on my services": a film counts only when JustWatch (via TMDB) lists it on one of their services;
+    # a film with no listing is removed too, because nothing shows it is there
+    on = on_services(s, [h.get("id") for h in hits if h.get("id") is not None]) if s.get("services_only") else None
     out = set()
     for h in hits:
         fid = h.get("id")
@@ -280,9 +354,14 @@ def excluded(settings, hits):
                 y = int(str(h.get("release_year") or "")[:4])
             except ValueError:
                 y = None
-        if (never & gs) or (s["min_year"] and y and y < s["min_year"]) or (s["max_runtime"] and rt and rt > s["max_runtime"]):
+        if (never & gs) or (s.get("min_year") and y and y < s["min_year"]) or \
+                (s.get("max_runtime") and rt and rt > s["max_runtime"]) or (max_y and y and y > max_y):
+            out.add(fid)
+        elif only and gs and not (only & gs):
             out.add(fid)
         elif limit is not None and fid in certs and CERT_RANK[certs[fid]] > limit:
+            out.add(fid)
+        elif on is not None and fid not in on:
             out.add(fid)
     return out
 
