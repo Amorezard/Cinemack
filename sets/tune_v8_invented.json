@@ -1,0 +1,225 @@
+{
+ "about": "v8 TUNING set written by Claude on Sun 8 Nov 2026; used to develop and tune the fix. Not a blind test (the sealed_v8 sets are). 4b invented films (rule: no match on >= 15/20, tune/check lose <= 1).",
+ "questions": [
+  {
+   "id": "ti01",
+   "source": "own",
+   "split": "tune8",
+   "category": "invented",
+   "turns": [
+    "the movie where a lighthouse keeper's cat becomes captain of a pirate ship made of ice"
+   ],
+   "expect_retrieved": [],
+   "expect_year": null
+  },
+  {
+   "id": "ti02",
+   "source": "own",
+   "split": "tune8",
+   "category": "invented",
+   "turns": [
+    "film about a lonely moon base cook who teaches robots to play the bagpipes"
+   ],
+   "expect_retrieved": [],
+   "expect_year": null
+  },
+  {
+   "id": "ti03",
+   "source": "own",
+   "split": "tune8",
+   "category": "invented",
+   "turns": [
+    "the 70s thriller where a typewriter in Vienna writes tomorrow's newspaper on its own"
+   ],
+   "expect_retrieved": [],
+   "expect_year": null
+  },
+  {
+   "id": "ti04",
+   "source": "own",
+   "split": "tune8",
+   "category": "invented",
+   "turns": [
+    "the comedy where three grandmothers rob a casino in Monaco using trained pigeons"
+   ],
+   "expect_retrieved": [],
+   "expect_year": null
+  },
+  {
+   "id": "ti05",
+   "source": "own",
+   "split": "tune8",
+   "category": "invented",
+   "turns": [
+    "the animated movie about a snail who wants to win the Tour de France"
+   ],
+   "expect_retrieved": [],
+   "expect_year": null
+  },
+  {
+   "id": "ti06",
+   "source": "own",
+   "split": "tune8",
+   "category": "invented",
+   "turns": [
+    "a horror film where a hotel elevator only goes to a 13th floor that exists in 1890"
+   ],
+   "expect_retrieved": [],
+   "expect_year": null
+  },
+  {
+   "id": "ti07",
+   "source": "own",
+   "split": "tune8",
+   "category": "invented",
+   "turns": [
+    "the drama about a sumo wrestler who becomes a ballet dancer in Paris after losing his memory"
+   ],
+   "expect_retrieved": [],
+   "expect_year": null
+  },
+  {
+   "id": "ti08",
+   "source": "own",
+   "split": "tune8",
+   "category": "invented",
+   "turns": [
+    "movie where a city's traffic lights fall in love and stop all the cars"
+   ],
+   "expect_retrieved": [],
+   "expect_year": null
+  },
+  {
+   "id": "ti09",
+   "source": "own",
+   "split": "tune8",
+   "category": "invented",
+   "turns": [
+    "the western about a stagecoach that is secretly driven by ghosts of the Pony Express"
+   ],
+   "expect_retrieved": [],
+   "expect_year": null
+  },
+  {
+   "id": "ti10",
+   "source": "own",
+   "split": "tune8",
+   "category": "invented",
+   "turns": [
+    "the sci-fi film where Mars colonists discover their planet is a giant sleeping whale"
+   ],
+   "expect_retrieved": [],
+   "expect_year": null
+  },
+  {
+   "id": "ti11",
+   "source": "own",
+   "split": "tune8",
+   "category": "invented",
+   "turns": [
+    "film where a marching band gets lost in the Sahara and founds a kingdom"
+   ],
+   "expect_retrieved": [],
+   "expect_year": null
+  },
+  {
+   "id": "ti12",
+   "source": "own",
+   "split": "tune8",
+   "category": "invented",
+   "turns": [
+    "the musical where an entire submarine crew sings only in Morse code"
+   ],
+   "expect_retrieved": [],
+   "expect_year": null
+  },
+  {
+   "id": "ti13",
+   "source": "own",
+   "split": "tune8",
+   "category": "invented",
+   "turns": [
+    "the movie where a chef can taste people's lies in their food"
+   ],
+   "expect_retrieved": [],
+   "expect_year": null
+  },
+  {
+   "id": "ti14",
+   "source": "own",
+   "split": "tune8",
+   "category": "invented",
+   "turns": [
+    "a 90s action film where a mailman stops a coup in Iceland by delivering the wrong letters"
+   ],
+   "expect_retrieved": [],
+   "expect_year": null
+  },
+  {
+   "id": "ti15",
+   "source": "own",
+   "split": "tune8",
+   "category": "invented",
+   "turns": [
+    "the thriller where a bank vault opens only when someone tells it a joke"
+   ],
+   "expect_retrieved": [],
+   "expect_year": null
+  },
+  {
+   "id": "ti16",
+   "source": "own",
+   "split": "tune8",
+   "category": "invented",
+   "turns": [
+    "the coming-of-age film about a boy who raises a dragon in a Glasgow tower block garage"
+   ],
+   "expect_retrieved": [],
+   "expect_year": null
+  },
+  {
+   "id": "ti17",
+   "source": "own",
+   "split": "tune8",
+   "category": "invented",
+   "turns": [
+    "film where the Eiffel Tower walks to Spain for a holiday"
+   ],
+   "expect_retrieved": [],
+   "expect_year": null
+  },
+  {
+   "id": "ti18",
+   "source": "own",
+   "split": "tune8",
+   "category": "invented",
+   "turns": [
+    "the documentary about a goat that became mayor of a Swiss town and banned Mondays"
+   ],
+   "expect_retrieved": [],
+   "expect_year": null
+  },
+  {
+   "id": "ti19",
+   "source": "own",
+   "split": "tune8",
+   "category": "invented",
+   "turns": [
+    "the noir where every witness is a parrot that only repeats the killer's alibi"
+   ],
+   "expect_retrieved": [],
+   "expect_year": null
+  },
+  {
+   "id": "ti20",
+   "source": "own",
+   "split": "tune8",
+   "category": "invented",
+   "turns": [
+    "the space opera where a galaxy is ruled by a council of houseplants"
+   ],
+   "expect_retrieved": [],
+   "expect_year": null
+  }
+ ]
+}

@@ -1,0 +1,225 @@
+{
+ "about": "v8 TUNING set written by Claude on Sun 8 Nov 2026; used to develop and tune the fix. Not a blind test (the sealed_v8 sets are). 4a same-name routing (rule: >= 18/20).",
+ "questions": [
+  {
+   "id": "tn01",
+   "category": "same_name",
+   "question": "How many seasons of Westworld are there?",
+   "expect_films": [
+    "Westworld"
+   ],
+   "expect_type": "tv",
+   "expect_year": "2016",
+   "notes": "About the TV series (2016)."
+  },
+  {
+   "id": "tn02",
+   "category": "same_name",
+   "question": "Who directed the original Westworld movie?",
+   "expect_films": [
+    "Westworld"
+   ],
+   "expect_type": "film",
+   "expect_year": "1973",
+   "notes": "About the film (1973)."
+  },
+  {
+   "id": "tn03",
+   "category": "same_name",
+   "question": "How many episodes of M*A*S*H were made?",
+   "expect_films": [
+    "M*A*S*H"
+   ],
+   "expect_type": "tv",
+   "expect_year": "1972",
+   "notes": "About the TV series (1972)."
+  },
+  {
+   "id": "tn04",
+   "category": "same_name",
+   "question": "Who directed Snowpiercer with Chris Evans?",
+   "expect_films": [
+    "Snowpiercer"
+   ],
+   "expect_type": "film",
+   "expect_year": "2013",
+   "notes": "About the film (2013)."
+  },
+  {
+   "id": "tn05",
+   "category": "same_name",
+   "question": "What network aired Hannibal with Mads Mikkelsen?",
+   "expect_films": [
+    "Hannibal"
+   ],
+   "expect_type": "tv",
+   "expect_year": "2013",
+   "notes": "About the TV series (2013)."
+  },
+  {
+   "id": "tn06",
+   "category": "same_name",
+   "question": "Who directed The Exorcist?",
+   "expect_films": [
+    "The Exorcist"
+   ],
+   "expect_type": "film",
+   "expect_year": "1973",
+   "notes": "About the film (1973)."
+  },
+  {
+   "id": "tn07",
+   "category": "same_name",
+   "question": "How many seasons did the Lethal Weapon series run?",
+   "expect_films": [
+    "Lethal Weapon"
+   ],
+   "expect_type": "tv",
+   "expect_year": "2016",
+   "notes": "About the TV series (2016)."
+  },
+  {
+   "id": "tn08",
+   "category": "same_name",
+   "question": "Who plays the girl in Hanna, the Joe Wright movie?",
+   "expect_films": [
+    "Hanna"
+   ],
+   "expect_type": "film",
+   "expect_year": "2011",
+   "notes": "About the film (2011)."
+  },
+  {
+   "id": "tn09",
+   "category": "same_name",
+   "question": "When did Friday Night Lights first air?",
+   "expect_films": [
+    "Friday Night Lights"
+   ],
+   "expect_type": "tv",
+   "expect_year": "2006",
+   "notes": "About the TV series (2006)."
+  },
+  {
+   "id": "tn10",
+   "category": "same_name",
+   "question": "Who stars in Parenthood with Steve Martin?",
+   "expect_films": [
+    "Parenthood"
+   ],
+   "expect_type": "film",
+   "expect_year": "1989",
+   "notes": "About the film (1989)."
+  },
+  {
+   "id": "tn11",
+   "category": "same_name",
+   "question": "How long is Clueless?",
+   "expect_films": [
+    "Clueless"
+   ],
+   "expect_type": "film",
+   "expect_year": "1995",
+   "notes": "About the film (1995)."
+  },
+  {
+   "id": "tn12",
+   "category": "same_name",
+   "question": "How many seasons of Teen Wolf are there?",
+   "expect_films": [
+    "Teen Wolf"
+   ],
+   "expect_type": "tv",
+   "expect_year": "2011",
+   "notes": "About the TV series (2011)."
+  },
+  {
+   "id": "tn13",
+   "category": "same_name",
+   "question": "Who directed Minority Report?",
+   "expect_films": [
+    "Minority Report"
+   ],
+   "expect_type": "film",
+   "expect_year": "2002",
+   "notes": "About the film (2002)."
+  },
+  {
+   "id": "tn14",
+   "category": "same_name",
+   "question": "Was the Limitless TV series renewed after season one?",
+   "expect_films": [
+    "Limitless"
+   ],
+   "expect_type": "tv",
+   "expect_year": "2015",
+   "notes": "About the TV series (2015)."
+  },
+  {
+   "id": "tn15",
+   "category": "same_name",
+   "question": "How much did Taken make at the box office?",
+   "expect_films": [
+    "Taken"
+   ],
+   "expect_type": "film",
+   "expect_year": "2008",
+   "notes": "About the film (2008)."
+  },
+  {
+   "id": "tn16",
+   "category": "same_name",
+   "question": "What network aired the Rush Hour series?",
+   "expect_films": [
+    "Rush Hour"
+   ],
+   "expect_type": "tv",
+   "expect_year": "2016",
+   "notes": "About the TV series (2016)."
+  },
+  {
+   "id": "tn17",
+   "category": "same_name",
+   "question": "How many episodes are in the first season of the Scream series?",
+   "expect_films": [
+    "Scream"
+   ],
+   "expect_type": "tv",
+   "expect_year": "2015",
+   "notes": "About the TV series (2015)."
+  },
+  {
+   "id": "tn18",
+   "category": "same_name",
+   "question": "Who stars in Jumanji (1995)?",
+   "expect_films": [
+    "Jumanji"
+   ],
+   "expect_type": "film",
+   "expect_year": "1995",
+   "notes": "About the film (1995)."
+  },
+  {
+   "id": "tn19",
+   "category": "same_name",
+   "question": "When did Bates Motel premiere?",
+   "expect_films": [
+    "Bates Motel"
+   ],
+   "expect_type": "tv",
+   "expect_year": "2013",
+   "notes": "About the TV series (2013)."
+  },
+  {
+   "id": "tn20",
+   "category": "same_name",
+   "question": "Who plays the Jackal in The Day of the Jackal series?",
+   "expect_films": [
+    "The Day of the Jackal"
+   ],
+   "expect_type": "tv",
+   "expect_year": "2024",
+   "notes": "About the TV series (2024)."
+  }
+ ]
+}

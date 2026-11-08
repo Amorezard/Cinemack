@@ -1,0 +1,16 @@
+# Issue log
+Open issues carried into v8 (8 Nov 2026). Severity: P0 broken / data loss / privacy leak, P1 blocks a v8 gate,
+P2 measured quality failure, P3 minor. A closed issue is reproducibly verified, not hidden by a switch.
+
+| ID | Opened | Feature | Symptom | Reproduce | Cause | Sev | Status | Next step |
+|---|---|---|---|---|---|---|---|---|
+| I-001 | 5 Nov | TV routing | "When did Twin Peaks first air?" answered with the 1989 film entry's date (sealed s7t08) | `eval_v3.py` on sets/sealed_v7_tv.json, id s7t08 | TMDB lists the pilot as a film with the same title; question has TV words but the film path won | P2 | Open, fix 4a | Same-name rule + pilot flag; 20-question same-name tuning set |
+| I-002 | 5 Nov | Honesty | Two invented films (s7r14, s7r15) returned real films in both arms | `stage_scores.py --questions sets/sealed_v7_ret.json --only s7r14,s7r15` | No check that the top film contains the question's distinctive details | P2 | Open, fix 4b | Rare-noun evidence check + confidence |
+| I-003 | 5 Nov | Grounding | Unsupported-claim share 0.67 -> 0.70 while citations rose; citation precision 0.29 | `claimcheck.py results/v3eval_sealed7_an_v7.json` | Model adds unsourced framing sentences | P2 | Open, fix 4c | Sentence-level check + rewrite of flagged sentences |
+| I-004 | 6 Nov | pf4 news | Wikipedia features covered 0 of 1,487 test films | `grep "films with each news" results/performance_summary.txt` | `news.py fetch` stops at --max-months 450; night run ended at 1999-09 | P1 | Fix running (Fri re-fetch from 1999) | Confirm coverage, refit, report |
+| I-005 | 6 Nov | Deploy | Server news.py differed from the laptop copy; installer refused | `install_pf4_nov6.sh` | Earlier server-side edits not copied back | P3 | Worked around (patch_news_src.py) | Copy server news.py back to the laptop |
+| I-006 | 6 Nov | Config | NEWS=1 in config.yaml although its rule never passed | `grep NEWS config.yaml` | Switched on for the 15 Oct demo | P3 | Open, decision | Decide by the rule (off), or state it in the write-up |
+| I-007 | 6 Nov | Answer | Bao answer: "listed as her first feature work" (Bao is a short) | `smoke_site.py` | Model paraphrase of context | P3 | Open | Covered by 4c claim check |
+| I-008 | 30 Oct | Security | Prompt-injection guard blocks 32/40 attacks (target 36) and loses 5 analytic answers | `attack_eval.py` | v1 guard keyword/LLM based | P1 (post-v8) | Open, workstream A | Guard v2 after the freeze |
+| I-009 | 3 Nov | Context | Context builder v2 lowers grounding (4.63 -> 4.57) | `run_v7_night.sh` ctxab | Dedup removed fact and source lines | P2 | Open, 3d | v3: passage-only dedup |
+| I-010 | 19 Oct | Adapter | LoRA retrain out of memory on the 24 GB A10 | `logs/adapter_rebuild.log` line 955 | 27B base too large for 24 GB training | P3 | Parked | Rented GPU, workstream C |

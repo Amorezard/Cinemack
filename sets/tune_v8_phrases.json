@@ -1,0 +1,337 @@
+{
+ "about": "v8 TUNING set written by Claude on Sun 8 Nov 2026; used to develop and tune the fix. Not a blind test (the sealed_v8 sets are). 3c preference chips: expect = the settings/filter fields offered; {} = must not offer (rule: all 28 real caught, <= 1 of 12 traps).",
+ "questions": [
+  {
+   "id": "tp01",
+   "text": "I can't stand gore",
+   "expect": {
+    "never_genres": [
+     "Horror"
+    ]
+   },
+   "note": "gore -> avoid horror (offer, user confirms)"
+  },
+  {
+   "id": "tp02",
+   "text": "no horror please, I scare easily",
+   "expect": {
+    "never_genres": [
+     "Horror"
+    ]
+   },
+   "note": ""
+  },
+  {
+   "id": "tp03",
+   "text": "nothing over two hours",
+   "expect": {
+    "max_runtime": 120
+   },
+   "note": ""
+  },
+  {
+   "id": "tp04",
+   "text": "keep it under 90 minutes",
+   "expect": {
+    "max_runtime": 90
+   },
+   "note": ""
+  },
+  {
+   "id": "tp05",
+   "text": "I fall asleep in anything longer than two and a half hours",
+   "expect": {
+    "max_runtime": 150
+   },
+   "note": ""
+  },
+  {
+   "id": "tp06",
+   "text": "only stuff that's on Netflix",
+   "expect": {
+    "services": [
+     "netflix"
+    ],
+    "services_only": true
+   },
+   "note": ""
+  },
+  {
+   "id": "tp07",
+   "text": "we only have Disney+ and Hulu",
+   "expect": {
+    "services": [
+     "disney",
+     "hulu"
+    ],
+    "services_only": true
+   },
+   "note": ""
+  },
+  {
+   "id": "tp08",
+   "text": "I'm watching with my kids, keep it PG",
+   "expect": {
+    "max_cert": "PG"
+   },
+   "note": ""
+  },
+  {
+   "id": "tp09",
+   "text": "nothing rated R, my teenager is watching",
+   "expect": {
+    "max_cert": "PG-13"
+   },
+   "note": ""
+  },
+  {
+   "id": "tp10",
+   "text": "family-friendly only",
+   "expect": {
+    "max_cert": "PG"
+   },
+   "note": ""
+  },
+  {
+   "id": "tp11",
+   "text": "nothing before 1990",
+   "expect": {
+    "min_year": 1990
+   },
+   "note": ""
+  },
+  {
+   "id": "tp12",
+   "text": "I don't like old black and white movies",
+   "expect": {
+    "min_year": 1960
+   },
+   "note": "approximate: offer 1960+"
+  },
+  {
+   "id": "tp13",
+   "text": "only films from the 2000s onwards",
+   "expect": {
+    "min_year": 2000
+   },
+   "note": ""
+  },
+  {
+   "id": "tp14",
+   "text": "I hate musicals",
+   "expect": {
+    "never_genres": [
+     "Music"
+    ]
+   },
+   "note": ""
+  },
+  {
+   "id": "tp15",
+   "text": "no romance, please",
+   "expect": {
+    "never_genres": [
+     "Romance"
+    ]
+   },
+   "note": ""
+  },
+  {
+   "id": "tp16",
+   "text": "I'm not into war films",
+   "expect": {
+    "never_genres": [
+     "War"
+    ]
+   },
+   "note": ""
+  },
+  {
+   "id": "tp17",
+   "text": "nothing animated, I'm an adult",
+   "expect": {
+    "never_genres": [
+     "Animation"
+    ]
+   },
+   "note": ""
+  },
+  {
+   "id": "tp18",
+   "text": "skip documentaries",
+   "expect": {
+    "never_genres": [
+     "Documentary"
+    ]
+   },
+   "note": ""
+  },
+  {
+   "id": "tp19",
+   "text": "I really don't like westerns",
+   "expect": {
+    "never_genres": [
+     "Western"
+    ]
+   },
+   "note": ""
+  },
+  {
+   "id": "tp20",
+   "text": "keep it short, an hour and a half max",
+   "expect": {
+    "max_runtime": 90
+   },
+   "note": ""
+  },
+  {
+   "id": "tp21",
+   "text": "only Prime Video for me",
+   "expect": {
+    "services": [
+     "prime"
+    ],
+    "services_only": true
+   },
+   "note": ""
+  },
+  {
+   "id": "tp22",
+   "text": "we just have Max",
+   "expect": {
+    "services": [
+     "max"
+    ],
+    "services_only": true
+   },
+   "note": ""
+  },
+  {
+   "id": "tp23",
+   "text": "my little brother is 7, so G-rated stuff only",
+   "expect": {
+    "max_cert": "G"
+   },
+   "note": ""
+  },
+  {
+   "id": "tp24",
+   "text": "no sci-fi, it bores me",
+   "expect": {
+    "never_genres": [
+     "Science Fiction"
+    ]
+   },
+   "note": ""
+  },
+  {
+   "id": "tp25",
+   "text": "under 100 minutes please",
+   "expect": {
+    "max_runtime": 90
+   },
+   "note": "rounded down to the nearest offered limit (90)"
+  },
+  {
+   "id": "tp26",
+   "text": "I don't want anything scary",
+   "expect": {
+    "never_genres": [
+     "Horror"
+    ]
+   },
+   "note": ""
+  },
+  {
+   "id": "tp27",
+   "text": "only things on Apple TV",
+   "expect": {
+    "services": [
+     "apple"
+    ],
+    "services_only": true
+   },
+   "note": ""
+  },
+  {
+   "id": "tp28",
+   "text": "nothing older than 2010",
+   "expect": {
+    "min_year": 2010
+   },
+   "note": ""
+  },
+  {
+   "id": "tp29",
+   "text": "I love horror, give me the goriest",
+   "expect": {},
+   "note": "TRAP: a preference for, not a limit"
+  },
+  {
+   "id": "tp30",
+   "text": "what's a film about gore in horror history?",
+   "expect": {},
+   "note": "TRAP: topic, not a limit"
+  },
+  {
+   "id": "tp31",
+   "text": "I'm two hours from Boston, any film set there?",
+   "expect": {},
+   "note": "TRAP: two hours is a distance"
+  },
+  {
+   "id": "tp32",
+   "text": "is The Irishman over three hours?",
+   "expect": {},
+   "note": "TRAP: question about a runtime"
+  },
+  {
+   "id": "tp33",
+   "text": "my favourite Netflix film is Roma",
+   "expect": {},
+   "note": "TRAP: mentions a service, not a limit"
+  },
+  {
+   "id": "tp34",
+   "text": "what's rated PG-13 for violence in The Dark Knight?",
+   "expect": {},
+   "note": "TRAP: question about a rating"
+  },
+  {
+   "id": "tp35",
+   "text": "recommend films like those from the 1990s",
+   "expect": {},
+   "note": "TRAP: like, not only"
+  },
+  {
+   "id": "tp36",
+   "text": "the kids loved Frozen",
+   "expect": {},
+   "note": "TRAP: no limit stated"
+  },
+  {
+   "id": "tp37",
+   "text": "who directed the musical Cabaret?",
+   "expect": {},
+   "note": "TRAP: topic"
+  },
+  {
+   "id": "tp38",
+   "text": "a western I'd like even though I usually don't",
+   "expect": {},
+   "note": "TRAP: asks for one"
+  },
+  {
+   "id": "tp39",
+   "text": "I watched a documentary last night",
+   "expect": {},
+   "note": "TRAP"
+  },
+  {
+   "id": "tp40",
+   "text": "Hulu cancelled my favourite show",
+   "expect": {},
+   "note": "TRAP"
+  }
+ ]
+}
