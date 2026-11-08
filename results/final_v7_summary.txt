@@ -1,0 +1,95 @@
+SEALED RUN v6.0 vs v7  Thu Nov  5 04:57:51 PM EST 2026
+date: Thu Nov  5 04:12:48 PM EST 2026
+git: v7.0-lock 41b4c71a77d100c7228155dff3055d2bd877c890
+HEAD is v7.0-lock
+v6 arm: TOOLS=1 EXTRA_DATA=1 DATE_WORDS=1 ALIAS_IMDB=0 RECEPTION=0 TV=0 PEOPLE=0 REC_CLEAN=0 IMDB=0 GUARD=0 MODERATION=0 MEM_EMBED=0 CTX_BUILDER=0 PROMPT_ORDER=0 FAST=0 SEMCACHE=0 SHORTS=0 CLARIFY=0 ISSUES=0 YT_COMMENTS=0 TV_REVIEWS=0 PERF=0
+v7 arm: TOOLS=1 EXTRA_DATA=1 DATE_WORDS=1 ALIAS_IMDB=0 RECEPTION=0 TV=0 PEOPLE=0 REC_CLEAN=0 IMDB=0 GUARD=0 MODERATION=0 MEM_EMBED=0 CTX_BUILDER=0 PROMPT_ORDER=0 FAST=0 SEMCACHE=0 SHORTS=0 CLARIFY=0 ISSUES=0 YT_COMMENTS=0 TV_REVIEWS=0 ALIAS_IMDB=1 RECEPTION=1 TV=1 PEOPLE=1 REC_CLEAN=1 IMDB=0 GUARD=0 MODERATION=1 MEM_EMBED=1 CTX_BUILDER=0 PROMPT_ORDER=1 FAST=1 SEMCACHE=1 SHORTS=1 RECENT=1 CLARIFY=1 ISSUES=0 YT_COMMENTS=0 TV_REVIEWS=0 PERF=0 
+v7_lock.env: ALIAS_IMDB=1 RECEPTION=1 TV=1 PEOPLE=1 REC_CLEAN=1 IMDB=0 GUARD=0 MODERATION=1 MEM_EMBED=1 CTX_BUILDER=0 PROMPT_ORDER=1 FAST=1 SEMCACHE=1 SHORTS=1 RECENT=1 CLARIFY=1 ISSUES=0 YT_COMMENTS=0 TV_REVIEWS=0 PERF=0 
+config.yaml v7 switches:
+    PERSONAL_W: "0.25,2,0.5"          # content, neighbours, popularity weights (personal.py sweep)
+32e802ae5eacd347aa3220a936e3d259  retrieve.py
+157f1f186cd11def5843cc47948db995  chat.py
+120187580c5330c9ecec8810c1c16fb1  tools.py
+579b69316464683c020d55f89e95aa9b  conv.py
+3c1a2f6154bd1607a75e3a1840b1a351  evidence.py
+32c4ba8f26e8dedf4fdb961ec118f833  reception_cards.py
+06090f6e224baddde47241421c61fc55  tv.py
+1b8b15fd70c834049e9732ec7459e1b8  shorts.py
+fb7418dfe0af30aff89ea1bbb15451d4  safety.py
+0539e01573f96919fb40b54196d4677a  config.yaml
+cd0762f86a07ce3c2a053d77378e2e84  v7_lock.env
+047bbfe34ca033de96d43bf8278ad037  sets/sealed_v7_an.json
+a489685dc0dc527f584ae1c5ce63563c  sets/sealed_v7_mt.json
+94371cc0bda11daaf9e54a85ebebd365  sets/sealed_v7_rc.json
+8d7033b58233fc58f433243627d6ce92  sets/sealed_v7_ret.json
+fee23a1160233eb2d543ea38afa55fdf  sets/sealed_v7_sh.json
+d487c9fcb5921290ddb33965c70d0e50  sets/sealed_v7_tv.json
+-rw-r--r-- 1 burchamw student 8966184960 Nov  4 21:04 facts.db
+-rw-r--r-- 1 burchamw student  403701760 Oct 15 18:56 movies.db
+-rw-r--r-- 1 burchamw student 2106888192 Oct 29 12:43 wiki.db
+  Model
+    architecture        qwen35     
+    parameters          27.3B      
+    context length      262144     
+    embedding length    5120       
+    quantization        Q4_K_M     
+    requires            0.32.12    
+
+memory.used [MiB], memory.total [MiB]
+21157 MiB, 23028 MiB
+
+sealed retrieval           v6 10/15   v7 10/15   (+0; lost [], gained [])
+sealed multi-turn          v6 15/15   v7 15/15   (+0; lost [], gained [])
+sealed analysis/reception  v6 25/27 (grounded 4.78)   v7 25/27 (grounded 4.70)   (+0)
+sealed TV                  v6 8/14 (grounded 3.29)   v7 13/14 (grounded 4.71)   (+5)
+sealed short films         v6 4/6 (grounded 4.67)   v7 5/6 (grounded 4.67)   (+1)
+reported: v7+RECEPTION     (not run)   (v7 vs v7 + RECEPTION=1; not shipped)
+feature arms (blind; 'v6' column = v7 WITHOUT the switch, 'v7' column = v7 with it):
+  without prompt-order (an) v6 25/27 (grounded 4.78)   v7 25/27 (grounded 4.70)   (+0)
+  without reception (an)   v6 25/27 (grounded 4.70)   v7 25/27 (grounded 4.70)   (+0)
+  without shorts (sh)      v6 4/6 (grounded 4.33)   v7 5/6 (grounded 4.67)   (+1)
+  without clarify (tv)     v6 13/14 (grounded 4.71)   v7 13/14 (grounded 4.71)   (+0)
+  without tv (tv)          v6 8/14 (grounded 3.43)   v7 13/14 (grounded 4.71)   (+5)
+  without prompt-order (mt) v6 15/15   v7 15/15   (+0; lost [], gained [])
+claim check sealed7_an_v6: {'answers': 27, 'factual': 97, 'unsupported_rate': 0.67, 'citation_precision': None, 'citation_recall': 0.625, 'mean_sources_used': 0.0}
+claim check sealed7_an_v7: {'answers': 27, 'factual': 113, 'unsupported_rate': 0.699, 'citation_precision': 0.286, 'citation_recall': 0.706, 'mean_sources_used': 2.15}
+
+sealed recall (memory, blind):
+sealed recall MEM_EMBED=0: refer-backs right 11/12 = 0.92, unrelated recalled 1/6 = 0.17
+sealed recall MEM_EMBED=1: refer-backs right 12/12 = 1.00, unrelated recalled 0/6 = 0.00
+sealed recall rule (hit@1 higher, false recall not higher): PASS
+
+
+v3eval_sealed7_an_v6.json  (pass rate per check; n = questions with that check)
+category     n   route   films    data    spec  absent  prompt  prep s  ans s  grnd   hon   src   inf   pass
+issue        6     0/6     5/6       -       -       -    5920     4.2    9.0  5.00  5.00  5.00     -    6/6
+why          5     4/5     5/5       -       -       -    9705     4.3   23.4  5.00  5.00  5.00  5.00    5/5
+reception    2     0/2     2/2       -       -       -    5548     4.1   11.8  5.00  5.00  5.00     -    2/2
+gap          2     0/2     2/2       -       -       -    6530     4.0   13.0  5.00  5.00  5.00  3.00    2/2
+divisive     2     0/2     2/2       -       -       -    5348     4.2   12.5  4.00  5.00  5.00  3.00    2/2
+reappraised   2     0/2     2/2       -       -       -    5722     3.9    9.3  5.00  5.00  5.00     -    2/2
+reviews      1     1/1     0/1       -       -       -    4638     3.8   13.1  3.00  5.00  5.00     -    0/1
+factual      4     4/4     4/4     2/2       -       -    3830     3.8    5.8  4.50  5.00  5.00     -    3/4
+compare      1     1/1     1/1       -       -       -   12153     4.7   11.6  5.00  5.00  5.00     -    1/1
+honesty      2     2/2       -       -       -       -     425     4.0    5.4  5.00  5.00     -     -    2/2
+ALL         27   12/27   23/25     2/2       -       -    6048     4.1   12.0  4.78  5.00  5.00  4.20  25/27
+
+v3eval_sealed7_an_v7.json  (pass rate per check; n = questions with that check)
+category     n   route   films    data    spec  absent  prompt  prep s  ans s  grnd   hon   src   inf   pass
+issue        6     5/6     5/6       -       -       -    9740     0.2   15.9  4.33  5.00  5.00  2.00    5/6
+why          5     5/5     5/5       -       -       -   11428     0.1   20.8  5.00  5.00  5.00  4.50    5/5
+reception    2     2/2     2/2       -       -       -    9716     0.2   18.3  5.00  5.00  5.00     -    2/2
+gap          2     2/2     2/2       -       -       -   11391     0.2   19.7  5.00  5.00  5.00     -    2/2
+divisive     2     2/2     2/2       -       -       -    9594     0.1   16.1  5.00  5.00  5.00     -    2/2
+reappraised   2     1/2     2/2       -       -       -    8413     0.1   19.3  5.00  5.00  5.00     -    2/2
+reviews      1     0/1     0/1       -       -       -    6380     0.2   10.3  5.00  5.00     -     -    1/1
+factual      4     4/4     4/4     2/2       -       -    3830     0.1    8.4  4.50  5.00  5.00     -    3/4
+compare      1     1/1     1/1       -       -       -   12153     0.1   12.8  3.00  5.00  5.00     -    1/1
+honesty      2     2/2       -       -       -       -    1923     0.1   12.0  5.00  5.00  5.00     -    2/2
+ALL         27   24/27   23/25     2/2       -       -    8574     0.1   16.8  4.70  5.00  5.00  4.00  25/27
+
+per question: data check and judge verdict, A -> B
+  s7a01 issue     data None->None  verdict pass->fail  How was The Help's portrayal of Black maids in 1960s Mississ
+  s7a20 reviews   data None->None  verdict fail->pass  What did critics praise about Portrait of a Lady on Fire?
+
+Judge: gemma3:27b (agreement with hand grades: results/judge_check_report.txt, if graded).
