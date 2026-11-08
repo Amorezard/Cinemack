@@ -1,0 +1,17 @@
+Letterboxd ratings (letterboxd_data.py) - descriptive only
+
+Letterboxd (Hugging Face letterboxd-10m-movies-ratings-2025, CC BY-NC-SA 4.0)
+  films matched 23,419 (exact 0); with 20+ ratings and an exact match: 0; ratings in matched films 5,997,495
+
+Letterboxd (Kaggle 'Letterboxd Movie Ratings Data', ~2021)
+  films matched 42,182 (exact 29,927); with 20+ ratings and an exact match: 21,862; ratings in matched films 9,231,755
+  mean rating: median 3.07 / 5 (10th 2.06, 90th 3.77)
+  Spearman with IMDb rating        +0.842  (n=21,844)
+  Spearman with Rotten Tomatoes %  +0.832  (n=10,446)
+  Spearman with Metacritic         +0.841  (n=7,010)
+  Spearman with MovieLens mean     +0.772  (n=1,294)
+  Spearman with TMDB rating        +0.738  (n=21,861)
+  rated higher here than by IMDb voters: Birdemic: Shock and Terror (2010); Troll 2 (1990); Ishtar (1987); Slumber Party Massacre II (1987); Spice World (1997); Prisoners of the Ghostland (2021); The Return of the Texas Chainsaw Massacre (1995); Silent Night, Deadly Night Part 2 (1987)
+  rated lower here than by IMDb voters:  Crash (2005); Bohemian Rhapsody (2018); Collateral Beauty (2016); The Book of Henry (2017); The Kissing Booth (2018); The Kissing Booth 2 (2020); Green Book (2018); Hillbilly Elegy (2020)
+
+Limits: dataset members are a self-selected, film-heavy group; ratings were collected years after release for most films; the Hugging Face set has titles only, so title-only matches (0.5) are left out above.
