@@ -1026,6 +1026,14 @@ def friendly(e):
     return "Something went wrong answering that. Try again, or rephrase the question."
 
 
+# v8 (9 Nov 2026): new page at /v8 plus profile, friends, history, calendar and alerts routes (web/v8routes.py).
+try:
+    import v8routes
+    v8routes.install(app, user_of=user_of, account_of=account_of, gate=_gate)
+except Exception as _e:  # noqa: BLE001  - the classic page keeps working if v8 fails to load
+    print(f"[cinemack] v8 routes not loaded: {_e!r}", flush=True)
+
+
 if __name__ == "__main__":
     import uvicorn
     host = os.environ.get("HOST", "0.0.0.0")

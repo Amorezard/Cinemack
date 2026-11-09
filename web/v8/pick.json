@@ -1,0 +1,27 @@
+{
+  "about": "Pick tonight: each answer maps to this chat's filters (user_prefs.clean_chat). Hard limits are enforced in code with strict=true: a film whose fact is unknown fails that limit. Shared by app.js and tests/test_v8_pick.py.",
+  "with": {
+    "me": {"label": "Just me", "filters": {}, "words": "for me"},
+    "partner": {"label": "With a partner", "filters": {}, "words": "for two adults"},
+    "friends": {"label": "With friends", "filters": {}, "words": "for a group of friends"},
+    "kids": {"label": "With kids", "filters": {"max_cert": "PG"}, "words": "for a family with young kids"}
+  },
+  "mood": {
+    "funny": {"label": "Funny", "filters": {"genre": "Comedy"}, "words": "funny"},
+    "thrilling": {"label": "Thrilling", "filters": {"genre": "Thriller"}, "words": "gripping"},
+    "moving": {"label": "Moving", "filters": {"genre": "Drama"}, "words": "moving"},
+    "mind": {"label": "Mind-bending", "filters": {"genre": "Science Fiction"}, "words": "mind-bending"},
+    "scary": {"label": "Scary", "filters": {"genre": "Horror"}, "words": "scary"},
+    "cozy": {"label": "Cosy", "filters": {"genre": "Family"}, "words": "cosy, comforting"},
+    "any": {"label": "Surprise me", "filters": {}, "words": "great"}
+  },
+  "time": {
+    "90": {"label": "Under 1½ hours", "filters": {"max_runtime": 90}, "words": "under 90 minutes"},
+    "120": {"label": "Under 2 hours", "filters": {"max_runtime": 120}, "words": "under two hours"},
+    "any": {"label": "Any length", "filters": {}, "words": ""}
+  },
+  "novelty": {
+    "familiar": {"label": "Something familiar", "words": "a well-loved, popular pick"},
+    "different": {"label": "Something different", "words": "something less obvious that I may not have heard of"}
+  }
+}

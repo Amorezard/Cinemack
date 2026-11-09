@@ -42,7 +42,13 @@ IMG = "https://image.tmdb.org/t/p/w185"
 
 DEFAULTS = {"length": "normal", "voice": "persona", "spoilers": "site", "sources": True, "never_genres": [],
             "min_year": None, "max_runtime": None, "about": "", "memory": True,
-            "max_cert": None, "money": True, "critics": True, "recall": True, "services": []}
+            "max_cert": None, "money": True, "critics": True, "recall": True, "services": [],
+            "decades": [], "languages": []}
+# v8 (9 Nov): favourite decades and languages lift matching films in recommendations; they never remove a film.
+LANGUAGES = {"en": "English", "fr": "French", "es": "Spanish", "de": "German", "it": "Italian", "ja": "Japanese",
+             "ko": "Korean", "zh": "Chinese", "hi": "Hindi", "pt": "Portuguese", "sv": "Swedish", "da": "Danish",
+             "no": "Norwegian", "ru": "Russian", "fa": "Persian", "tr": "Turkish", "pl": "Polish", "th": "Thai"}
+PREF_BOOST = 0.15        # added to a film's rank score per matching preference (decade, language)
 # 4 Nov: the streaming services a person has (settings "services"). Matched against TMDB's US where-to-watch list
 # (JustWatch data, facts.db watch_providers): a provider counts when its name is a pattern or starts with one
 # ("Netflix Standard with Ads", "Max Amazon Channel"). Only subscription / free / with-ads listings count.
@@ -125,6 +131,8 @@ def clean(raw):
         s[k] = v if v is None or lo <= v <= hi else None
     s["about"] = " ".join(str(raw.get("about") or "").split())[:ABOUT_MAX]
     s["services"] = [k for k in dict.fromkeys(raw.get("services") or []) if k in SERVICES]
+    s["decades"] = [k for k in dict.fromkeys(raw.get("decades") or []) if k in ERAS]
+    s["languages"] = [k for k in dict.fromkeys(raw.get("languages") or []) if k in LANGUAGES]
     return s
 
 
@@ -186,6 +194,8 @@ def clean_chat(raw):
         out["max_cert"] = raw["max_cert"]
     if raw.get("services_only") is True:
         out["services_only"] = True
+    if raw.get("strict") is True:            # v8 Pick tonight: a film whose fact is unknown fails that limit too
+        out["strict"] = True
     return out
 
 
@@ -210,6 +220,8 @@ def merge_chat(settings, chat):
         s["max_cert"] = c["max_cert"] if not mine or CERT_RANK[c["max_cert"]] < CERT_RANK[mine] else mine
     if c.get("services_only") and s.get("services"):
         s["services_only"] = True
+    if c.get("strict"):
+        s["strict"] = True
     s["chat_filters"] = c
     return s
 
@@ -361,6 +373,9 @@ def excluded(settings, hits):
             out.add(fid)
         elif limit is not None and fid in certs and CERT_RANK[certs[fid]] > limit:
             out.add(fid)
+        elif s.get("strict") and ((limit is not None and fid not in certs) or (s.get("max_runtime") and not rt)
+                                  or ((only or never) and not gs) or ((s.get("min_year") or max_y) and not y)):
+            out.add(fid)
         elif on is not None and fid not in on:
             out.add(fid)
     return out
@@ -468,6 +483,27 @@ def past_films_block(key, n=12):
             "disliked count as seen):\n" + "\n".join("- " + p for p in parts))
 
 
+def prefer_decades_languages(settings, hits):
+    """v8: same films, re-ordered: each film scores 1/(1 + rank*0.15) plus PREF_BOOST per matching favourite decade
+    or language (from facts.db year and original_language). Nothing is removed."""
+    decs = [ERAS[d] for d in settings.get("decades") or [] if d in ERAS]
+    langs = set(settings.get("languages") or [])
+    if not hits or not (decs or langs):
+        return hits
+    ids = [h.get("id") for h in hits if str(h.get("id") or "").isdigit()]
+    lang = dict(_q(_facts(), "select tmdb_id, original_language from films where tmdb_id in (" + ",".join("?" * len(ids)) + ")",
+                   ids)) if ids else {}
+    info = _film_facts(ids)
+
+    def score(rank, h):
+        y = info.get(h.get("id"), (set(), None, None))[1]
+        b = PREF_BOOST if y and any((lo or 0) <= y <= (hi or 9999) for lo, hi in decs) else 0.0
+        b += PREF_BOOST if lang.get(h.get("id")) in langs else 0.0
+        return 1.0 / (1 + rank * 0.15) + b
+    order = sorted(enumerate(hits), key=lambda x: -score(*x))
+    return [h for _r, h in order]
+
+
 def filter_hits(settings, hits):
     gone = excluded(settings, hits)
     return [h for h in hits if h.get("id") not in gone] if gone else hits
@@ -501,6 +537,11 @@ def install(chat_module):
                 hits = prefer_services(s, hits)        # 4 Nov: films on their services first (stable)
             except Exception as e:  # noqa: BLE001
                 print(f"[cinemack] services order failed: {e!r}", flush=True)
+        if s and hits and (s.get("decades") or s.get("languages")):
+            try:
+                hits = prefer_decades_languages(s, hits)   # v8: a lift, never a filter
+            except Exception as e:  # noqa: BLE001
+                print(f"[cinemack] decade/language order failed: {e!r}", flush=True)
         return hits
     _personalize._mb_orig = orig
     chat_module._personalize = _personalize
