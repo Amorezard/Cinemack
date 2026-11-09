@@ -238,6 +238,26 @@ class CalendarAlerts(unittest.TestCase):
         self.assertEqual([e["kind"] for e in ev], ["theatrical_rerelease"])
         self.assertIn("re-release", ev[0]["label"])
 
+    def test_rerelease_edge_cases(self):
+        import datetime as dt
+        today = dt.date.today()
+        fc = sqlite3.connect(os.environ["FACTS_DB"])
+        rows = [(13, "Restored", 1991, "1991-10-10", today.isoformat()),          # restoration, no older US date
+                (14, "Expanding", 2099, "2099-03-01", "2099-03-01")]               # limited, then wide 3 weeks later
+        for r in rows:
+            fc.execute("insert or ignore into films(tmdb_id, title, year, release_date, us_release_date, vote_count) values (?,?,?,?,?,10)", r)
+        fc.execute("insert into certifications values (14, 'US', 'R', 2, '2099-03-01T00:00:00.000Z')")
+        fc.execute("insert into certifications values (14, 'US', 'R', 3, '2099-03-22T00:00:00.000Z')")
+        now = today.isoformat() + "T06:00:00"
+        fc.execute("delete from lists where list_name = 'now_playing'")
+        fc.execute("insert into lists values ('now_playing', 'US', 13, 1, ?)", (now,))
+        fc.commit(); fc.close()
+        rails = {r["key"]: [c["title"] for c in r["items"]] for r in discovery.home("")["rails"]}
+        self.assertEqual(rails["now_playing"], [])
+        self.assertEqual(rails["back_in_theatres"], ["Restored"])
+        ev = [e["kind"] for e in discovery.calendar("", days=60, start="2099-03-15")["events"] if (e.get("film") or {}).get("title") == "Expanding"]
+        self.assertEqual(ev, ["theatrical"])
+
     def test_alerts_once_per_change(self):
         user = "acct5"
         film_info.choose = film_info.choose.__wrapped__ if hasattr(film_info.choose, "__wrapped__") else film_info.choose

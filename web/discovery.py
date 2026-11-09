@@ -103,14 +103,22 @@ def _first_theatrical(ids):
     return first
 
 
-def _split_rereleases(ids, days=180):
-    """TMDB's now-playing list includes re-releases (anniversary and holiday screenings). New = first US theatrical
-    date within `days`; anything older is a re-release."""
-    cut = (datetime.date.today() - datetime.timedelta(days=days)).isoformat()
-    first = _first_theatrical(ids)
-    new = [i for i in ids if not first.get(i) or first[i] >= cut]
-    old = [i for i in ids if first.get(i) and first[i] < cut]
-    return new, old
+def _years(ids):
+    if not ids:
+        return {}
+    return dict(_q("select tmdb_id, year from films where tmdb_id in (" + ",".join(str(int(i)) for i in ids) + ")"))
+
+
+def _split_rereleases(ids, days=120):
+    """TMDB's now-playing list includes re-releases (anniversary and holiday screenings, restorations). New = first US
+    theatrical date within `days` and a release year no older than last year; anything else is a re-release.
+    The year check catches restorations with no older US date on record (Raise the Red Lantern, 1991)."""
+    today = datetime.date.today()
+    cut = (today - datetime.timedelta(days=days)).isoformat()
+    first, years = _first_theatrical(ids), _years(ids)
+    def old(i):
+        return bool((first.get(i) and first[i] < cut) or (years.get(i) and years[i] < today.year - 1))
+    return [i for i in ids if not old(i)], [i for i in ids if old(i)]
 
 
 def because_you_liked(user, rails=2, per=12):
@@ -213,16 +221,24 @@ def calendar(user="", days=60, start=None):
     # Fallback: films with a known US date but no US release-type rows at all. Films with only a non-US date are left
     # out (the calendar is US releases).
     have_us = {r[0] for r in _q("select distinct tmdb_id from certifications where region = 'US'")}
-    on_lists = {r[0] for r in _q("select distinct tmdb_id from lists where region = 'US' and list_name in "
-                                 "('upcoming', 'announced', 'now_playing')")}
+    # TMDB's US upcoming / now-playing lists, plus the 60 most popular of its "announced in the next year" list; the
+    # rest of "announced" is mostly tiny releases and event screenings with no US release type.
+    on_lists = {r[0] for r in _q("select distinct tmdb_id from lists where region = 'US' and (list_name in "
+                                 "('upcoming', 'now_playing') or (list_name = 'announced' and rank <= 60))")}
     for fid, d in _q("select tmdb_id, substr(us_release_date, 1, 10) from films where us_release_date is not null and "
                      "substr(us_release_date, 1, 10) between ? and ?", (start, end)):
         if fid not in have_us and fid in on_lists:      # unknown release type: only films TMDB lists for the US
             rows[(fid, "theatrical_or_unknown")] = d
     # A theatrical date for a film that opened in US theatres before the window is a re-release.
-    first = _first_theatrical([f for f, k in rows if k == "theatrical"])
+    # Re-release: the film first opened in US theatres more than a year before this date, or it is from an earlier
+    # year. A limited opening followed by a wide one weeks later is not a re-release.
+    th = [f for f, k in rows if k == "theatrical"]
+    first, years = _first_theatrical(th), _years(th)
     for (fid, kind), d in list(rows.items()):
-        if kind == "theatrical" and first.get(fid) and first[fid] < d and first[fid] < start:
+        if kind != "theatrical":
+            continue
+        year_ago = (datetime.date.fromisoformat(d) - datetime.timedelta(days=365)).isoformat()
+        if (first.get(fid) and first[fid] < year_ago) or (years.get(fid) and years[fid] < int(d[:4]) - 1):
             rows[(fid, "theatrical_rerelease")] = rows.pop((fid, kind))
     film_cards = {c["id"]: c for c in cards(list({f for f, _k in rows}), user)}
     on_wl = {w["id"] for w in film_info.watchlist(user, 500)} if user else set()
