@@ -90,6 +90,29 @@ def _seen_or_rated(user):
     return s
 
 
+def _first_theatrical(ids):
+    """First US limited/wide date ever, per film; else the film's US or world release date."""
+    ids = [int(i) for i in ids]
+    if not ids:
+        return {}
+    q = ",".join(str(i) for i in ids)
+    first = dict(_q(f"select tmdb_id, min(substr(release_date, 1, 10)) from certifications where region = 'US' "
+                    f"and release_type in (2, 3) and tmdb_id in ({q}) group by tmdb_id"))
+    for fid, d in _q(f"select tmdb_id, substr(coalesce(us_release_date, release_date), 1, 10) from films where tmdb_id in ({q})"):
+        first.setdefault(fid, d)
+    return first
+
+
+def _split_rereleases(ids, days=180):
+    """TMDB's now-playing list includes re-releases (anniversary and holiday screenings). New = first US theatrical
+    date within `days`; anything older is a re-release."""
+    cut = (datetime.date.today() - datetime.timedelta(days=days)).isoformat()
+    first = _first_theatrical(ids)
+    new = [i for i in ids if not first.get(i) or first[i] >= cut]
+    old = [i for i in ids if first.get(i) and first[i] < cut]
+    return new, old
+
+
 def because_you_liked(user, rails=2, per=12):
     try:
         import personal
@@ -136,9 +159,13 @@ def home(user=""):
     rails.append({"key": "watchlist", "title": "Your watchlist", "items": cards([w["id"] for w in wl], user),
                   "empty": "Tap Want to watch on any film and it lands here."})
     rails += because_you_liked(user) if user else []
-    ids, at = _list("now_playing")
-    rails.append({"key": "now_playing", "title": "In theatres now", "items": cards(ids[:20], user),
-                  "source": "TMDB now playing (US)", "as_of": at})
+    ids, at = _list("now_playing", 40)
+    new_ids, rerel = _split_rereleases(ids)
+    rails.append({"key": "now_playing", "title": "In theatres now", "items": cards(new_ids[:20], user),
+                  "source": "TMDB now playing (US), new releases", "as_of": at})
+    if rerel:
+        rails.append({"key": "back_in_theatres", "title": "Back in theatres", "items": cards(rerel[:20], user),
+                      "source": "Re-releases on TMDB's now-playing list (US)", "as_of": at})
     ids, at = _list("upcoming", 40)
     dates = dict(_q("select tmdb_id, coalesce(us_release_date, release_date) from films where tmdb_id in (" +
                     ",".join(str(int(i)) for i in ids or [0]) + ")"))
@@ -186,10 +213,17 @@ def calendar(user="", days=60, start=None):
     # Fallback: films with a known US date but no US release-type rows at all. Films with only a non-US date are left
     # out (the calendar is US releases).
     have_us = {r[0] for r in _q("select distinct tmdb_id from certifications where region = 'US'")}
+    on_lists = {r[0] for r in _q("select distinct tmdb_id from lists where region = 'US' and list_name in "
+                                 "('upcoming', 'announced', 'now_playing')")}
     for fid, d in _q("select tmdb_id, substr(us_release_date, 1, 10) from films where us_release_date is not null and "
                      "substr(us_release_date, 1, 10) between ? and ?", (start, end)):
-        if fid not in have_us:
+        if fid not in have_us and fid in on_lists:      # unknown release type: only films TMDB lists for the US
             rows[(fid, "theatrical_or_unknown")] = d
+    # A theatrical date for a film that opened in US theatres before the window is a re-release.
+    first = _first_theatrical([f for f, k in rows if k == "theatrical"])
+    for (fid, kind), d in list(rows.items()):
+        if kind == "theatrical" and first.get(fid) and first[fid] < d and first[fid] < start:
+            rows[(fid, "theatrical_rerelease")] = rows.pop((fid, kind))
     film_cards = {c["id"]: c for c in cards(list({f for f, _k in rows}), user)}
     on_wl = {w["id"] for w in film_info.watchlist(user, 500)} if user else set()
     out = []
@@ -198,8 +232,9 @@ def calendar(user="", days=60, start=None):
         if not c:
             continue
         e = {"date": d, "kind": kind, "media": "movie", "film": c, "on_watchlist": fid in on_wl,
-             "label": {"theatrical": "In theatres", "digital": "Streaming / digital", "theatrical_or_unknown": "Release date"}[kind]}
-        if kind == "theatrical":
+             "label": {"theatrical": "In theatres", "theatrical_rerelease": "Back in theatres (re-release)",
+                       "digital": "Streaming / digital", "theatrical_or_unknown": "Release date"}[kind]}
+        if kind in ("theatrical", "theatrical_rerelease"):
             e["showtimes"] = {"label": "Find showtimes (Google search)",
                               "url": "https://www.google.com/search?" + urllib.parse.urlencode({"q": f"{c['title']} showtimes"})}
         out.append(e)

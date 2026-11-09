@@ -216,6 +216,28 @@ class CalendarAlerts(unittest.TestCase):
         self.assertNotIn("Abroad Only", titles)
         self.assertIn("Future Film", titles)
 
+    def test_rereleases_kept_apart(self):
+        import datetime as dt
+        today = dt.date.today()
+        fc = sqlite3.connect(os.environ["FACTS_DB"])
+        fc.execute("insert or ignore into films(tmdb_id, title, year, release_date, us_release_date, vote_count) values "
+                   "(11, 'Classic', 1976, '1976-05-01', '1976-05-01', 900)")
+        fc.execute("insert or ignore into films(tmdb_id, title, year, release_date, us_release_date, vote_count) values "
+                   "(12, 'Brand New', ?, ?, ?, 40)", (today.year, today.isoformat(), today.isoformat()))
+        fc.execute("insert into certifications values (11, 'US', 'R', 3, '1976-05-01T00:00:00.000Z')")
+        fc.execute("insert into certifications values (11, 'US', 'R', 3, '2099-05-01T00:00:00.000Z')")
+        fc.execute("insert into certifications values (12, 'US', 'PG', 3, ?)", (today.isoformat() + "T00:00:00.000Z",))
+        now = today.isoformat() + "T06:00:00"
+        fc.execute("delete from lists where list_name = 'now_playing'")
+        fc.executemany("insert into lists values ('now_playing', 'US', ?, ?, ?)", [(11, 1, now), (12, 2, now)])
+        fc.commit(); fc.close()
+        rails = {r["key"]: [c["title"] for c in r["items"]] for r in discovery.home("")["rails"]}
+        self.assertEqual(rails["now_playing"], ["Brand New"])
+        self.assertEqual(rails["back_in_theatres"], ["Classic"])
+        ev = [e for e in discovery.calendar("", days=365, start="2099-01-01")["events"] if (e.get("film") or {}).get("title") == "Classic"]
+        self.assertEqual([e["kind"] for e in ev], ["theatrical_rerelease"])
+        self.assertIn("re-release", ev[0]["label"])
+
     def test_alerts_once_per_change(self):
         user = "acct5"
         film_info.choose = film_info.choose.__wrapped__ if hasattr(film_info.choose, "__wrapped__") else film_info.choose
