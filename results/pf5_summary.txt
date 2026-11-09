@@ -1,4 +1,4 @@
-pf5 (A people in the news, C economy + genre momentum) - 2026-11-09 11:57, lightgbm
+pf5 (A people in the news, C economy + genre momentum) - 2026-11-09 12:04, lightgbm
 train <= 2015: 8,742 films; test 2016-2019: 1,487; late 2020-2023: 787
 
 arm                       MAE test    rho  MAE late   diff vs pf4 [95% CI]
@@ -50,4 +50,4 @@ pf5 arm, mean |contribution| on the test films (new features marked *):
     dir_prev_n               0.0300
     same_weekend_log_budget  0.0289
 
-(10 s)
+(11 s)
