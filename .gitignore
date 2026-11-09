@@ -31,3 +31,14 @@ results/*.log
 *.before-*
 results/perf_pf3_backup.json
 runs/*/log.txt
+keys.env
+inbox/
+todo.sh
+sync_out.tgz
+inventory.txt
+tidy_plan.txt
+mirror.tgz
+archive/code-backups/
+archive/old-logs/
+archive/web-backups/
+logs/tmux/
