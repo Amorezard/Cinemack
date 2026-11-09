@@ -204,6 +204,18 @@ class CalendarAlerts(unittest.TestCase):
         self.assertIn("google.com/search", theatre["showtimes"]["url"])
         self.assertNotIn("time", json.dumps(theatre).replace("showtimes", ""))   # never a showtime value
 
+    def test_calendar_skips_repeat_digital_and_non_us(self):
+        fc = sqlite3.connect(os.environ["FACTS_DB"])
+        fc.execute("insert or ignore into films(tmdb_id, title, year, release_date, vote_count) values (9, 'Old Digital', 2097, '2097-02-01', 500)")
+        fc.execute("insert or ignore into films(tmdb_id, title, year, release_date, vote_count) values (10, 'Abroad Only', 2099, '2099-03-01', 50)")
+        fc.execute("insert into certifications values (9, 'US', 'R', 4, '2098-01-01T00:00:00.000Z')")
+        fc.execute("insert into certifications values (9, 'US', 'R', 4, '2099-02-01T00:00:00.000Z')")   # new service, not new film
+        fc.commit(); fc.close()
+        titles = {(e.get("film") or {}).get("title") for e in discovery.calendar("", days=365, start="2099-01-01")["events"]}
+        self.assertNotIn("Old Digital", titles)
+        self.assertNotIn("Abroad Only", titles)
+        self.assertIn("Future Film", titles)
+
     def test_alerts_once_per_change(self):
         user = "acct5"
         film_info.choose = film_info.choose.__wrapped__ if hasattr(film_info.choose, "__wrapped__") else film_info.choose

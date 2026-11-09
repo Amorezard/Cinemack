@@ -171,16 +171,24 @@ def calendar(user="", days=60, start=None):
     start = start or _today()
     end = (datetime.date.fromisoformat(start) + datetime.timedelta(days=int(days))).isoformat()
     rows = {}
+    # Theatrical: limited (2) or wide (3) US dates in the window; festival premieres (1) are not public releases.
     for fid, typ, d in _q("select tmdb_id, release_type, substr(release_date, 1, 10) from certifications where region = 'US' "
-                          "and substr(release_date, 1, 10) between ? and ? and release_type in (1, 2, 3, 4)", (start, end)):
-        kind = RELEASE_KIND.get(typ, "theatrical")
-        k = (fid, kind)
+                          "and substr(release_date, 1, 10) between ? and ? and release_type in (2, 3)", (start, end)):
+        k = (fid, "theatrical")
         if k not in rows or d < rows[k]:
             rows[k] = d
-    have = {f for f, _k in rows}
-    for fid, d in _q("select tmdb_id, substr(coalesce(us_release_date, release_date), 1, 10) from films where "
-                     "substr(coalesce(us_release_date, release_date), 1, 10) between ? and ?", (start, end)):
-        if fid not in have:
+    # Digital: only a film's FIRST US digital date. TMDB adds a new digital date each time a film reaches another
+    # service (e.g. Love Hurts, 2025: four digital dates), which would otherwise show old films as new releases.
+    for fid, d in _q("select tmdb_id, min(substr(release_date, 1, 10)) from certifications where region = 'US' "
+                     "and release_type = 4 group by tmdb_id having min(substr(release_date, 1, 10)) between ? and ?",
+                     (start, end)):
+        rows[(fid, "digital")] = d
+    # Fallback: films with a known US date but no US release-type rows at all. Films with only a non-US date are left
+    # out (the calendar is US releases).
+    have_us = {r[0] for r in _q("select distinct tmdb_id from certifications where region = 'US'")}
+    for fid, d in _q("select tmdb_id, substr(us_release_date, 1, 10) from films where us_release_date is not null and "
+                     "substr(us_release_date, 1, 10) between ? and ?", (start, end)):
+        if fid not in have_us:
             rows[(fid, "theatrical_or_unknown")] = d
     film_cards = {c["id"]: c for c in cards(list({f for f, _k in rows}), user)}
     on_wl = {w["id"] for w in film_info.watchlist(user, 500)} if user else set()
