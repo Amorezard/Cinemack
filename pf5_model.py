@@ -23,6 +23,12 @@ Rules (6 Nov plan, written before any pf5 data; the B and range rules restated 9
            MAE difference excludes 0. Articles count only when the title is in the headline or trail text.
   RANGE    10% and 90% quantile models on pf4's inputs: the share of 2016-2019 films whose actual return falls inside
            the 80% range must be 75-85% ("calibrated").
+  RANGE v3 (9 Nov ~18:30, chosen AFTER seeing run 2's uncalibrated ranges; 2016-2019 coverage is the first look at
+           this method): conformalized quantile regression. Quantile models on films <= 2011, conformity scores on
+           2012-2015, interval widened (or narrowed) by the 80% score quantile. Same 75-85% rule on 2016-2019.
+  B v3 (9 Nov ~18:30, leak fix): an article counts only if published before the film's EARLIEST release date (world
+           or US). Runs 1-2 used the US date, so for films that opened abroad first, reviews and box-office reports
+           from the earlier release could count. Fetch window is unchanged (US date - 120 days to US date - 1).
   LB       AFTER + Letterboxd mean rating (no rating count: audience size leaks the outcome) vs AFTER, reported only.
 
 Checks printed so a bad feature cannot pass silently: the pf4 arm reproduces 1.200; a shuffled control of all new
@@ -72,7 +78,9 @@ def load(c):
     for fid, rd, usrd, genres, coll, title in c.execute(
             "select tmdb_id, release_date, us_release_date, genres_json, collection_id, title from films"):
         g = json.loads(genres or "[]")
-        info[fid] = {"date": P._date(usrd) or P._date(rd), "g0": g[0] if g else None, "coll": coll, "title": title}
+        ds = [d for d in (P._date(usrd), P._date(rd)) if d]
+        info[fid] = {"date": P._date(usrd) or P._date(rd), "first": min(ds) if ds else None,
+                     "g0": g[0] if g else None, "coll": coll, "title": title}
     ret = {fid: math.log(g / b) for fid, b, g in c.execute("select tmdb_id, budget, gross from money")
            if b and g and b >= 1e5 and g > 0}
     greal = {}
@@ -195,7 +203,7 @@ def add_track(c, rows, info, ret, greal):
 
 
 def add_press(c, rows, info):
-    done, arts = {}, {}
+    done, arts, dropped = {}, {}, [0, 0]
     try:
         done = {fid: st for fid, st in c.execute("select tmdb_id, status from film_press_done")}
         for fid, pub, head, trail in c.execute("select tmdb_id, pub_date, headline, trail from film_press"):
@@ -209,11 +217,15 @@ def add_press(c, rows, info):
             continue
         t = (info[fid]["title"] or "").casefold()
         rel = [a for a in arts.get(fid, []) if t and (t in a[1].casefold() or t in a[2].casefold())]
-        d = info[fid]["date"]
-        last28 = [a for a in rel if a[0] and P._date(a[0][:10]) and (d - P._date(a[0][:10])).days <= 28]
+        d = info[fid]["first"] or info[fid]["date"]           # v3: earliest release anywhere
+        n_all = len(rel)
+        rel = [a for a in rel if a[0] and P._date(a[0][:10]) and P._date(a[0][:10]) < d]
+        dropped[0] += n_all - len(rel); dropped[1] += (n_all - len(rel)) > 0
+        last28 = [a for a in rel if (d - P._date(a[0][:10])).days <= 28]
         r["b_log_n"] = math.log1p(len(rel))
         r["b_last28_share"] = len(last28) / len(rel) if rel else 0.0
         r["b_marketing"] = float(sum(1 for a in rel if MARKETING.search(a[1] + " " + a[2])))
+    print(f"B leak fix: {dropped[0]:,} articles on {dropped[1]:,} films were on or after the film's earliest release and are no longer counted")
 
 
 def describe(rows_by, cols):
@@ -269,6 +281,43 @@ def ranges(tr, te, cols):
             "above": round(float((yte > hi).mean()), 4), "median_width_factor": round(float(np.exp(np.median(hi - lo))), 2)}
 
 
+def ranges_cqr(uni, cols, fit_to=2011, cal=(2012, 2015), alpha=0.2):
+    """Conformalized quantile regression (Romano et al. 2019): quantile models on <= fit_to, conformity scores on the
+    calibration years, then the same widening applied to 2016-2019 and 2020-2023."""
+    try:
+        import lightgbm as lgb
+    except ImportError:
+        return None
+    fit = [r for r in uni if r["year"] <= fit_to]
+    cal_rows = [r for r in uni if cal[0] <= r["year"] <= cal[1]]
+    q = {}
+    for a in (alpha / 2, 1 - alpha / 2):
+        m = lgb.LGBMRegressor(objective="quantile", alpha=a, n_estimators=500, learning_rate=0.03, num_leaves=15,
+                              min_child_samples=30, subsample=0.8, subsample_freq=1, colsample_bytree=0.8,
+                              random_state=7, verbose=-1)
+        m.fit(P.matrix(fit, cols), np.array([r["actual"] for r in fit]))
+        q[a] = m
+    def band(rs):
+        a, b = q[alpha / 2].predict(P.matrix(rs, cols)), q[1 - alpha / 2].predict(P.matrix(rs, cols))
+        return np.minimum(a, b), np.maximum(a, b)
+    lo, hi = band(cal_rows)
+    y = np.array([r["actual"] for r in cal_rows])
+    score = np.maximum(lo - y, y - hi)
+    n = len(score)
+    qhat = float(np.quantile(score, min(1.0, math.ceil((n + 1) * (1 - alpha)) / n), method="higher"))
+    out = {"n_fit": len(fit), "n_cal": n, "qhat": round(qhat, 4), "cal_raw_coverage": round(float(((y >= lo) & (y <= hi)).mean()), 4)}
+    for name, (y0, y1) in (("test", P.TEST), ("late", P.LATE)):
+        rs = [r for r in uni if y0 <= r["year"] <= y1]
+        if not rs:
+            continue
+        lo, hi = band(rs)
+        lo, hi = lo - qhat, hi + qhat
+        yy = np.array([r["actual"] for r in rs])
+        out[name] = {"coverage": round(float(((yy >= lo) & (yy <= hi)).mean()), 4), "below": round(float((yy < lo).mean()), 4),
+                     "above": round(float((yy > hi).mean()), 4), "median_width_factor": round(float(np.exp(np.median(hi - lo))), 2)}
+    return out
+
+
 def main():
     t0 = time.time()
     c = P.conn(readonly=True)
@@ -316,7 +365,7 @@ def main():
     m = new(); m.fit(Xtr, ytr)
     preds["shuffled control (A+C+D)"] = (m.predict(Xte), np.array([]))
     err["shuffled control (A+C+D)"] = np.abs(preds["shuffled control (A+C+D)"][0] - yte)
-    res = {"version": "pf5-ACDB", "model": kind, "n_train": len(tr), "n_test": len(te), "n_late": len(la),
+    res = {"version": "pf5-v3", "model": kind, "n_train": len(tr), "n_test": len(te), "n_late": len(la),
            "features": {"A": A, "C1": C1, "C": C, "D": D, "B": B}, "test": {}, "late": {}, "diff": {}, "passed": passed}
     L = [f"pf5 - {datetime.datetime.now():%Y-%m-%d %H:%M}, {kind}",
          f"train <= {P.TRAIN_TO}: {len(tr):,} films; test {P.TEST[0]}-{P.TEST[1]}: {len(te):,}; late {P.LATE[0]}-{P.LATE[1]}: {len(la):,}",
@@ -350,6 +399,18 @@ def main():
     L += ["", "80% range (10% and 90% quantile models on pf4's inputs), 2016-2019:"]
     L.append(f"  coverage {rg['coverage']:.1%} (below {rg['below']:.1%}, above {rg['above']:.1%}); median width x{rg['median_width_factor']}"
              f" -> {'calibrated (75-85%)' if 0.75 <= rg['coverage'] <= 0.85 else 'NOT calibrated'}" if rg else "  lightgbm missing")
+    cq = ranges_cqr(uni, base)
+    res["range_cqr"] = cq
+    L += ["", "80% range v3, conformalized (quantile models <= 2011, calibrated on 2012-2015):"]
+    if cq:
+        L.append(f"  calibration years: raw coverage {cq['cal_raw_coverage']:.1%}, widening {cq['qhat']:+.3f} log units ({cq['n_cal']:,} films)")
+        for nm in ("test", "late"):
+            if nm in cq:
+                v = cq[nm]
+                L.append(f"  {nm:5s} coverage {v['coverage']:.1%} (below {v['below']:.1%}, above {v['above']:.1%}); median width x{v['median_width_factor']}"
+                         + (f" -> {'calibrated (75-85%)' if 0.75 <= v['coverage'] <= 0.85 else 'NOT calibrated'}" if nm == "test" else " (reported only)"))
+    else:
+        L.append("  lightgbm missing")
     aft = [k for k in P.AFTER if k in {kk for kk in usable(P.AFTER)}]
     if usable(["lb_rating"]):
         ea = []

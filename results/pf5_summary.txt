@@ -1,13 +1,13 @@
-pf5 - 2026-11-09 13:29, lightgbm
+pf5 - 2026-11-09 18:14, lightgbm
 train <= 2015: 8,742 films; test 2016-2019: 1,487; late 2020-2023: 787
 
 arm                             MAE test    rho  MAE late   diff vs pf4 [95% CI]
-pf4 before+trailers                1.200 +0.559     1.433   (reference)
-+A people (run 1)                  1.199 +0.563     1.428   -0.001 [-0.007, +0.005]
-+C1 first version (run 1)          1.206 +0.559     1.476   +0.006 [-0.001, +0.013]
-+C as planned (not blind)          1.200 +0.562     1.435   -0.000 [-0.007, +0.006]
-+D track records                   1.194 +0.572     1.411   -0.006 [-0.015, +0.004]
-shuffled control (A+C+D)           1.212 +0.551       nan   +0.012 [+0.005, +0.018]
+pf4 before+trailers                1.200 +0.560     1.440   (reference)
++A people (run 1)                  1.198 +0.562     1.427   -0.002 [-0.008, +0.005]
++C1 first version (run 1)          1.208 +0.557     1.469   +0.008 [+0.001, +0.015]
++C as planned (not blind)          1.200 +0.560     1.429   +0.001 [-0.005, +0.006]
++D track records                   1.194 +0.570     1.414   -0.006 [-0.016, +0.004]
+shuffled control (A+C+D)           1.211 +0.551       nan   +0.011 [+0.005, +0.017]
 
 CHECK pf4 arm reproduces 1.2 within 0.01: yes
 CHECK shuffled control does not beat pf4: yes
@@ -15,12 +15,17 @@ groups that pass alone: none
 RULE pf5 beats pf4 on 2016-2019: no
 
 B Guardian articles, 5-fold CV over the fetched 2016-2019 films (own test, like BUZZ):
-  n 1,487; MAE pf4 1.153 -> +B 1.142; diff -0.011 [-0.019, -0.002] -> helps (CI excludes 0)
+  n 1,487; MAE pf4 1.153 -> +B 1.151; diff -0.003 [-0.009, +0.004] -> no
 
 80% range (10% and 90% quantile models on pf4's inputs), 2016-2019:
-  coverage 71.0% (below 16.0%, above 13.1%); median width x22.52 -> NOT calibrated
+  coverage 71.4% (below 15.3%, above 13.4%); median width x22.67 -> NOT calibrated
 
-Letterboxd rating only (no count), AFTER + lb_rating - AFTER: -0.005 [-0.013, +0.003] (reported only)
+80% range v3, conformalized (quantile models <= 2011, calibrated on 2012-2015):
+  calibration years: raw coverage 69.9%, widening +0.371 log units (1,518 films)
+  test  coverage 78.1% (below 13.6%, above 8.3%); median width x39.56 -> calibrated (75-85%)
+  late  coverage 73.7% (below 21.5%, above 4.8%); median width x37.85 (reported only)
+
+Letterboxd rating only (no count), AFTER + lb_rating - AFTER: -0.006 [-0.014, +0.002] (reported only)
 
 feature coverage and means (train | test | late):
   pn_covered         train 8,742/8,742 mean 0.805 | test 1,487/1,487 mean 0.735 | late 787/787 mean 0.550
@@ -35,41 +40,41 @@ feature coverage and means (train | test | late):
   mom_genre12        train 7,651/8,742 mean 0.439 | test 1,431/1,487 mean 0.264 | late 705/787 mean -0.201
   fr_last            train 798/8,742 mean 1.580 | test 183/1,487 mean 1.413 | late 116/787 mean 1.103
   fr_last2           train 316/8,742 mean 1.645 | test 78/1,487 mean 1.408 | late 52/787 mean 1.373
-  d_star_gross       train 8,742/8,742 mean 16.696 | test 1,487/1,487 mean 16.885 | late 787/787 mean 15.976
-  d_recent_form      train 7,924/8,742 mean 0.387 | test 1,376/1,487 mean 0.130 | late 726/787 mean -0.004
-  d_dir_since_hit    train 4,069/8,742 mean 5.239 | test 638/1,487 mean 6.236 | late 363/787 mean 7.548
+  d_star_gross       train 8,742/8,742 mean 16.696 | test 1,487/1,487 mean 16.885 | late 787/787 mean 15.977
+  d_recent_form      train 7,924/8,742 mean 0.387 | test 1,376/1,487 mean 0.130 | late 726/787 mean -0.003
+  d_dir_since_hit    train 4,069/8,742 mean 5.239 | test 638/1,487 mean 6.236 | late 361/787 mean 7.565
   d_lead_since_hit   train 5,592/8,742 mean 3.389 | test 951/1,487 mean 4.011 | late 474/787 mean 4.986
-  d_prior_noms       train 8,742/8,742 mean 20.381 | test 1,487/1,487 mean 17.169 | late 787/787 mean 17.456
-  b_log_n            train 572/8,742 mean 0.637 | test 1,487/1,487 mean 0.438 | late 787/787 mean 0.454
-  b_last28_share     train 572/8,742 mean 0.269 | test 1,487/1,487 mean 0.238 | late 787/787 mean 0.272
-  b_marketing        train 572/8,742 mean 0.231 | test 1,487/1,487 mean 0.104 | late 787/787 mean 0.051
+  d_prior_noms       train 8,742/8,742 mean 20.381 | test 1,487/1,487 mean 17.169 | late 787/787 mean 17.470
+  b_log_n            train 572/8,742 mean 0.397 | test 1,487/1,487 mean 0.310 | late 787/787 mean 0.315
+  b_last28_share     train 572/8,742 mean 0.170 | test 1,487/1,487 mean 0.167 | late 787/787 mean 0.173
+  b_marketing        train 572/8,742 mean 0.173 | test 1,487/1,487 mean 0.075 | late 787/787 mean 0.047
 
 +C as planned (not blind): mean |contribution| on the test films (new features *):
-    runtime                  0.1806
-    trailer_n_pre            0.1603
-    cast_prev_ret            0.1458
-    log_budget_real          0.1395
-    year                     0.1219
-    trailer_lead_days        0.1144
-    dir_prev_ret             0.0752
-    g_Drama                  0.0740
-    g_Comedy                 0.0715
-    us_made                  0.0621
-    days_to_holiday          0.0526
-  * mom_genre12              0.0505
+    runtime                  0.1818
+    trailer_n_pre            0.1562
+    cast_prev_ret            0.1480
+    log_budget_real          0.1379
+    year                     0.1270
+    trailer_lead_days        0.1178
+    dir_prev_ret             0.0777
+    g_Drama                  0.0729
+    g_Comedy                 0.0708
+    us_made                  0.0615
+    days_to_holiday          0.0534
+    lang_en                  0.0522
 
 +D track records: mean |contribution| on the test films (new features *):
-    runtime                  0.1759
-    trailer_n_pre            0.1706
-    year                     0.1447
-    log_budget_real          0.1320
-    trailer_lead_days        0.1016
-    cast_prev_ret            0.0953
-  * d_recent_form            0.0934
-    franchise_prev_ret       0.0716
-    g_Drama                  0.0697
-    g_Comedy                 0.0669
-    us_made                  0.0599
-  * d_dir_since_hit          0.0586
+    runtime                  0.1764
+    trailer_n_pre            0.1665
+    year                     0.1348
+    log_budget_real          0.1318
+    trailer_lead_days        0.1028
+  * d_recent_form            0.0932
+    cast_prev_ret            0.0928
+    franchise_prev_ret       0.0727
+    g_Comedy                 0.0688
+    g_Drama                  0.0669
+    us_made                  0.0634
+  * d_dir_since_hit          0.0604
 
-(23 s)
+(24 s)
