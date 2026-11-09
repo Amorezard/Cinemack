@@ -174,12 +174,13 @@ function skeletonRail() {
 async function pageHome() {
   view.innerHTML = '';
   const hero = h('section', { class: 'hero', 'aria-label': 'Ask Cinemack' }, h('div', { class: 'bd', id: 'hero-bd' }),
-    h('div', { class: 'bulbs t', 'aria-hidden': 'true' }), h('div', { class: 'bulbs b', 'aria-hidden': 'true' }), h('div', { class: 'fan', id: 'hero-fan' }));
+    h('div', { class: 'bulbs t', 'aria-hidden': 'true' }), h('div', { class: 'bulbs b', 'aria-hidden': 'true' }), h('div', { class: 'stage', id: 'hero-stage' }));
   const q = h('input', { class: '', id: 'home-q', type: 'search', placeholder: 'Describe a film or a scene', 'aria-label': 'Ask Cinemack', enterkeyhint: 'send' });
   const go = () => { const t = q.value.trim(); if (t) { S.pendingAsk = t; location.hash = '#/discover'; } };
   q.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); go(); } });
   hero.append(h('div', { class: 'in' },
-    h('div', { class: 'feat', id: 'hero-feat' }),
+    h('div', { id: 'hero-cont' }),
+    h('div', { class: 'feat', id: 'hero-feat', 'aria-live': 'off' }),
     h('h1', {}, 'What are we watching tonight?'),
     h('p', { class: 'lead' }, "Describe the scene you half-remember, ask where something's streaming, or let me pick three films for tonight."),
     h('div', { class: 'askbox' }, q, h('button', { class: 'btn primary', type: 'button', onclick: go, 'aria-label': 'Ask', html: I.send })),
@@ -195,22 +196,18 @@ async function pageHome() {
   try { data = await api('/api/v8/home'); } catch (e) { holder.innerHTML = ''; holder.append(h('div', { class: 'notice' }, e.message)); return; }
   holder.innerHTML = '';
   const byKey = Object.fromEntries(data.rails.map(r => [r.key, r]));
-  const lead = (byKey.now_playing?.items || []).concat(byKey.new_popular?.items || []).find(f => f.id);
-  if (lead) heroBackdrop(lead);
-  const fan = $('#hero-fan');
-  if (fan) [...(byKey.now_playing?.items || []), ...(byKey.new_popular?.items || []), ...(byKey.back_in_theatres?.items || [])].filter(f => f.poster_lg || f.poster).slice(0, 3).forEach(f =>
-    fan.append(h('a', { href: `#/film/${f.id}`, 'aria-label': `${f.title}: details`, tabindex: '-1' }, h('img', { src: f.poster_lg || f.poster, alt: '', width: 200, height: 300 }))));
+  const cont = (byKey.continue?.items || [])[0];
+  if (cont) $('#hero-cont')?.append(h('a', { class: 'cont', href: `#/discover?chat=${encodeURIComponent(cont.id)}` },
+    h('span', { html: I.chats.replace('<svg', '<svg width="16" height="16"') }), h('span', {}, `Continue: ${cont.title || 'your last chat'}`)));
+  const showing = [...(byKey.now_playing?.items || []), ...(byKey.new_popular?.items || [])].filter(f => f.id && (f.poster_lg || f.poster)).slice(0, 6);
+  heroStage(showing);
   const ORDER = ['continue', 'watchlist', 'now_playing', 'coming_soon', 'new_popular', 'back_in_theatres'];
   const rank = (k) => k.startsWith('because_') ? 2.5 : (ORDER.indexOf(k) < 0 ? 99 : ORDER.indexOf(k));
   const rails = data.rails.slice().sort((a, b) => rank(a.key) - rank(b.key));
   const wl = rails.findIndex(r => r.key === 'watchlist');
   if (wl >= 0 && !rails[wl].items.length) rails.push(rails.splice(wl, 1)[0]);     // posters first for new visitors
   for (const r of rails) {
-    if (r.key === 'continue') {
-      const sec = h('section', { class: 'section' }, h('div', { class: 'section-h' }, h('h2', {}, 'Pick up where you left off'), h('p', { class: 'lede' }, 'Your recent conversations.')),
-        h('div', { class: 'chips scroll' }, r.items.map(c => h('a', { class: 'chip', href: `#/discover?chat=${encodeURIComponent(c.id)}` }, (c.title || 'Chat').slice(0, 48)))));
-      holder.append(sec); continue;
-    }
+    if (r.key === 'continue') continue;             // lives in the banner and the Chats panel
     const copy = RAIL_COPY[r.key] || [r.title, r.key.startsWith('because_') ? 'People who rated it highly also loved these (MovieLens).' : null];
     const el = rail(copy[0], r.items || [], { lede: copy[1],
       src: r.source ? `${r.source}${r.as_of ? `, ${r.as_of}` : ''}` : null,
@@ -224,12 +221,40 @@ async function pageHome() {
     holder.append(h('div', { class: 'notice' }, 'Tell me what you liked (the thumbs-up on any film page) and this page grows "Because you liked…" rows.'));
   }
 }
-async function heroBackdrop(f) {
-  try {
-    const d = await api(`/api/film/${f.id}`);
-    if (d.backdrop) { const bd = $('#hero-bd'); if (bd) bd.style.backgroundImage = `url("${d.backdrop}")`; }
-    const ft = $('#hero-feat'); if (ft) { ft.innerHTML = ''; ft.append('In theatres now: ', h('a', { href: `#/film/${f.id}` }, d.title || f.title)); }
-  } catch {}
+// One poster at a time, cross-fading every 7 s (1.2 s fade, no overlap). The backdrop and the "In theatres now" line
+// follow it. Pauses while hovered or focused; holds still for reduced motion.
+function heroStage(films) {
+  const stage = $('#hero-stage'), bd = $('#hero-bd'), feat = $('#hero-feat');
+  if (!films.length || !stage) return;
+  clearInterval(heroStage.t);
+  const backdrops = {};
+  const posters = films.map((f, i) => h('a', { href: `#/film/${f.id}`, 'aria-label': `${f.title}: details`, tabindex: i ? '-1' : '0', class: i ? '' : 'on' },
+    h('img', { src: f.poster_lg || f.poster, alt: '', width: 220, height: 330, loading: i ? 'lazy' : 'eager' })));
+  const dots = h('div', { class: 'dots', role: 'group', 'aria-label': 'Choose a film' });
+  stage.append(...posters, dots);
+  let cur = 0, paused = false;
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const show = async (i) => {
+    cur = (i + films.length) % films.length;
+    posters.forEach((p, j) => { p.classList.toggle('on', j === cur); p.tabIndex = j === cur ? 0 : -1; });
+    [...dots.children].forEach((d, j) => d.setAttribute('aria-current', String(j === cur)));
+    const f = films[cur];
+    if (feat) { feat.innerHTML = ''; feat.append('In theatres now: ', h('a', { href: `#/film/${f.id}` }, f.title)); }
+    if (bd) {
+      if (!(f.id in backdrops)) { try { backdrops[f.id] = (await api(`/api/film/${f.id}`)).backdrop || ''; } catch { backdrops[f.id] = ''; } }
+      if (films[cur] !== f) return;
+      bd.classList.remove('on');
+      setTimeout(() => { if (films[cur] === f) { bd.style.backgroundImage = backdrops[f.id] ? `url("${backdrops[f.id]}")` : ''; if (backdrops[f.id]) bd.classList.add('on'); } }, reduce ? 0 : 400);
+    }
+  };
+  films.forEach((f, j) => dots.append(h('button', { type: 'button', 'aria-label': f.title, onclick: () => show(j) })));
+  const hero = stage.closest('.hero');
+  hero.addEventListener('mouseenter', () => { paused = true; });
+  hero.addEventListener('mouseleave', () => { paused = false; });
+  hero.addEventListener('focusin', () => { paused = true; });
+  hero.addEventListener('focusout', () => { paused = false; });
+  show(0);
+  if (!reduce && films.length > 1) heroStage.t = setInterval(() => { if (!paused && document.visibilityState === 'visible' && $('#hero-stage') === stage) show(cur + 1); else if (!document.body.contains(stage)) clearInterval(heroStage.t); }, 7000);
 }
 
 // ---------------------------------------------------------------- Detail
@@ -398,18 +423,35 @@ function filterSheet(btn) {
         h('button', { class: 'btn ghost', type: 'button', onclick: () => { c.filters = {}; btn.innerHTML = I.filter + 'Filters'; d.close(); } }, 'Clear')));
   });
 }
-async function chatsSheet(msgs) {
-  sheet('Saved chats', async (b, d) => {
-    b.append(h('p', { class: 'muted small' }, 'Saved for your account, or for this browser if you are not signed in.'));
-    const list = h('div', { class: 'list' }, h('p', { class: 'muted' }, 'Loading…')); b.append(list);
+function ago(t) {
+  if (!t) return '';
+  if (typeof t === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(t)) {            // a date without a time: count days
+    const d = Math.round((new Date(new Date().toDateString()) - new Date(t + 'T00:00:00')) / 864e5);
+    return d <= 0 ? 'today' : d === 1 ? 'yesterday' : `${d} days ago`;
+  }
+  const ms = typeof t === 'number' ? (t < 1e12 ? t * 1000 : t) : Date.parse(t);
+  const m = Math.round((Date.now() - ms) / 60000);
+  return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : m < 2880 ? 'yesterday' : `${Math.round(m / 1440)} days ago`;
+}
+function chatsSheet(msgs) {
+  sheet('Your chats', async (b, d) => {
+    d.classList.add('side');
+    b.append(h('button', { class: 'btn primary', type: 'button', style: 'width:100%;margin-bottom:12px', html: I.plus + 'New chat',
+      onclick: () => { d.close(); newChat(); if (location.hash.startsWith('#/discover')) pageDiscover(new URLSearchParams()); else location.hash = '#/discover'; } }));
+    const list = h('div', { class: 'chatlist' }, h('p', { class: 'muted' }, 'Loading…')); b.append(list);
+    b.append(h('p', { class: 'muted small', style: 'margin-top:12px' }, 'Saved for your account, or for this browser if you are not signed in.'));
     try {
       const j = await api('/api/chats');
       list.innerHTML = '';
-      if (!j.chats.length) { list.append(h('div', { class: 'empty' }, h('p', {}, 'No saved chats yet. They appear here after the first answer.'))); return; }
-      for (const ch of j.chats) list.append(h('div', { class: 'li', style: 'grid-template-columns:1fr auto' },
-        h('button', { class: 'btn ghost', type: 'button', style: 'justify-content:flex-start;white-space:normal;text-align:left', onclick: () => { d.close(); loadChat(ch.id, msgs); } }, ch.title || 'Chat'),
+      if (!j.chats.length) { list.append(emptyBox('No chats yet. Ask anything and the conversation is saved here.', 'reel')); return; }
+      for (const ch of j.chats) list.append(h('div', { class: 'row' },
+        h('button', { class: 'open', type: 'button', onclick: () => {
+          d.close();
+          if (location.hash.startsWith('#/discover') && $('#msgs')) loadChat(ch.id, $('#msgs')); else location.hash = `#/discover?chat=${encodeURIComponent(ch.id)}`; } },
+          h('b', {}, ch.title || 'Chat'), h('span', {}, [ago(ch.updated), ch.turns ? `${ch.turns} question${ch.turns > 1 ? 's' : ''}` : null].filter(Boolean).join(', '))),
         h('button', { class: 'iconbtn', type: 'button', 'aria-label': `Delete chat: ${ch.title || ''}`, html: I.x, onclick: async (e) => {
-          await api('/api/chats/' + encodeURIComponent(ch.id), { method: 'DELETE' }); e.target.closest('.li').remove(); } })));
+          const row = e.currentTarget.closest('.row');
+          try { await api('/api/chats/' + encodeURIComponent(ch.id), { method: 'DELETE' }); row.remove(); toast('Chat deleted.'); } catch (er) { toast(er.message); } } })));
     } catch (e) { list.innerHTML = ''; list.append(h('p', { class: 'err' }, e.message)); }
   });
 }
@@ -542,26 +584,62 @@ async function pagePick() {
 }
 
 // ---------------------------------------------------------------- Watchlist
+// The Watchlist page is a plan for what to watch: what you can watch now and why, what just arrived, what is about to
+// leave theatres, what you and your friends both want, then everything, newest first.
 async function pageWatchlist(params) {
   view.innerHTML = '';
-  view.append(h('h1', {}, 'Watchlist'));
-  const al = h('div', {}); view.append(al);
-  const grid = h('div', { class: 'grid', style: 'margin-top:16px' }, Array.from({ length: 8 }, () => h('div', { class: 'skel', style: 'aspect-ratio:2/3' })));
-  view.append(grid);
+  view.append(h('h1', {}, 'Watchlist'), h('p', { class: 'muted' }, "Your list, sorted into what you can watch tonight, what just arrived, and what you'd enjoy with a friend."));
+  const al = h('div', {}), body = h('div', { class: 'plan' }, skeletonRail());
+  view.append(al, body);
   try {
     const a = await api('/api/v8/alerts');
-    if (a.alerts.length) {
-      al.append(h('h2', { style: 'margin:16px 0 8px' }, 'Alerts'), h('div', { class: 'list' }, a.alerts.slice(0, 10).map(x =>
-        h('div', { class: 'li', style: 'grid-template-columns:1fr auto' }, h('a', { class: 't', href: `#/film/${x.film.id}` }, x.text), h('span', { class: 's' }, (x.at || '').slice(0, 10))))));
-      if (a.unseen) post('/api/v8/alerts/seen').then(() => updateBell(0)).catch(() => {});
-    } else if (params.get('alerts')) al.append(h('p', { class: 'muted' }, 'No alerts yet. You get one here when a film on your watchlist starts streaming or comes out.'));
+    if (a.unseen) post('/api/v8/alerts/seen').then(() => updateBell(0)).catch(() => {});
+    if (params.get('alerts') && !a.alerts.length) al.append(h('p', { class: 'muted' }, 'No alerts yet. You get one when a film on your list starts streaming or comes out.'));
   } catch {}
-  try {
-    const j = await api('/api/v8/watchlist');
+  let o;
+  try { o = await api('/api/v8/watchlist/overview'); } catch (e) { body.innerHTML = ''; body.append(h('p', { class: 'err' }, e.message)); return; }
+  body.innerHTML = '';
+  if (!o.items.length) { const e = emptyBox('Nothing saved yet. Tap the bookmark on any poster and it waits for you here.', 'popcorn', '#/', 'Browse films'); e.style.marginTop = '16px'; body.append(e); return; }
+  const sec = (title, lede, ...kids) => h('section', { class: 'section' }, h('div', { class: 'section-h' }, h('h2', {}, title), lede ? h('p', { class: 'lede' }, lede) : null), ...kids);
+  const row = (f, line) => h('div', { class: 'wl-row' },
+    h('a', { href: `#/film/${f.id}`, tabindex: '-1', 'aria-hidden': 'true' }, f.poster ? h('img', { src: f.poster, alt: '', loading: 'lazy', width: 56, height: 84 }) : h('span', { class: 'ph' })),
+    h('div', {}, h('a', { class: 't', href: `#/film/${f.id}` }, `${f.title}${f.year ? ` (${f.year})` : ''}`), h('div', { class: 's' }, line)));
+  if (o.watch_next.length) {
+    body.append(sec('Watch next', 'Ready to watch now, best reason first.', h('div', { class: 'rail', role: 'list', 'aria-label': 'Watch next' },
+      o.watch_next.map(f => { const c = card(Object.assign({}, f, { on_services: null }), { why: f.why }); c.setAttribute('role', 'listitem'); return c; }))));
+  } else body.append(sec('Watch next', null, h('p', { class: 'muted' }, o.has_services ? 'Nothing on your list is streaming on your services or in theatres right now.'
+    : 'Add your streaming services in Profile, Settings and this shows what you can watch tonight.')));
+  if (o.just_landed.length) body.append(sec('Just landed', 'Films on your list that started streaming or came out in the last 30 days.',
+    h('div', {}, o.just_landed.map(x => row(x.film, `${x.text}, ${x.at}`)))));
+  if (o.last_chance.length) body.append(sec('Last chance in theatres', 'In theatres now and opened a while ago. Theatres usually drop a film 6 to 10 weeks in; this is an estimate.',
+    h('div', {}, o.last_chance.map(x => row(x.film, `Opened ${x.weeks} weeks ago`)))));
+  if (o.together.length) {
+    body.append(sec('Watch together', 'Friends who share their list or their ratings with you.', h('div', {}, o.together.map(t => {
+      const taste = t.taste.pct != null ? `You agree on ${t.taste.agree} of ${t.taste.films} films you've both rated (${t.taste.pct}% match)`
+        : t.shares_ratings ? 'Not enough films rated by both of you yet' : null;
+      const box = h('div', { class: 'pair' }, h('h3', {}, t.name, t.taste.pct != null ? h('span', { class: 'match' }, `${t.taste.pct}% taste match`) : null),
+        taste ? h('p', { class: 'muted small', style: 'margin:4px 0 0' }, taste) : null);
+      if (t.both.length) { box.append(h('p', { style: 'margin:12px 0 6px' }, h('b', {}, `You both want to watch ${t.both.length === 1 ? 'this' : 'these'}. Pick a night.`)));
+        box.append(h('div', { class: 'rail' }, t.both.map(f => card(f)))); }
+      if (t.loved.length) { box.append(h('p', { style: 'margin:12px 0 6px' }, h('b', {}, `${t.name} loved ${t.loved.length === 1 ? 'one' : 'these'} from your list`)));
+        box.append(h('div', { class: 'rail' }, t.loved.map(f => card(f)))); }
+      return box;
+    }))));
+  } else if (S.me?.account) body.append(sec('Watch together', null, h('p', { class: 'muted' }, 'When a friend shares their watchlist with you (Profile, Privacy), the films you both want show up here.')));
+  const filt = h('div', { class: 'chips', role: 'radiogroup', 'aria-label': 'Show' });
+  const grid = h('div', { class: 'grid', style: 'margin-top:12px' });
+  const label = { streaming: 'Streaming', theatres: 'In theatres', out: 'Out, not streaming', coming: 'Not out yet' };
+  const draw = (k) => {
+    filt.querySelectorAll('button').forEach(b => b.setAttribute('aria-checked', String(b.dataset.k === k)));
     grid.innerHTML = '';
-    if (!j.items.length) { const e = emptyBox('Nothing saved yet. Tap the bookmark on any poster and it waits for you here.', 'popcorn', '#/', 'Browse films'); e.style.marginTop = '16px'; grid.replaceWith(e); return; }
-    grid.append(...j.items.map(f => card(f)));
-  } catch (e) { grid.innerHTML = ''; grid.append(h('p', { class: 'err' }, e.message)); }
+    const items = o.items.filter(c => k === 'all' || c.status === k);
+    if (!items.length) { grid.append(h('p', { class: 'muted' }, 'Nothing here.')); return; }
+    items.forEach(c => { const el = card(c); el.append(h('div', { class: 'why' }, [label[c.status], c.added ? `added ${ago(c.added)}` : null].filter(Boolean).join(', '))); grid.append(el); });
+  };
+  [['all', `All ${o.items.length}`], ['streaming', 'Streaming'], ['theatres', 'In theatres'], ['coming', 'Not out yet']].forEach(([k, l]) =>
+    filt.append(h('button', { class: 'chip', type: 'button', role: 'radio', 'data-k': k, 'aria-checked': 'false', onclick: () => draw(k) }, l)));
+  body.append(sec('Everything on your list', 'Newest first.', filt, grid));
+  draw('all');
 }
 
 // ---------------------------------------------------------------- Calendar
@@ -787,6 +865,7 @@ async function refreshMe() {
     else av.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>'; } catch {}
   try { const a = await api('/api/v8/alerts'); updateBell(a.unseen); } catch {}
 }
+$('#chats-top').addEventListener('click', () => chatsSheet());
 $('#ask-top').addEventListener('click', () => { location.hash = '#/discover'; setTimeout(() => $('#chat-q')?.focus(), 80); });
 window.addEventListener('hashchange', route);
 refreshMe();

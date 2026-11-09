@@ -362,6 +362,125 @@ def mark_seen(user):
         c.commit()
 
 
+# ------------------------------------------------------------------ watchlist overview (9 Nov evening)
+def _signals(key, social_mod, viewer=None):
+    """{tmdb_id: +1 / -1}: thumbs (film_prefs) plus star ratings (4+ = +1, 2 or less = -1). When `viewer` is someone
+    else, only what the owner shares as "ratings" with friends, minus hidden items."""
+    if viewer and not social_mod.can_view(key, viewer, "ratings"):
+        return {}
+    sig = {}
+    try:
+        with film_info._lock:
+            for fid, s in film_info._users().execute("select tmdb_id, signal from film_prefs where user_id = ?", (key,)):
+                if s:
+                    sig[fid] = 1 if s > 0 else -1
+    except Exception:  # noqa: BLE001
+        pass
+    for r in social_mod.reviews_of(key):
+        if r.get("rating") is not None:
+            sig[r["id"]] = 1 if r["rating"] >= 4 else (-1 if r["rating"] <= 2 else sig.get(r["id"], 0))
+    if viewer and viewer != key:
+        hid = social_mod.hidden_ids(key, "ratings")
+        sig = {k: v for k, v in sig.items() if k not in hid}
+    return {k: v for k, v in sig.items() if v}
+
+
+def watchlist_overview(user, name_of=lambda k: k, landed_days=30, last_chance_days=35):
+    """The Watchlist page as a plan: watch next, just landed, last chance in theatres, watch together, everything.
+    No leaving-streaming section: no source publishes those dates."""
+    import social as social_mod
+    wl = film_info.watchlist(user, 500)
+    ids = [w["id"] for w in wl]
+    out = {"items": [], "watch_next": [], "just_landed": [], "last_chance": [], "together": []}
+    if not ids:
+        return out
+    added = {w["id"]: (w.get("added") or "")[:10] for w in wl}
+    cs = {c["id"]: c for c in cards(ids, user)}
+    prov, rel, first = _providers(ids), _released(ids), _first_theatrical(ids)
+    np_ids, _at = _list("now_playing", 60)
+    in_th = set(np_ids) & set(ids)
+    today = datetime.date.today()
+    for fid in ids:
+        c = dict(cs.get(fid) or {"id": fid, "title": ""})
+        c["added"] = added.get(fid)
+        c["streaming_on"] = sorted(prov.get(fid, []))
+        c["status"] = ("streaming" if prov.get(fid) else "theatres" if fid in in_th else
+                       "out" if rel.get(fid) else "coming")
+        out["items"].append(c)
+    by = {c["id"]: c for c in out["items"]}
+    # just landed: alert rows from the last `landed_days` days for films still on the list
+    refresh_alerts(user)
+    cut = (today - datetime.timedelta(days=landed_days)).isoformat()
+    seen = set()
+    for fid, kind, detail, at in _adb().execute("select tmdb_id, kind, detail, created_at from alerts where user_key = ? "
+                                                "and created_at >= ? order by created_at desc", (user, cut)):
+        if fid in by and (fid, kind) not in seen:
+            seen.add((fid, kind))
+            out["just_landed"].append({"film": by[fid], "kind": kind, "detail": detail, "at": at[:10],
+                                       "text": f"Now streaming on {detail}" if kind == "now_streaming" else "Out now"})
+    # last chance: on the list, on TMDB's now-playing list, first US theatrical date 5+ weeks ago
+    for fid in ids:
+        d = first.get(fid)
+        if fid in in_th and d:
+            age = (today - datetime.date.fromisoformat(d)).days
+            if age >= last_chance_days:
+                out["last_chance"].append({"film": by[fid], "opened": d, "weeks": age // 7,
+                                           "text": f"Opened {age // 7} weeks ago; most films leave theatres 6 to 10 weeks in (estimate)"})
+    # watch together: friends who share their watchlist with you
+    mine = _signals(user, social_mod)
+    together_ids = {}
+    for f in (social_mod.friends(user)["friends"] if social_mod.is_account(user) else []):
+        other = f["key"]
+        theirs = []
+        if social_mod.can_view(other, user, "watchlist"):
+            theirs = [w["id"] for w in social_mod.visible_items(other, user, "watchlist", film_info.watchlist(other, 500))]
+        both = [i for i in ids if i in set(theirs)]
+        sig = _signals(other, social_mod, viewer=user)
+        common = [k for k in sig if k in mine]
+        agree = sum(1 for k in common if sig[k] == mine[k])
+        loved = [i for i in ids if sig.get(i) == 1 and i not in both]
+        if not (both or common or loved):
+            continue
+        for i in both:
+            together_ids.setdefault(i, []).append(name_of(other))
+        out["together"].append({"key": other, "name": name_of(other), "both": [by[i] for i in both],
+                                "taste": {"films": len(common), "agree": agree,
+                                          "pct": round(100 * agree / len(common)) if len(common) >= 3 else None},
+                                "loved": [by[i] for i in loved][:12],
+                                "shares_watchlist": social_mod.can_view(other, user, "watchlist"),
+                                "shares_ratings": social_mod.can_view(other, user, "ratings")})
+    out["together"].sort(key=lambda t: (-len(t["both"]), -(t["taste"]["pct"] or 0)))
+    # watch next: things you can actually watch now, best reason first
+    services = set()
+    try:
+        import user_prefs
+        services = set(user_prefs.load(user)["settings"].get("services") or [])
+    except Exception:  # noqa: BLE001
+        pass
+    last_ids = {x["film"]["id"] for x in out["last_chance"]}
+    scored = []
+    for c in out["items"]:
+        fid, why, score = c["id"], [], 0.0
+        if c.get("on_services"):
+            score += 3; why.append("On your " + ", ".join(c["on_services"][:2]))
+        elif c["streaming_on"]:
+            score += 1.5; why.append("Streaming on " + ", ".join(c["streaming_on"][:2]))
+        if fid in in_th:
+            score += 2; why.append("In theatres now")
+        if fid in last_ids:
+            score += 1.5; why.append("Before it leaves theatres")
+        if fid in together_ids:
+            score += 1; why.append("Also on " + " and ".join(together_ids[fid][:2]) + "'s list")
+        if not why:
+            continue
+        score += (c.get("rating") or 0) / 10
+        scored.append((score, fid, why))
+    scored.sort(key=lambda x: -x[0])
+    out["watch_next"] = [dict(by[fid], why="; ".join(why)) for _s, fid, why in scored[:6]]
+    out["has_services"] = bool(services)
+    return out
+
+
 def delete_user(user):
     with _lock:
         c = _adb()

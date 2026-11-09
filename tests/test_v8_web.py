@@ -106,6 +106,67 @@ class Privacy(unittest.TestCase):
         self.assertEqual([f for f in social.friends(B)["incoming"] if f["key"] == "acct9"], [])
 
 
+class WatchlistOverview(unittest.TestCase):
+    """The Watchlist page plan: last chance, together (shared lists + taste), watch next reasons, privacy."""
+    @classmethod
+    def setUpClass(cls):
+        import datetime as dt
+        cls.me, cls.pal, cls.stranger = "acct30", "acct31", "acct32"
+        social.request(cls.pal, social.code_of(cls.me)); social.respond(cls.me, cls.pal, True)
+        today = dt.date.today()
+        fc = sqlite3.connect(os.environ["FACTS_DB"])
+        rows = [(40, "Old Run", today - dt.timedelta(days=50)), (41, "New Run", today - dt.timedelta(days=7)),
+                (42, "Streamer", today - dt.timedelta(days=400)), (43, "Shared Pick", today - dt.timedelta(days=300))]
+        for fid, t, d in rows:
+            fc.execute("insert or ignore into films(tmdb_id, title, year, release_date, us_release_date, vote_count) values (?,?,?,?,?,100)",
+                       (fid, t, d.year, d.isoformat(), d.isoformat()))
+            fc.execute("insert into certifications values (?, 'US', 'R', 3, ?)", (fid, d.isoformat() + "T00:00:00.000Z"))
+        fc.execute("insert into watch_providers values (42, 'US', 'flatrate', 8, 'Netflix', 1)")
+        now = today.isoformat() + "T06:00:00"
+        fc.execute("delete from lists where list_name = 'now_playing'")
+        fc.executemany("insert into lists values ('now_playing', 'US', ?, ?, ?)", [(40, 1, now), (41, 2, now)])
+        fc.commit(); fc.close()
+        for fid in (40, 41, 42, 43):
+            film_info.choose(cls.me, fid, "", "want")
+        film_info.choose(cls.pal, 43, "", "want")
+        film_info.choose(cls.stranger, 43, "", "want")
+        for fid, ch in ((1, "liked"), (3, "liked"), (5, "not"), (8, "liked")):
+            film_info.choose(cls.me, fid, "", ch)
+        for fid, ch in ((1, "liked"), (3, "liked"), (5, "liked"), (8, "liked")):
+            film_info.choose(cls.pal, fid, "", ch)
+        social.save_review(cls.pal, 41, 5, "")
+
+    def test_last_chance_and_status(self):
+        o = discovery.watchlist_overview(self.me)
+        self.assertEqual([x["film"]["title"] for x in o["last_chance"]], ["Old Run"])
+        st = {c["title"]: c["status"] for c in o["items"]}
+        self.assertEqual(st["Streamer"], "streaming"); self.assertEqual(st["New Run"], "theatres")
+
+    def test_together_respects_privacy(self):
+        social.set_privacy(self.pal, {k: "private" for k in social.KINDS})
+        self.assertEqual(discovery.watchlist_overview(self.me)["together"], [])
+        social.set_privacy(self.pal, {"watchlist": "friends"})
+        t = discovery.watchlist_overview(self.me)["together"]
+        self.assertEqual([c["title"] for c in t[0]["both"]], ["Shared Pick"])
+        self.assertEqual(t[0]["taste"]["films"], 0)            # ratings still private
+        social.set_privacy(self.pal, {"ratings": "friends"})
+        t = discovery.watchlist_overview(self.me)["together"][0]
+        self.assertEqual((t["taste"]["films"], t["taste"]["agree"], t["taste"]["pct"]), (4, 3, 75))
+        self.assertEqual([c["title"] for c in t["loved"]], ["New Run"])
+        social.set_privacy(self.pal, {k: "private" for k in social.KINDS})
+
+    def test_stranger_never_appears(self):
+        social.set_privacy(self.stranger, {k: "friends" for k in social.KINDS})
+        names = [t["key"] for t in discovery.watchlist_overview(self.me)["together"]]
+        self.assertNotIn(self.stranger, names)
+
+    def test_watch_next_has_reasons(self):
+        nxt = discovery.watchlist_overview(self.me)["watch_next"]
+        self.assertTrue(nxt)
+        self.assertTrue(all(c["why"] for c in nxt))
+        self.assertIn("Before it leaves theatres", [c for c in nxt if c["title"] == "Old Run"][0]["why"])
+
+
 NETFLIX_SIMPLE = 'Title,Date\n"Parasite","3/1/23"\n"The Office: Season 2: The Dundies","3/2/23"\n' \
                  '"The Office: Season 2: Sexual Harassment","3/3/23"\n"Crash","3/4/23"\n"Unknown Film Xyz","3/5/23"\n'
 NETFLIX_FULL = ("Profile Name,Start Time,Duration,Attributes,Title,Supplemental Video Type,Device Type,Bookmark,Latest Bookmark,Country\n"

@@ -169,6 +169,13 @@ def install(app, user_of, account_of, gate):
             return {"items": discovery.cards(ids, key)}
         return JSONResponse(await _run(build))
 
+    @app.get("/api/v8/watchlist/overview")
+    async def v8_watchlist_overview(request: Request):
+        if (g := gate(request)):
+            return g
+        key = user_of(request)
+        return JSONResponse(await _run(lambda: discovery.watchlist_overview(key, name_of=_name)))
+
     @app.get("/api/v8/profile")
     async def v8_profile(request: Request):
         if (g := gate(request)):

@@ -1,4 +1,21 @@
-# Cinemack v8 design system (9 Nov 2026, revised 15:30 to Merrimack colours)
+# Cinemack v8 design system (9 Nov 2026; Merrimack colours 15:30; revised 19:00 after the user's review)
+
+## Revision 19:00 (user: fonts and sizes not liked; bright yellow on dark blue hard to look at; overlapping posters)
+- Type: Archivo (headings, 600-700) + Source Sans 3 (text) replace Libre Caslon + Montserrat; scale cut to
+  15-16 / 19-22 / 26-34 / hero 30-44.
+- Colour: background calmed to ink-navy #0D1B2A; buttons and selected chips are blue #2F64A3 with white text
+  (hover #3A72B5); gold appears only as thin lines, dots, outlines, step-number rings, dimmed bulbs and the badge.
+  Links use a softer gold #F0D66E on dark and Merrimack Blue on light.
+- Hero: one poster at a time, stacked on one spot, cross-fading every 7 s (1.2 s fade); backdrop and "In theatres now"
+  follow; pauses on hover/focus; dots to jump; still under reduced motion. Replaces the overlapping fan.
+- Every control has a hover state (180 ms) and a press (scale .97, 140 ms); selected chips show a check mark.
+- Chats: a Chats button in the top bar opens a side panel (new chat, previous chats with time, open, delete); the home
+  banner offers "Continue: <last chat>".
+- Watchlist page = a plan: Watch next (with reasons), Just landed, Last chance in theatres (estimate), Watch together
+  (shared lists, taste match, friend loved), Everything (filters). No "leaving streaming" section: no source exists.
+
+The sections below describe the 15:30 version; where they disagree, the revision above wins.
+
 
 ## Idea
 A college cinema on a Friday night. The room is Merrimack Blue with the lights down; Merrimack Gold marks what you can

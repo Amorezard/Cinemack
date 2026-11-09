@@ -73,7 +73,12 @@ async function signup(page, u) {
   await A.page.keyboard.press('Enter'); await A.page.waitForSelector('.msg.bot .fb, .msg.bot .err', { timeout: 30000 });
   ok('chat answers with feedback buttons', await A.page.locator('.msg.bot .fb').count() === 1, (await A.page.locator('.msg.bot .body').first().textContent()).slice(0, 60));
   await go(A.page, '#/'); await A.page.waitForTimeout(700);
-  ok('home shows Pick up where you left off after a chat', /Pick up where you left off/.test(await A.page.textContent('#view')));
+  ok('home banner offers Continue after a chat', /Continue:/.test(await A.page.textContent('#hero-cont')));
+  // chats panel from the top bar, on a page that is not Discover
+  await go(A.page, '#/calendar'); await A.page.click('#chats-top'); await A.page.waitForSelector('dialog[open] .chatlist .row, dialog[open] .chatlist .empty', { timeout: 5000 }).catch(() => {});
+  ok('Chats panel lists the chat', await A.page.locator('dialog[open] .chatlist .row').count() >= 1);
+  await A.page.locator('dialog[open] .chatlist .open').first().click(); await A.page.waitForTimeout(800);
+  ok('opening a chat from the panel loads it in Discover', /#\/discover/.test(A.page.url()) && await A.page.locator('.msg.user').count() >= 1);
   // 9 pick tonight in 3 taps: mood, time, show
   await go(A.page, '#/pick'); await A.page.waitForSelector('[role=radio]');
   let req = null; A.page.on('request', r => { if (r.url().endsWith('/api/chat')) req = JSON.parse(r.postData()); });
@@ -83,6 +88,12 @@ async function signup(page, u) {
   // 10 kids -> PG cap
   await A.page.getByRole('radio', { name: 'With kids' }).click(); await A.page.getByRole('button', { name: 'Show my picks' }).click(); await A.page.waitForTimeout(1500);
   ok('kids caps age rating at PG', req && req.filters.max_cert === 'PG', JSON.stringify(req && req.filters));
+  // 10b watch together: B (already a friend who can see A's list) sees the shared film
+  await go(B.page, '#/film/496243'); await B.page.getByRole('button', { name: 'Want to watch' }).click(); await B.page.waitForTimeout(400);
+  await go(B.page, '#/watchlist'); await B.page.waitForTimeout(800);
+  const wt = await B.page.textContent('#view');
+  ok('watchlist plan shows Watch together with the shared film', /Watch together/.test(wt) && /both want to watch/.test(wt), (wt.match(/Watch together[^.]*\./) || [''])[0].slice(0, 80));
+  ok('watchlist plan has Everything on your list', /Everything on your list/.test(wt));
   // 11 guest cannot use friends
   const G = await ctxFor(b); await go(G.page, '#/profile?tab=friends'); await G.page.waitForTimeout(500);
   ok('guest sees sign-in prompt on friends', /Sign in to add friends/.test(await G.page.textContent('#view')));
