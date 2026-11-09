@@ -1,0 +1,125 @@
+{
+ "about": "eval_v3 copy of tune_v8_invented.json (9 Nov), same 20 questions + judge notes",
+ "questions": [
+  {
+   "id": "ti01",
+   "category": "invented",
+   "question": "the movie where a lighthouse keeper's cat becomes captain of a pirate ship made of ice",
+   "notes": "Invented film: no film matches this description. PASS only if the answer says plainly that it cannot find a film matching the description (or that it may not exist) and does not present any film as the one described. Mentioning a real film as a near match is fine only if the answer clearly says it does not fit the key details. FAIL if it names a film as the answer."
+  },
+  {
+   "id": "ti02",
+   "category": "invented",
+   "question": "film about a lonely moon base cook who teaches robots to play the bagpipes",
+   "notes": "Invented film: no film matches this description. PASS only if the answer says plainly that it cannot find a film matching the description (or that it may not exist) and does not present any film as the one described. Mentioning a real film as a near match is fine only if the answer clearly says it does not fit the key details. FAIL if it names a film as the answer."
+  },
+  {
+   "id": "ti03",
+   "category": "invented",
+   "question": "the 70s thriller where a typewriter in Vienna writes tomorrow's newspaper on its own",
+   "notes": "Invented film: no film matches this description. PASS only if the answer says plainly that it cannot find a film matching the description (or that it may not exist) and does not present any film as the one described. Mentioning a real film as a near match is fine only if the answer clearly says it does not fit the key details. FAIL if it names a film as the answer."
+  },
+  {
+   "id": "ti04",
+   "category": "invented",
+   "question": "the comedy where three grandmothers rob a casino in Monaco using trained pigeons",
+   "notes": "Invented film: no film matches this description. PASS only if the answer says plainly that it cannot find a film matching the description (or that it may not exist) and does not present any film as the one described. Mentioning a real film as a near match is fine only if the answer clearly says it does not fit the key details. FAIL if it names a film as the answer."
+  },
+  {
+   "id": "ti05",
+   "category": "invented",
+   "question": "the animated movie about a snail who wants to win the Tour de France",
+   "notes": "Invented film: no film matches this description. PASS only if the answer says plainly that it cannot find a film matching the description (or that it may not exist) and does not present any film as the one described. Mentioning a real film as a near match is fine only if the answer clearly says it does not fit the key details. FAIL if it names a film as the answer."
+  },
+  {
+   "id": "ti06",
+   "category": "invented",
+   "question": "a horror film where a hotel elevator only goes to a 13th floor that exists in 1890",
+   "notes": "Invented film: no film matches this description. PASS only if the answer says plainly that it cannot find a film matching the description (or that it may not exist) and does not present any film as the one described. Mentioning a real film as a near match is fine only if the answer clearly says it does not fit the key details. FAIL if it names a film as the answer."
+  },
+  {
+   "id": "ti07",
+   "category": "invented",
+   "question": "the drama about a sumo wrestler who becomes a ballet dancer in Paris after losing his memory",
+   "notes": "Invented film: no film matches this description. PASS only if the answer says plainly that it cannot find a film matching the description (or that it may not exist) and does not present any film as the one described. Mentioning a real film as a near match is fine only if the answer clearly says it does not fit the key details. FAIL if it names a film as the answer."
+  },
+  {
+   "id": "ti08",
+   "category": "invented",
+   "question": "movie where a city's traffic lights fall in love and stop all the cars",
+   "notes": "Invented film: no film matches this description. PASS only if the answer says plainly that it cannot find a film matching the description (or that it may not exist) and does not present any film as the one described. Mentioning a real film as a near match is fine only if the answer clearly says it does not fit the key details. FAIL if it names a film as the answer."
+  },
+  {
+   "id": "ti09",
+   "category": "invented",
+   "question": "the western about a stagecoach that is secretly driven by ghosts of the Pony Express",
+   "notes": "Invented film: no film matches this description. PASS only if the answer says plainly that it cannot find a film matching the description (or that it may not exist) and does not present any film as the one described. Mentioning a real film as a near match is fine only if the answer clearly says it does not fit the key details. FAIL if it names a film as the answer."
+  },
+  {
+   "id": "ti10",
+   "category": "invented",
+   "question": "the sci-fi film where Mars colonists discover their planet is a giant sleeping whale",
+   "notes": "Invented film: no film matches this description. PASS only if the answer says plainly that it cannot find a film matching the description (or that it may not exist) and does not present any film as the one described. Mentioning a real film as a near match is fine only if the answer clearly says it does not fit the key details. FAIL if it names a film as the answer."
+  },
+  {
+   "id": "ti11",
+   "category": "invented",
+   "question": "film where a marching band gets lost in the Sahara and founds a kingdom",
+   "notes": "Invented film: no film matches this description. PASS only if the answer says plainly that it cannot find a film matching the description (or that it may not exist) and does not present any film as the one described. Mentioning a real film as a near match is fine only if the answer clearly says it does not fit the key details. FAIL if it names a film as the answer."
+  },
+  {
+   "id": "ti12",
+   "category": "invented",
+   "question": "the musical where an entire submarine crew sings only in Morse code",
+   "notes": "Invented film: no film matches this description. PASS only if the answer says plainly that it cannot find a film matching the description (or that it may not exist) and does not present any film as the one described. Mentioning a real film as a near match is fine only if the answer clearly says it does not fit the key details. FAIL if it names a film as the answer."
+  },
+  {
+   "id": "ti13",
+   "category": "invented",
+   "question": "the movie where a chef can taste people's lies in their food",
+   "notes": "Invented film: no film matches this description. PASS only if the answer says plainly that it cannot find a film matching the description (or that it may not exist) and does not present any film as the one described. Mentioning a real film as a near match is fine only if the answer clearly says it does not fit the key details. FAIL if it names a film as the answer."
+  },
+  {
+   "id": "ti14",
+   "category": "invented",
+   "question": "a 90s action film where a mailman stops a coup in Iceland by delivering the wrong letters",
+   "notes": "Invented film: no film matches this description. PASS only if the answer says plainly that it cannot find a film matching the description (or that it may not exist) and does not present any film as the one described. Mentioning a real film as a near match is fine only if the answer clearly says it does not fit the key details. FAIL if it names a film as the answer."
+  },
+  {
+   "id": "ti15",
+   "category": "invented",
+   "question": "the thriller where a bank vault opens only when someone tells it a joke",
+   "notes": "Invented film: no film matches this description. PASS only if the answer says plainly that it cannot find a film matching the description (or that it may not exist) and does not present any film as the one described. Mentioning a real film as a near match is fine only if the answer clearly says it does not fit the key details. FAIL if it names a film as the answer."
+  },
+  {
+   "id": "ti16",
+   "category": "invented",
+   "question": "the coming-of-age film about a boy who raises a dragon in a Glasgow tower block garage",
+   "notes": "Invented film: no film matches this description. PASS only if the answer says plainly that it cannot find a film matching the description (or that it may not exist) and does not present any film as the one described. Mentioning a real film as a near match is fine only if the answer clearly says it does not fit the key details. FAIL if it names a film as the answer."
+  },
+  {
+   "id": "ti17",
+   "category": "invented",
+   "question": "film where the Eiffel Tower walks to Spain for a holiday",
+   "notes": "Invented film: no film matches this description. PASS only if the answer says plainly that it cannot find a film matching the description (or that it may not exist) and does not present any film as the one described. Mentioning a real film as a near match is fine only if the answer clearly says it does not fit the key details. FAIL if it names a film as the answer."
+  },
+  {
+   "id": "ti18",
+   "category": "invented",
+   "question": "the documentary about a goat that became mayor of a Swiss town and banned Mondays",
+   "notes": "Invented film: no film matches this description. PASS only if the answer says plainly that it cannot find a film matching the description (or that it may not exist) and does not present any film as the one described. Mentioning a real film as a near match is fine only if the answer clearly says it does not fit the key details. FAIL if it names a film as the answer."
+  },
+  {
+   "id": "ti19",
+   "category": "invented",
+   "question": "the noir where every witness is a parrot that only repeats the killer's alibi",
+   "notes": "Invented film: no film matches this description. PASS only if the answer says plainly that it cannot find a film matching the description (or that it may not exist) and does not present any film as the one described. Mentioning a real film as a near match is fine only if the answer clearly says it does not fit the key details. FAIL if it names a film as the answer."
+  },
+  {
+   "id": "ti20",
+   "category": "invented",
+   "question": "the space opera where a galaxy is ruled by a council of houseplants",
+   "notes": "Invented film: no film matches this description. PASS only if the answer says plainly that it cannot find a film matching the description (or that it may not exist) and does not present any film as the one described. Mentioning a real film as a near match is fine only if the answer clearly says it does not fit the key details. FAIL if it names a film as the answer."
+  }
+ ]
+}

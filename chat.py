@@ -236,6 +236,13 @@ def _spot(text):
 CTX_BUILDER = _os.environ.get("CTX_BUILDER", "0") == "1"
 PROMPT_ORDER = _os.environ.get("PROMPT_ORDER", "0") == "1"      # v7 D9: instructions before the data
 PROMPT_ORDER_V = _os.environ.get("PROMPT_ORDER_V", "2")         # 1 = the 27 Oct order (see _v3_prompt)
+# 9 Nov (v8 4b): description questions may describe a film that does not exist (tune_v8_invented).
+IDENT_HONEST = _os.environ.get("IDENT_HONEST", "0") == "1"
+IDENT_LINE = ("\n\nThis question describes a film without naming it. Name a film as the answer only if its details "
+              "above match the description's distinctive points - the setting, the era and the unusual premise. If "
+              "none of the films above matches them, say in your first sentence that you can't find a film "
+              "matching that description; you may then mention the closest one, saying clearly that it is not "
+              "the film described.")
 
 
 # 3 Nov (TV=1 only; TV hits exist only then): questions about a show got no "How to answer" of their own - the facts
@@ -499,6 +506,8 @@ def build_prompt(question, k=3, recent_titles=None, conv=None, user=None):
             amb = hits[0].get("_ambiguous") if hits else None
             amb_line = (f"\n\nThe question could refer to {amb[0]} or {amb[1]}. Answer for {amb[0]} in one or two "
                         f"sentences, then ask which one they meant.") if amb and len(amb) > 1 else ""
+            if IDENT_HONEST and (plan or {}).get("intent") == "identify":
+                amb_line += IDENT_LINE                    # 9 Nov (4b)
             return _v3_prompt(question, hits, tool, amb_line), hits
     if not hits:
         # Change 9: nothing in the database matched (e.g. a film we don't have).

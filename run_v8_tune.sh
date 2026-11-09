@@ -36,10 +36,21 @@ samename() {
 invented() {
   env $BASE python stage_scores.py --questions sets/tune_v8_invented.json --tag tune8_inv_v7 | tail -60
 }
+# 9 Nov (4b): IDENT_HONEST off vs on. Off arm for the invented set = tune8_inv_v7 (run 9 Nov morning).
+ident() {
+  [ -f sets/tune_v8_ident_real_ev.json ] || python make_ident_real.py
+  env $BASE IDENT_HONEST=1 python eval_v3.py --questions sets/tune_v8_invented_ev.json --tag tune8_inv_ih --answers --no-judge | tail -4
+  env $BASE IDENT_HONEST=0 python eval_v3.py --questions sets/tune_v8_ident_real_ev.json --tag tune8_real_off --answers --no-judge | tail -4
+  env $BASE IDENT_HONEST=1 python eval_v3.py --questions sets/tune_v8_ident_real_ev.json --tag tune8_real_on --answers --no-judge | tail -4
+  env $BASE IDENT_HONEST=0 python eval_v3.py --questions sets/tv.json --category identify --tag tvid_off --answers --no-judge | tail -4
+  env $BASE IDENT_HONEST=1 python eval_v3.py --questions sets/tv.json --category identify --tag tvid_on --answers --no-judge | tail -4
+  python ident_score.py | tee results/tune8_ident_score.txt
+}
 for s in $STEPS; do
   case $s in
     samename) step samename samename ;;
     invented) step invented invented ;;
+    ident) step ident ident ;;
     *) echo "unknown step $s"; STATUS+=("$s|-|-|unknown") ;;
   esac
 done

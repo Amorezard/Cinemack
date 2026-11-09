@@ -1,0 +1,365 @@
+{
+ "about": "9 Nov 4b: real film descriptions from tune.json + check.json (tuning), eval_v3 form",
+ "questions": [
+  {
+   "id": "rid_q04",
+   "category": "real_ident",
+   "question": "What's Schindlers List about?",
+   "expect_films": [
+    "Schindler's List"
+   ],
+   "notes": "A real film: Schindler's List. PASS only if the answer names Schindler's List as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_q05",
+   "category": "real_ident",
+   "question": "What's that Scorsese movie about an undercover cop in the Boston mob?",
+   "expect_films": [
+    "The Departed"
+   ],
+   "notes": "A real film: The Departed. PASS only if the answer names The Departed as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_q22",
+   "category": "real_ident",
+   "question": "the one where Matt Damon plays a mole in the Boston police",
+   "expect_films": [
+    "The Departed"
+   ],
+   "notes": "A real film: The Departed. PASS only if the answer names The Departed as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_q24",
+   "category": "real_ident",
+   "question": "the movie where a weatherman keeps waking up on the same day in a small town",
+   "expect_films": [
+    "Groundhog Day"
+   ],
+   "notes": "A real film: Groundhog Day. PASS only if the answer names Groundhog Day as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_q25",
+   "category": "real_ident",
+   "question": "a film about a giant shark attacking swimmers at a beach resort town",
+   "expect_films": [
+    "Jaws"
+   ],
+   "notes": "A real film: Jaws. PASS only if the answer names Jaws as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_q26",
+   "category": "real_ident",
+   "question": "a movie where thieves enter people's dreams to plant an idea",
+   "expect_films": [
+    "Inception"
+   ],
+   "notes": "A real film: Inception. PASS only if the answer names Inception as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_q27",
+   "category": "real_ident",
+   "question": "a movie about a man who is born old and ages backwards",
+   "expect_films": [
+    "The Curious Case of Benjamin Button"
+   ],
+   "notes": "A real film: The Curious Case of Benjamin Button. PASS only if the answer names The Curious Case of Benjamin Button as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_q28",
+   "category": "real_ident",
+   "question": "an animated movie where toys come alive when their owner isn't looking and a cowboy gets jealous of a space ranger",
+   "expect_films": [
+    "Toy Story"
+   ],
+   "notes": "A real film: Toy Story. PASS only if the answer names Toy Story as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_q29",
+   "category": "real_ident",
+   "question": "an animated film where a girl's emotions are characters working inside her head",
+   "expect_films": [
+    "Inside Out"
+   ],
+   "notes": "A real film: Inside Out. PASS only if the answer names Inside Out as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_q30",
+   "category": "real_ident",
+   "question": "a film about a brilliant mathematician with schizophrenia who wins the Nobel Prize",
+   "expect_films": [
+    "A Beautiful Mind"
+   ],
+   "notes": "A real film: A Beautiful Mind. PASS only if the answer names A Beautiful Mind as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_q31",
+   "category": "real_ident",
+   "question": "a movie where a hacker discovers the world is a computer simulation",
+   "expect_films": [
+    "The Matrix"
+   ],
+   "notes": "A real film: The Matrix. PASS only if the answer names The Matrix as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_q33",
+   "category": "real_ident",
+   "question": "a man stranded on a desert island after a plane crash talks to a volleyball",
+   "expect_films": [
+    "Cast Away"
+   ],
+   "notes": "A real film: Cast Away. PASS only if the answer names Cast Away as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_q34",
+   "category": "real_ident",
+   "question": "a movie where a boy befriends a stranded alien and helps him get back home",
+   "expect_films": [
+    "E.T. the Extra-Terrestrial"
+   ],
+   "notes": "A real film: E.T. the Extra-Terrestrial. PASS only if the answer names E.T. the Extra-Terrestrial as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_q35",
+   "category": "real_ident",
+   "question": "the film where a man with a low IQ keeps accidentally ending up at major historical events",
+   "expect_films": [
+    "Forrest Gump"
+   ],
+   "notes": "A real film: Forrest Gump. PASS only if the answer names Forrest Gump as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_q36",
+   "category": "real_ident",
+   "question": "a movie about a banker wrongly imprisoned who escapes through a tunnel after decades",
+   "expect_films": [
+    "The Shawshank Redemption"
+   ],
+   "notes": "A real film: The Shawshank Redemption. PASS only if the answer names The Shawshank Redemption as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_q37",
+   "category": "real_ident",
+   "question": "a film where dinosaurs are brought back to life for a theme park and escape",
+   "expect_films": [
+    "Jurassic Park"
+   ],
+   "notes": "A real film: Jurassic Park. PASS only if the answer names Jurassic Park as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_q38",
+   "category": "real_ident",
+   "question": "an animated movie where an old man ties thousands of balloons to his house and flies away",
+   "expect_films": [
+    "Up"
+   ],
+   "notes": "A real film: Up. PASS only if the answer names Up as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_q39",
+   "category": "real_ident",
+   "question": "a movie about a man who slowly realises his whole life is a reality TV show",
+   "expect_films": [
+    "The Truman Show"
+   ],
+   "notes": "A real film: The Truman Show. PASS only if the answer names The Truman Show as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_q40",
+   "category": "real_ident",
+   "question": "an animated film where a young lion prince runs away after his uncle kills his father",
+   "expect_films": [
+    "The Lion King"
+   ],
+   "notes": "A real film: The Lion King. PASS only if the answer names The Lion King as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_q41",
+   "category": "real_ident",
+   "question": "a movie where a rat who wants to be a chef controls a young cook by pulling his hair",
+   "expect_films": [
+    "Ratatouille"
+   ],
+   "notes": "A real film: Ratatouille. PASS only if the answer names Ratatouille as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_q42",
+   "category": "real_ident",
+   "question": "a film where two strangers meet on a train and spend one night walking around Vienna",
+   "expect_films": [
+    "Before Sunrise"
+   ],
+   "notes": "A real film: Before Sunrise. PASS only if the answer names Before Sunrise as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_q43",
+   "category": "real_ident",
+   "question": "a movie where a boarding school teacher inspires his students with poetry and tells them to seize the day",
+   "expect_films": [
+    "Dead Poets Society"
+   ],
+   "notes": "A real film: Dead Poets Society. PASS only if the answer names Dead Poets Society as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_u02",
+   "category": "real_ident",
+   "question": "I remember a movie that was about a guy saving earth by going to space",
+   "expect_films": [
+    "Interstellar"
+   ],
+   "notes": "A real film: Interstellar. PASS only if the answer names Interstellar as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_u03",
+   "category": "real_ident",
+   "question": "What's the Batman movie where the villain with the mask traps the whole city and breaks Batman's back?",
+   "expect_films": [
+    "The Dark Knight Rises"
+   ],
+   "notes": "A real film: The Dark Knight Rises. PASS only if the answer names The Dark Knight Rises as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_u04",
+   "category": "real_ident",
+   "question": "What movie had a guy killing babysitters",
+   "expect_films": [
+    "Halloween"
+   ],
+   "notes": "A real film: Halloween. PASS only if the answer names Halloween as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_u07",
+   "category": "real_ident",
+   "question": "I saw a movie once about a stockbroker who gets super rich selling penny stocks and throws wild parties in his office",
+   "expect_films": [
+    "The Wolf of Wall Street"
+   ],
+   "notes": "A real film: The Wolf of Wall Street. PASS only if the answer names The Wolf of Wall Street as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_u09",
+   "category": "real_ident",
+   "question": "What's the spy movie where time runs backwards and bullets fly back into the guns?",
+   "expect_films": [
+    "Tenet"
+   ],
+   "notes": "A real film: Tenet. PASS only if the answer names Tenet as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_u10",
+   "category": "real_ident",
+   "question": "What movie is about a princess who meets a guy named wesley",
+   "expect_films": [
+    "The Princess Bride"
+   ],
+   "notes": "A real film: The Princess Bride. PASS only if the answer names The Princess Bride as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_u12",
+   "category": "real_ident",
+   "question": "The movie where a guy finds a yellow robot car",
+   "expect_films": [
+    "Transformers"
+   ],
+   "notes": "A real film: Transformers. PASS only if the answer names Transformers as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_u14",
+   "category": "real_ident",
+   "question": "I saw a movie once where a guy was framed for the murder of his wife by his wife what was it?",
+   "expect_films": [
+    "Gone Girl"
+   ],
+   "notes": "A real film: Gone Girl. PASS only if the answer names Gone Girl as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_u15",
+   "category": "real_ident",
+   "question": "The movie where an office worker who can't sleep starts an underground fighting club with a soap salesman",
+   "expect_films": [
+    "Fight Club"
+   ],
+   "notes": "A real film: Fight Club. PASS only if the answer names Fight Club as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_n1",
+   "category": "real_ident",
+   "question": "What's the movie where an English teacher at a strict boarding school inspires his students to seize the day?",
+   "expect_films": [
+    "Dead Poets Society"
+   ],
+   "notes": "A real film: Dead Poets Society. PASS only if the answer names Dead Poets Society as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_n2",
+   "category": "real_ident",
+   "question": "There's a film where three friends wake up in Las Vegas after a bachelor party with no memory of last night and the groom is missing.",
+   "expect_films": [
+    "The Hangover"
+   ],
+   "notes": "A real film: The Hangover. PASS only if the answer names The Hangover as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_n3",
+   "category": "real_ident",
+   "question": "A movie where a New York cop visits his wife's office Christmas party and spends one night fighting terrorists alone in the tower.",
+   "expect_films": [
+    "Die Hard"
+   ],
+   "notes": "A real film: Die Hard. PASS only if the answer names Die Hard as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_n4",
+   "category": "real_ident",
+   "question": "The film where a kid makes a wish at a carnival machine and wakes up the next day as a grown man.",
+   "expect_films": [
+    "Big"
+   ],
+   "notes": "A real film: Big. PASS only if the answer names Big as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_n6",
+   "category": "real_ident",
+   "question": "A movie where a black man meets his white girlfriend's family for the first time and the weekend turns sinister.",
+   "expect_films": [
+    "Get Out"
+   ],
+   "notes": "A real film: Get Out. PASS only if the answer names Get Out as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_n7",
+   "category": "real_ident",
+   "question": "Who starred in Gladiater?",
+   "expect_films": [
+    "Gladiator"
+   ],
+   "notes": "A real film: Gladiator. PASS only if the answer names Gladiator as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_trec-dev-659",
+   "category": "real_ident",
+   "question": "I don\u2019t really have any memory of this film. It\u2019s a comedy. Theres a good chance it\u2019s R rated. It\u2019s fairly well-known- fairly mainstream. The Dvd cover is of the main characters (i.e. the dads- they\u2019re in their 30\u2019s to early 40s) sliding down a water slide like a bunch of kids. It might be the one with the dads doing crazy shit like drugs and sex and shit. This is a terrible description but I\u2019m sure someone can tell me the title of the movie just based on the fact that it\u2019s a comedy and the DVD cover is of dads sliding down a water slide.",
+   "expect_films": [
+    "Grown Ups 2"
+   ],
+   "notes": "A real film: Grown Ups 2. PASS only if the answer names Grown Ups 2 as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_trec-dev-1095",
+   "category": "real_ident",
+   "question": "I remember seeing a trailer for a fantasy movie/general weird movie involving a guy who gets a job/works as something to do with this huge, fantastical machine (like a Sci-Fi, fantasy almost Terry Pratchett-Tardis like contraption.) , inside which there are a number of rooms, in-which all manner of random nonsense happens, including him meeting a very seductive woman (who is clearly evil). The machine is stated to contain immense knowledge/power but nobody can figure out how it works.",
+   "expect_films": [
+    "The Zero Theorem"
+   ],
+   "notes": "A real film: The Zero Theorem. PASS only if the answer names The Zero Theorem as the film described; FAIL if it says no film matches or names a different film."
+  },
+  {
+   "id": "rid_trec-dev-403",
+   "category": "real_ident",
+   "question": "-Date: I\u2019m not entirely sure, but I think I watched it on Netflix a year or so ago -Language: I believe it was in either German, French, or English -Where seen: I think on Netflix. It was definitely a movie. -Extras: in color, recently made, setting somewhere in Europe (Germany, France, UK) -Description: A woman wakes up in some secret underground apartment (I can\u2019t remember if she was kidnapped or otherwise ended up there another way). The resident of the apartment is a man who wears a mask and gloves, never taking them off. He makes her breakfast. The apartment is full of art and statues and books, almost museum-like. There\u2019s some fancy mirror somewhere and a scene takes place there. The woman at some point is in a cell where she is tortured every day. The only thing keeping her going is a letter she finds hidden in the wall that\u2019s a first hand account of a previous woman being tortured there. When she escapes she realizes the person holding her captive and torturing her was the masked/gloved man. She\u2019s furious and I think leaves. At some point it becomes known that the masked/gloved man was one of the people experimented on by the Angel of Death (Mengele), a nazi doctor who did experiments on twins, handicapped, elderly. The man was referred to as his cell number, and because of the experiments he developed super immunity to either disease (I think). There was a fire at the place where Mengele did the experiments and the man survived but had burns all over his body hence the mask and gloves. At some point the woman comes back. The police I think are after the masked man. I\u2019m not sure if he gets shot, but they\u2019re in the metro station and at some point the woman puts him (I think he was dying?) on a metro car full of flowers and bombs and sends it off to blow up. I think for some reason I can\u2019t remember there were protests going on in the general public that were taking place at the same time as this metro car explosion.",
+   "expect_films": [
+    "V for Vendetta"
+   ],
+   "notes": "A real film: V for Vendetta. PASS only if the answer names V for Vendetta as the film described; FAIL if it says no film matches or names a different film."
+  }
+ ]
+}
