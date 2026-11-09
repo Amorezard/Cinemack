@@ -32,6 +32,14 @@ c.execute("create table if not exists tv_seasons(tmdb_id integer, season_number 
           "episode_count integer, overview text, vote_average real, poster_path text, primary key (tmdb_id, season_number))")
 for sn, d, n in [(0, "2016-10-18", 2), (1, "2015-06-30", 10), (2, "2016-05-30", 12), (3, "2019-07-08", 6)]:
     c.execute("insert into tv_seasons values (17, ?, ?, ?, ?, '', 0, '')", (sn, f"Season {sn}", d, n))
+# 4a5: IMDb title as a second name ("Marvel's Daredevil" = "Daredevil" on IMDb); the 2003 film shares the name
+c.execute("alter table tv_shows add column imdb_id text")
+c.execute("insert into tv_shows values (18, 'Marvel''s Daredevil', 'Marvel''s Daredevil', 2015, 5458, 'tt3322312')")
+c.execute("create table if not exists imdb_titles(tconst text primary key, title_type text, primary_title text, "
+          "original_title text, is_adult integer, start_year integer, end_year integer, runtime integer, genres text)")
+c.execute("insert into imdb_titles values ('tt3322312', 'tvSeries', 'Daredevil', 'Daredevil', 0, 2015, 2018, 54, '')")
+c.execute("insert into films(tmdb_id, title, original_title, year, vote_count, genres_json) values "
+          "(8, 'Daredevil', 'Daredevil', 2003, 6000, '[\"Action\"]')")
 c.commit()
 c.close()
 import tv  # noqa: E402
@@ -106,6 +114,17 @@ class SameName(unittest.TestCase):
             self.assertFalse(tv.seasons_wanted(h), h)
         tv.TV_SEASONS = False
         self.assertFalse(tv.seasons_wanted({"_plan": {"intent": "named_film"}}))
+
+    def test_imdb_title_is_a_second_name(self):                         # 4a5 (sealed check: Daredevil)
+        q = "How many seasons of Daredevil were on Netflix?"
+        tv.SAME_NAME = True
+        ns = tv.named_show(q)
+        self.assertIsNotNone(ns)
+        self.assertEqual((ns[1], ns[2]), (18, "Marvel's Daredevil"))
+        tv.SAME_NAME = False
+        self.assertIsNone(tv.named_show(q))                                # off: v7 exactly
+        self.assertEqual(route("Who directed Daredevil?", True), "film")
+        self.assertEqual(route("Did Daredevil win an Oscar?", True), "film")
 
 if __name__ == "__main__":
     unittest.main()

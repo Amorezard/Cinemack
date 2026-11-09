@@ -218,15 +218,27 @@ def show_index():
             _IDX["pilots"].setdefault(norm(t), []).append(y)
         # 8 Nov night (4a3): "X: The TV Series" / "X: The Series" also as plain "X" - named_show() uses these only
         # with SAME_NAME=1, so a short name that is also a film still has to pass same_name_choice().
-        alias, seen = [], {(nt, sid) for nt, sid, *_r in out}
+        # 4a5: also the show's IMDb primary / original title ("Marvel's Daredevil" is "Daredevil" on IMDb).
+        alias, seen, disp = [], {(nt, sid) for nt, sid, *_r in out}, {}
+        imdb_t = {}
+        for sid, pt, ot in _q("select s.tmdb_id, t.primary_title, t.original_title from tv_shows s "
+                              "join imdb_titles t on t.tconst = s.imdb_id"):
+            imdb_t[sid] = (pt, ot)
         for sid, name, orig, y, vc in rows:
+            cands = []
             for t in {name, orig}:
                 m = R_SERIES_SUFFIX.search(t or "")
-                short = norm(t[:m.start()]) if m else ""
+                if m:
+                    cands.append(t[:m.start()].strip())
+            cands += [t for t in imdb_t.get(sid, ()) if t]
+            for t in cands:
+                short = norm(t)
                 if len(short) >= 2 and (short, sid) not in seen:
                     seen.add((short, sid))
                     alias.append((short, sid, name, y, vc))
+                    disp[(short, sid)] = t
         _IDX["series_alias"] = alias
+        _IDX["alias_display"] = disp
     return _IDX["shows"], _IDX["films"]
 
 
@@ -333,6 +345,7 @@ def named_show(question, require_tv_words=False, recent_titles=None):
                 continue                                  # "Fargo": the film unless the question says show
             w0 = name.split()[0]
             if SAME_NAME:
+                w0 = ((_IDX.get("alias_display") or {}).get((nt, sid)) or name).split()[0]   # 4a5: alias as written
                 w0 = re.sub(r"[^\w'\u2019]+$", "", w0) or w0      # 8 Nov night: "Scream: The TV Series" -> "Scream"
             if len(nt.split()) == 1 and not re.search(rf"\b{re.escape(w0[:1].upper() + w0[1:])}\b",
                                                       question):
