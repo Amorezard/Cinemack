@@ -258,6 +258,19 @@ class CalendarAlerts(unittest.TestCase):
         ev = [e["kind"] for e in discovery.calendar("", days=60, start="2099-03-15")["events"] if (e.get("film") or {}).get("title") == "Expanding"]
         self.assertEqual(ev, ["theatrical"])
 
+    def test_untyped_dates_need_interest(self):
+        fc = sqlite3.connect(os.environ["FACTS_DB"])
+        for fid, t, pop in ((20, "Known A", 10.0), (21, "Known B", 30.0), (22, "Big Untyped", 50.0), (23, "Tiny Untyped", 0.5)):
+            fc.execute("insert or ignore into films(tmdb_id, title, year, release_date, us_release_date, vote_count, popularity) "
+                       "values (?,?,2098,'2098-06-10','2098-06-10',0,?)", (fid, t, pop))
+        for fid in (20, 21):
+            fc.execute("insert into certifications values (?, 'US', 'PG', 3, '2098-06-10T00:00:00.000Z')", (fid,))
+        fc.executemany("insert into lists values ('upcoming', 'US', ?, ?, 'x')", [(22, 1), (23, 2)])
+        fc.commit(); fc.close()
+        titles = {(e.get("film") or {}).get("title") for e in discovery.calendar("", days=30, start="2098-06-01")["events"]}
+        self.assertIn("Big Untyped", titles)
+        self.assertNotIn("Tiny Untyped", titles)
+
     def test_alerts_once_per_change(self):
         user = "acct5"
         film_info.choose = film_info.choose.__wrapped__ if hasattr(film_info.choose, "__wrapped__") else film_info.choose

@@ -225,9 +225,18 @@ def calendar(user="", days=60, start=None):
     # rest of "announced" is mostly tiny releases and event screenings with no US release type.
     on_lists = {r[0] for r in _q("select distinct tmdb_id from lists where region = 'US' and (list_name in "
                                  "('upcoming', 'now_playing') or (list_name = 'announced' and rank <= 60))")}
-    for fid, d in _q("select tmdb_id, substr(us_release_date, 1, 10) from films where us_release_date is not null and "
-                     "substr(us_release_date, 1, 10) between ? and ?", (start, end)):
-        if fid not in have_us and fid in on_lists:      # unknown release type: only films TMDB lists for the US
+    cand = {fid: d for fid, d in _q("select tmdb_id, substr(us_release_date, 1, 10) from films where us_release_date "
+                                    "is not null and substr(us_release_date, 1, 10) between ? and ?", (start, end))
+            if fid not in have_us and fid in on_lists}  # unknown release type: only films TMDB lists for the US
+    # TMDB's US lists still carry many tiny releases and event screenings with no release type. Keep one only if it
+    # draws at least as much interest (TMDB popularity) as the median film with a known US theatrical date here.
+    known = [f for f, k in rows if k == "theatrical"]
+    pop = dict(_q("select tmdb_id, popularity from films where tmdb_id in (" +
+                  ",".join(str(int(i)) for i in (known + list(cand)) or [0]) + ")"))
+    ref = sorted(pop[f] for f in known if pop.get(f) is not None)
+    bar = ref[len(ref) // 2] if ref else None
+    for fid, d in cand.items():
+        if bar is None or (pop.get(fid) is not None and pop[fid] >= bar):
             rows[(fid, "theatrical_or_unknown")] = d
     # A theatrical date for a film that opened in US theatres before the window is a re-release.
     # Re-release: the film first opened in US theatres more than a year before this date, or it is from an earlier
@@ -249,7 +258,7 @@ def calendar(user="", days=60, start=None):
             continue
         e = {"date": d, "kind": kind, "media": "movie", "film": c, "on_watchlist": fid in on_wl,
              "label": {"theatrical": "In theatres", "theatrical_rerelease": "Back in theatres (re-release)",
-                       "digital": "Streaming / digital", "theatrical_or_unknown": "Release date"}[kind]}
+                       "digital": "Streaming / digital", "theatrical_or_unknown": "US release (type not given)"}[kind]}
         if kind in ("theatrical", "theatrical_rerelease"):
             e["showtimes"] = {"label": "Find showtimes (Google search)",
                               "url": "https://www.google.com/search?" + urllib.parse.urlencode({"q": f"{c['title']} showtimes"})}
