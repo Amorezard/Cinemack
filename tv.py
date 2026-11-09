@@ -36,6 +36,13 @@ import unicodedata
 import facts_db as F
 
 TV = os.environ.get("TV", "0") == "1"
+# 8 Nov (v8 4a, issue I-001): SAME_NAME=1 changes only what happens when a named title is BOTH a show and a film.
+# Off = v7 behaviour exactly.
+SAME_NAME = os.environ.get("SAME_NAME", "0") == "1"
+# 8 Nov night (4a3): TV_SEASONS=1 adds episodes per season (tv_seasons, TMDB) to a show's context. Off = 3 Nov context.
+TV_SEASONS = os.environ.get("TV_SEASONS", "0") == "1"
+# 8 Nov night (4a3, SAME_NAME only): "Scream: The TV Series" is also plain "Scream" (tuning tn17).
+R_SERIES_SUFFIX = re.compile(r"\s*[:\-\u2013]\s*the (tv |television )?series\s*$", re.I)
 EMBED_MODEL = os.environ.get("EMBED_MODEL", "mxbai-embed-large")
 QUERY_PREFIX = "Represent this sentence for searching relevant passages: "
 TV_MAX_DISTANCE = float(os.environ.get("TV_MAX_DISTANCE", "0.62"))   # cosine distance cut for descriptions
@@ -102,6 +109,18 @@ R_TV_EXTRA = re.compile(r"\b(comedy|drama|crime|fantasy|animated|cartoon|documen
                         r"\s*[?.,!;]|\s*$)|"
                         r"^\W*(tv )?(series|shows?) (about|like|where|with|that|set)\b", re.I)
 R_TV_GENERIC = re.compile(r"\b(the|a|this|that|what|which|any) (show|series)\b", re.I)
+# 8 Nov (SAME_NAME): words that point to the SHOW or to the FILM when a title is both. Used only for a title that
+# names both, so plot descriptions ("a radio host on air") are never affected. Sealed v7 s7t08 "When did Twin Peaks
+# first air?" went to the 1989 pilot listed as a film, because "air" was not a TV word.
+R_TV_SAME = re.compile(r"\b((first|originally|last|still) )?air(ed|s|ing)?\b(?!\s*(force|bud|plane|port|line|craft|ship|strike|raid))|"
+                       r"\bon the air\b|\bnetworks?\b|\bpremiere[sd]?\b|\bpremiering\b|\bemmys?\b|\bshowrunners?\b|"
+                       r"\brenew(ed|al)\b|\bcancell?(ed|ation)\b|\bseasons?\b|\bepisodes?\b|\bstreaming series\b", re.I)
+# 8 Nov (SAME_NAME, tuning tn17): films have no episodes or seasons, so these words beat the film-franchise guard
+# ("How many episodes are in the first season of the Scream series?" - Scream is also a film collection).
+R_EPISODIC = re.compile(r"\b(episodes?|first season|last season|final season|seasons? (\d+|one|two|three|four|five|six|"
+                        r"seven|eight|nine|ten)|showrunners?|renewed|cancell?ed)\b", re.I)
+R_FILM_SAME = re.compile(r"\b(movies?|films?|directed|director|oscars?|academy awards?|box office|gross(ed)?|"
+                         r"budget|runtime|theatrical|in theaters|in cinemas|sequel|remake|trilogy|franchise)\b", re.I)
 _STOP = {"the", "a", "an", "of", "and", "in", "on", "at", "to", "for", "with", "from", "by", "or", "is", "it", "my",
          "your", "our", "his", "her", "their", "this", "that", "as", "be", "not", "no", "up", "out", "de", "la", "le"}
 
@@ -192,7 +211,63 @@ def show_index():
                     out.append((norm(t), sid, name, y, vc))
         _IDX["shows"] = out
         _IDX["films"] = {norm(t) for (t,) in _q("select title from films where coalesce(vote_count, 0) >= 200")}
+        # 8 Nov (SAME_NAME): TMDB lists some pilots and TV specials as films ("Twin Peaks" 1989, genre TV Movie).
+        # A TV-Movie title released no later than the show's first year is the show's pilot: it never blocks the show.
+        _IDX["pilots"] = {}
+        for t, y in _q("select title, year from films where genres_json like '%TV Movie%' and year is not null"):
+            _IDX["pilots"].setdefault(norm(t), []).append(y)
+        # 8 Nov night (4a3): "X: The TV Series" / "X: The Series" also as plain "X" - named_show() uses these only
+        # with SAME_NAME=1, so a short name that is also a film still has to pass same_name_choice().
+        alias, seen = [], {(nt, sid) for nt, sid, *_r in out}
+        for sid, name, orig, y, vc in rows:
+            for t in {name, orig}:
+                m = R_SERIES_SUFFIX.search(t or "")
+                short = norm(t[:m.start()]) if m else ""
+                if len(short) >= 2 and (short, sid) not in seen:
+                    seen.add((short, sid))
+                    alias.append((short, sid, name, y, vc))
+        _IDX["series_alias"] = alias
     return _IDX["shows"], _IDX["films"]
+
+
+def is_pilot_title(nt, show_year):
+    """8 Nov: the only films with this title are TV movies released by the show's first year (its pilot/special)."""
+    shows, films = show_index()
+    ys = (_IDX.get("pilots") or {}).get(nt)
+    if not ys or show_year is None:
+        return False
+    others = [y for (_t, y) in _film_years(nt)]
+    return all(y in ys and y <= show_year for y in others) if others else False
+
+
+def _film_years(nt):
+    """(norm title, year) of every film with this normalised title (cached per title)."""
+    cache = _IDX.setdefault("film_years", {})
+    if nt not in cache:
+        if "film_rows" not in _IDX:
+            _IDX["film_rows"] = {}
+            for t, y in _q("select title, year from films where year is not null"):
+                _IDX["film_rows"].setdefault(norm(t), []).append(y)
+        cache[nt] = [(nt, y) for y in _IDX["film_rows"].get(nt, [])]
+    return cache[nt]
+
+
+def same_name_choice(question, nt, show_year, recent_titles=None):
+    """8 Nov (SAME_NAME): for a title that is both a show and a film -> 'tv', 'film' or None (still unclear).
+    The question's own words decide; then the conversation (last answer about a show); a pilot-only film title never
+    blocks the show. None = keep the v7 default (the film) and let CLARIFY offer the choice."""
+    q = _clean(question)
+    tvish = bool(R_TV_SAME.search(q) or R_TV_STRONG.search(q) or R_SHOW_WORD.search(q))
+    filmish = bool(R_FILM_SAME.search(q))
+    if not filmish and is_pilot_title(nt, show_year):
+        return "tv"
+    if tvish and not filmish:
+        return "tv"
+    if filmish and not tvish:
+        return "film"
+    if not tvish and not filmish and recent_is_tv(recent_titles):
+        return "tv"
+    return None
 
 
 def all_film_titles():
@@ -232,7 +307,7 @@ def inside_film_title(question, nt, max_extra=5):
     return False
 
 
-def named_show(question, require_tv_words=False):
+def named_show(question, require_tv_words=False, recent_titles=None):
     """The show the question names (longest title match, >= 2 words or a distinctive single word), or None.
     30 Oct guards (see TV_LONG above): written as a title unless the question is short; with no TV word, not when
     the question says film / movie. 1 Nov: not when the match is part of a longer film title in the question."""
@@ -242,7 +317,7 @@ def named_show(question, require_tv_words=False):
     film_words = bool(R_NOT_TV.search(question))
     strong_tv = tv_words(question) == "strong"
     short = n_words(question) <= TV_SHORT
-    for nt, sid, name, y, vc in shows:
+    for nt, sid, name, y, vc in (shows + (_IDX.get("series_alias") or []) if SAME_NAME else shows):
         if len(nt) < 4 and nt.upper() != nt:
             continue
         if f" {nt} " in nq:
@@ -251,9 +326,15 @@ def named_show(question, require_tv_words=False):
             titled = typed_as_title(question, nt)
             if not titled and (not short or (vc or 0) < TV_NAMED_MIN_VOTES):
                 continue                                  # a plot phrase that happens to be a show's name
-            if nt in films and not (require_tv_words or R_TV.search(question) and not R_NOT_TV.search(question)):
+            if SAME_NAME and nt in films:                 # same threshold as v7 (films with 200+ votes)
+                if same_name_choice(question, nt, y, recent_titles) != "tv" and not require_tv_words:
+                    continue                              # 8 Nov: both a show and a film, and nothing says the show
+            elif nt in films and not (require_tv_words or R_TV.search(question) and not R_NOT_TV.search(question)):
                 continue                                  # "Fargo": the film unless the question says show
-            if len(nt.split()) == 1 and not re.search(rf"\b{re.escape(name.split()[0][:1].upper() + name.split()[0][1:])}\b",
+            w0 = name.split()[0]
+            if SAME_NAME:
+                w0 = re.sub(r"[^\w'\u2019]+$", "", w0) or w0      # 8 Nov night: "Scream: The TV Series" -> "Scream"
+            if len(nt.split()) == 1 and not re.search(rf"\b{re.escape(w0[:1].upper() + w0[1:])}\b",
                                                       question):
                 continue                                  # one-word titles ("Friends", "House", "Lost") only when
                                                           # written as a title (capitalised), not as an ordinary word
@@ -313,7 +394,7 @@ def wants_tv(question, recent_titles=None):
     """'named' / 'words' / 'followup' / None - why this question goes to TV."""
     if not TV or db() is None or not _q("select 1 from tv_shows limit 1"):
         return None
-    ns = named_show(question)
+    ns = named_show(question, recent_titles=recent_titles) if SAME_NAME else named_show(question)
     if ns and _mid_film(question, recent_titles) and not _strong_show_name(question, ns):
         ns = None                                         # 4 Nov: a film conversation's follow-up, not a show
     if ns:
@@ -321,7 +402,8 @@ def wants_tv(question, recent_titles=None):
     kind = tv_words(question)
     if kind and n_words(question) >= TV_LONG and kind != "strong":
         kind = None                                       # a long description saying only "a show" / "the series"
-    if kind and not R_NOT_TV.search(question) and not names_film_series(question):
+    if kind and not R_NOT_TV.search(question) and (not names_film_series(question) or
+                                                    (SAME_NAME and R_EPISODIC.search(_clean(question)))):
         return "words"
     if recent_is_tv(recent_titles) and R_FOLLOW.search(question) and not R_NOT_TV.search(question):
         return "followup"
@@ -539,6 +621,24 @@ def retrieve_tv(question, k=3, recent_titles=None, why=None):
 
 
 # ------------------------------------------------------------------ answer context
+def season_line(sid, max_seasons=40):
+    """8 Nov night (TV_SEASONS=1): episodes per season from tv_seasons (TMDB), specials (season 0) left out:
+    'Episodes per season: S1 (2015) 10; S2 (2016) 12; S3 (2019) 6 [TMDB]'. '' when there is nothing."""
+    rows = [r for r in _q("select season_number, air_date, episode_count from tv_seasons where tmdb_id = ? and "
+                          "season_number > 0 order by season_number", (sid,)) if r[2]]
+    if not rows:
+        return ""
+    parts = [f"S{n}" + (f" ({d[:4]})" if d else "") + f" {c}" for n, d, c in rows[:max_seasons]]
+    more = f"; and {len(rows) - max_seasons} more seasons" if len(rows) > max_seasons else ""
+    return "Episodes per season: " + "; ".join(parts) + more + " [TMDB]"
+
+
+def seasons_wanted(h):
+    """8 Nov night (4a4): TV_SEASONS=1 and this hit is the one show the question names (intent named_film) - not a
+    description search (identify) or a recommendation, where the line only invites padding (TV set tv05)."""
+    return TV_SEASONS and ((h or {}).get("_plan") or {}).get("intent") == "named_film"
+
+
 def context(h):
     """What the answer model sees for a show (chat.context_for for TV hits)."""
     sid = h.get("tv_id") or -int(h["id"])
@@ -561,6 +661,10 @@ def context(h):
     if rt:
         bits.append(f"about {rt} min an episode")
     lines.append("; ".join(bits) + " [TMDB]")
+    if seasons_wanted(h):
+        sl = season_line(sid)
+        if sl:
+            lines.append(sl)
     if nets and json.loads(nets):
         lines.append(f"Network: {', '.join(json.loads(nets)[:3])} [TMDB]")
     creators = [c["name"] for c in json.loads(cb or "[]") if c.get("name")]
