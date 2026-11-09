@@ -1,17 +1,26 @@
-pf5 (A people in the news, C economy + genre momentum) - 2026-11-09 12:04, lightgbm
+pf5 - 2026-11-09 13:29, lightgbm
 train <= 2015: 8,742 films; test 2016-2019: 1,487; late 2020-2023: 787
 
-arm                       MAE test    rho  MAE late   diff vs pf4 [95% CI]
-pf4 before+trailers          1.200 +0.559     1.433   (reference)
-+A people                    1.199 +0.563     1.428   -0.001 [-0.007, +0.005]
-+C economy+momentum          1.209 +0.556     1.477   +0.009 [+0.001, +0.016]
-pf5 (+A +C)                  1.201 +0.563     1.462   +0.001 [-0.007, +0.009]
-shuffled control             1.209 +0.552       nan   +0.009 [+0.003, +0.015]
+arm                             MAE test    rho  MAE late   diff vs pf4 [95% CI]
+pf4 before+trailers                1.200 +0.559     1.433   (reference)
++A people (run 1)                  1.199 +0.563     1.428   -0.001 [-0.007, +0.005]
++C1 first version (run 1)          1.206 +0.559     1.476   +0.006 [-0.001, +0.013]
++C as planned (not blind)          1.200 +0.562     1.435   -0.000 [-0.007, +0.006]
++D track records                   1.194 +0.572     1.411   -0.006 [-0.015, +0.004]
+shuffled control (A+C+D)           1.212 +0.551       nan   +0.012 [+0.005, +0.018]
 
-CHECK pf4 arm reproduces 6 Nov MAE 1.2 within 0.01: yes
+CHECK pf4 arm reproduces 1.2 within 0.01: yes
 CHECK shuffled control does not beat pf4: yes
-RULE pf5 (A + C) beats pf4 before + trailers on 2016-2019: no
-B (Guardian) not tested: training coverage too small.
+groups that pass alone: none
+RULE pf5 beats pf4 on 2016-2019: no
+
+B Guardian articles, 5-fold CV over the fetched 2016-2019 films (own test, like BUZZ):
+  n 1,487; MAE pf4 1.153 -> +B 1.142; diff -0.011 [-0.019, -0.002] -> helps (CI excludes 0)
+
+80% range (10% and 90% quantile models on pf4's inputs), 2016-2019:
+  coverage 71.0% (below 16.0%, above 13.1%); median width x22.52 -> NOT calibrated
+
+Letterboxd rating only (no count), AFTER + lb_rating - AFTER: -0.005 [-0.013, +0.003] (reported only)
 
 feature coverage and means (train | test | late):
   pn_covered         train 8,742/8,742 mean 0.805 | test 1,487/1,487 mean 0.735 | late 787/787 mean 0.550
@@ -23,31 +32,44 @@ feature coverage and means (train | test | late):
   mac_unrate         train 8,740/8,742 mean 6.310 | test 1,487/1,487 mean 4.303 | late 787/787 mean 4.949
   mac_sentiment      train 8,295/8,742 mean 84.692 | test 1,487/1,487 mean 95.107 | late 787/787 mean 71.250
   mac_cpi_yoy        train 8,711/8,742 mean 0.030 | test 1,487/1,487 mean 0.019 | late 787/787 mean 0.047
-  mom_genre          train 7,572/8,742 mean 0.437 | test 1,429/1,487 mean 0.263 | late 714/787 mean -0.197
-  mom_genre_n        train 8,742/8,742 mean 38.048 | test 1,487/1,487 mean 53.892 | late 787/787 mean 25.198
-  mom_all            train 8,728/8,742 mean 0.501 | test 1,487/1,487 mean 0.287 | late 787/787 mean -0.215
-  mom_all_n          train 8,742/8,742 mean 239.392 | test 1,487/1,487 mean 383.426 | late 787/787 mean 211.526
+  mom_genre12        train 7,651/8,742 mean 0.439 | test 1,431/1,487 mean 0.264 | late 705/787 mean -0.201
+  fr_last            train 798/8,742 mean 1.580 | test 183/1,487 mean 1.413 | late 116/787 mean 1.103
+  fr_last2           train 316/8,742 mean 1.645 | test 78/1,487 mean 1.408 | late 52/787 mean 1.373
+  d_star_gross       train 8,742/8,742 mean 16.696 | test 1,487/1,487 mean 16.885 | late 787/787 mean 15.976
+  d_recent_form      train 7,924/8,742 mean 0.387 | test 1,376/1,487 mean 0.130 | late 726/787 mean -0.004
+  d_dir_since_hit    train 4,069/8,742 mean 5.239 | test 638/1,487 mean 6.236 | late 363/787 mean 7.548
+  d_lead_since_hit   train 5,592/8,742 mean 3.389 | test 951/1,487 mean 4.011 | late 474/787 mean 4.986
+  d_prior_noms       train 8,742/8,742 mean 20.381 | test 1,487/1,487 mean 17.169 | late 787/787 mean 17.456
+  b_log_n            train 572/8,742 mean 0.637 | test 1,487/1,487 mean 0.438 | late 787/787 mean 0.454
+  b_last28_share     train 572/8,742 mean 0.269 | test 1,487/1,487 mean 0.238 | late 787/787 mean 0.272
+  b_marketing        train 572/8,742 mean 0.231 | test 1,487/1,487 mean 0.104 | late 787/787 mean 0.051
 
-pf5 arm, mean |contribution| on the test films (new features marked *):
-    runtime                  0.1726
-    trailer_n_pre            0.1552
-    cast_prev_ret            0.1472
-    log_budget_real          0.1327
-    trailer_lead_days        0.1005
-  * mom_all_n                0.0926
-    franchise_prev_ret       0.0824
-    dir_prev_ret             0.0799
++C as planned (not blind): mean |contribution| on the test films (new features *):
+    runtime                  0.1806
+    trailer_n_pre            0.1603
+    cast_prev_ret            0.1458
+    log_budget_real          0.1395
+    year                     0.1219
+    trailer_lead_days        0.1144
+    dir_prev_ret             0.0752
     g_Drama                  0.0740
-    g_Comedy                 0.0705
-    lang_en                  0.0641
-    us_made                  0.0604
-    year                     0.0523
-    days_to_holiday          0.0485
-  * pn_log_ratio             0.0414
-  * mom_genre                0.0375
-    cast_prev_rating         0.0343
-    dir_prev_rating          0.0307
-    dir_prev_n               0.0300
-    same_weekend_log_budget  0.0289
+    g_Comedy                 0.0715
+    us_made                  0.0621
+    days_to_holiday          0.0526
+  * mom_genre12              0.0505
 
-(11 s)
++D track records: mean |contribution| on the test films (new features *):
+    runtime                  0.1759
+    trailer_n_pre            0.1706
+    year                     0.1447
+    log_budget_real          0.1320
+    trailer_lead_days        0.1016
+    cast_prev_ret            0.0953
+  * d_recent_form            0.0934
+    franchise_prev_ret       0.0716
+    g_Drama                  0.0697
+    g_Comedy                 0.0669
+    us_made                  0.0599
+  * d_dir_since_hit          0.0586
+
+(23 s)

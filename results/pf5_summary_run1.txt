@@ -1,0 +1,53 @@
+pf5 (A people in the news, C economy + genre momentum) - 2026-11-09 12:04, lightgbm
+train <= 2015: 8,742 films; test 2016-2019: 1,487; late 2020-2023: 787
+
+arm                       MAE test    rho  MAE late   diff vs pf4 [95% CI]
+pf4 before+trailers          1.200 +0.559     1.433   (reference)
++A people                    1.199 +0.563     1.428   -0.001 [-0.007, +0.005]
++C economy+momentum          1.209 +0.556     1.477   +0.009 [+0.001, +0.016]
+pf5 (+A +C)                  1.201 +0.563     1.462   +0.001 [-0.007, +0.009]
+shuffled control             1.209 +0.552       nan   +0.009 [+0.003, +0.015]
+
+CHECK pf4 arm reproduces 6 Nov MAE 1.2 within 0.01: yes
+CHECK shuffled control does not beat pf4: yes
+RULE pf5 (A + C) beats pf4 before + trailers on 2016-2019: no
+B (Guardian) not tested: training coverage too small.
+
+feature coverage and means (train | test | late):
+  pn_covered         train 8,742/8,742 mean 0.805 | test 1,487/1,487 mean 0.735 | late 787/787 mean 0.550
+  pn_log_pre         train 8,742/8,742 mean 0.108 | test 1,487/1,487 mean 0.136 | late 787/787 mean 0.084
+  pn_log_ratio       train 8,742/8,742 mean 0.011 | test 1,487/1,487 mean 0.049 | late 787/787 mean 0.027
+  pn_log_max_ratio   train 8,742/8,742 mean 0.082 | test 1,487/1,487 mean 0.097 | late 787/787 mean 0.064
+  pn_scandal         train 8,742/8,742 mean 0.001 | test 1,487/1,487 mean 0.001 | late 787/787 mean 0.000
+  pn_award           train 8,742/8,742 mean 0.006 | test 1,487/1,487 mean 0.008 | late 787/787 mean 0.005
+  mac_unrate         train 8,740/8,742 mean 6.310 | test 1,487/1,487 mean 4.303 | late 787/787 mean 4.949
+  mac_sentiment      train 8,295/8,742 mean 84.692 | test 1,487/1,487 mean 95.107 | late 787/787 mean 71.250
+  mac_cpi_yoy        train 8,711/8,742 mean 0.030 | test 1,487/1,487 mean 0.019 | late 787/787 mean 0.047
+  mom_genre          train 7,572/8,742 mean 0.437 | test 1,429/1,487 mean 0.263 | late 714/787 mean -0.197
+  mom_genre_n        train 8,742/8,742 mean 38.048 | test 1,487/1,487 mean 53.892 | late 787/787 mean 25.198
+  mom_all            train 8,728/8,742 mean 0.501 | test 1,487/1,487 mean 0.287 | late 787/787 mean -0.215
+  mom_all_n          train 8,742/8,742 mean 239.392 | test 1,487/1,487 mean 383.426 | late 787/787 mean 211.526
+
+pf5 arm, mean |contribution| on the test films (new features marked *):
+    runtime                  0.1726
+    trailer_n_pre            0.1552
+    cast_prev_ret            0.1472
+    log_budget_real          0.1327
+    trailer_lead_days        0.1005
+  * mom_all_n                0.0926
+    franchise_prev_ret       0.0824
+    dir_prev_ret             0.0799
+    g_Drama                  0.0740
+    g_Comedy                 0.0705
+    lang_en                  0.0641
+    us_made                  0.0604
+    year                     0.0523
+    days_to_holiday          0.0485
+  * pn_log_ratio             0.0414
+  * mom_genre                0.0375
+    cast_prev_rating         0.0343
+    dir_prev_rating          0.0307
+    dir_prev_n               0.0300
+    same_weekend_log_budget  0.0289
+
+(11 s)
