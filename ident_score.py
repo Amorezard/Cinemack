@@ -39,7 +39,11 @@ def presents(ans):
 
 def named(ans, title):
     first = sentences(ans)
-    return bool(title) and f" {norm(title)} " in f" {norm(first)} " and not NEG.match(first.strip())
+    if not title or NEG.match(first.strip()):
+        return False
+    if len(norm(title).split()) == 1:          # 9 Nov: one-word titles as written ("Friends", not "the friends live")
+        return bool(re.search(rf"\b{re.escape(re.sub(r'^(The|A|An) ', '', title))}\b", first))
+    return f" {norm(title)} " in f" {norm(first)} "
 
 
 def rows(tag):
