@@ -26,7 +26,7 @@ const h = (tag, attrs = {}, ...kids) => {
     else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
     else el.setAttribute(k, v === true ? '' : v);
   }
-  for (const k of kids.flat()) if (k != null && k !== false) el.append(k.nodeType ? k : document.createTextNode(k));
+  for (const k of kids.flat(Infinity)) if (k != null && k !== false) el.append(k.nodeType ? k : document.createTextNode(k));
   return el;
 };
 const I = {
@@ -43,6 +43,21 @@ const I = {
   plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
   check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"/></svg>',
 };
+const ART = {
+  popcorn: '<svg class="art" viewBox="0 0 56 56" fill="none" aria-hidden="true"><path d="M14 22l4 28h20l4-28z" fill="#003767" stroke="#FFDD00" stroke-width="2" stroke-linejoin="round"/><path d="M22 22l1.5 28M34 22l-1.5 28" stroke="#FFDD00" stroke-width="2"/><circle cx="18" cy="18" r="6" fill="#FFF6C2" stroke="#FFDD00" stroke-width="2"/><circle cx="28" cy="14" r="7" fill="#FFF6C2" stroke="#FFDD00" stroke-width="2"/><circle cx="38" cy="18" r="6" fill="#FFF6C2" stroke="#FFDD00" stroke-width="2"/></svg>',
+  ticket: '<svg class="art" viewBox="0 0 56 56" fill="none" aria-hidden="true"><g transform="rotate(-12 28 28)"><path d="M8 16h40v8a4 4 0 000 8v8H8v-8a4 4 0 000-8z" fill="#003767" stroke="#FFDD00" stroke-width="2" stroke-linejoin="round"/><path d="M36 17v22" stroke="#FFDD00" stroke-width="2" stroke-dasharray="3 3"/><path d="M17 23l9 5-9 5z" fill="#FFDD00"/></g></svg>',
+  reel: '<svg class="art" viewBox="0 0 56 56" fill="none" aria-hidden="true"><circle cx="26" cy="26" r="18" fill="#003767" stroke="#FFDD00" stroke-width="2"/><circle cx="26" cy="26" r="3" fill="#FFDD00"/><g fill="#FFF6C2" stroke="#FFDD00" stroke-width="1.5"><circle cx="26" cy="15" r="5"/><circle cx="36" cy="27" r="5"/><circle cx="26" cy="37" r="5"/><circle cx="16" cy="27" r="5"/></g><path d="M40 40c6 2 10 2 12-1" stroke="#FFDD00" stroke-width="2" stroke-linecap="round"/></svg>',
+};
+// How each Home row is introduced: a title that says what the row is for, and one plain line.
+const RAIL_COPY = {
+  watchlist: ['Your list', 'Films you saved for later.'],
+  now_playing: ['On the big screen now', 'New releases in US theatres this season.'],
+  back_in_theatres: ['Back on the big screen', 'Older films getting another run in theatres.'],
+  coming_soon: ['Opening soon', 'Dated US releases from the next few weeks.'],
+  new_popular: ["What everyone's watching", 'The most-viewed new releases of the last four months.'],
+};
+const emptyBox = (text, art, href, label) => h('div', { class: 'empty' }, h('div', { class: 'say', html: ART[art] || '' }, h('p', {}, text)),
+  href ? h('a', { class: 'btn secondary small', href }, label) : null);
 const runtime = (m) => m ? `${Math.floor(m / 60)} h ${m % 60} min` : '';
 const rt = (m) => m ? `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m` : '';
 
@@ -130,19 +145,20 @@ function card(f, opts = {}) {
     const on = S.choices[f.id] === 'want';
     c.append(h('button', { class: 'bm', type: 'button', 'data-want': f.id, 'aria-pressed': String(on),
       'aria-label': `Want to watch ${name}`, html: on ? I.bookmarkOn : I.bookmark,
-      onclick: () => setChoice(f, S.choices[f.id] === 'want' ? '' : 'want') }));
+      onclick: (e) => { const b = e.currentTarget; b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); setChoice(f, S.choices[f.id] === 'want' ? '' : 'want'); } }));
   }
   return c;
 }
 function rail(title, items, opts = {}) {
   const sec = h('section', { class: 'section', 'aria-label': title });
   const head = h('div', { class: 'section-h' }, h('h2', {}, title));
+  if (opts.lede) head.append(h('p', { class: 'lede' }, opts.lede));
   if (opts.src) head.append(h('span', { class: 'src' }, opts.src));
   if (opts.more) head.append(h('a', { href: opts.more, class: 'small' }, 'See all'));
   sec.append(head);
   if (!items.length) {
     if (!opts.empty) return null;
-    sec.append(h('div', { class: 'empty' }, h('p', {}, opts.empty[0]), opts.empty[1] ? h('a', { class: 'btn secondary small', href: opts.empty[1] }, opts.empty[2]) : null));
+    sec.append(emptyBox(opts.empty[0], opts.empty[3] || 'popcorn', opts.empty[1], opts.empty[2]));
     return sec;
   }
   sec.append(h('div', { class: 'rail', tabindex: '0', role: 'list', 'aria-label': title },
@@ -157,17 +173,18 @@ function skeletonRail() {
 // ---------------------------------------------------------------- Home
 async function pageHome() {
   view.innerHTML = '';
-  const hero = h('section', { class: 'hero', 'aria-label': 'Ask Cinemack' }, h('div', { class: 'bd', id: 'hero-bd' }));
+  const hero = h('section', { class: 'hero', 'aria-label': 'Ask Cinemack' }, h('div', { class: 'bd', id: 'hero-bd' }),
+    h('div', { class: 'bulbs t', 'aria-hidden': 'true' }), h('div', { class: 'bulbs b', 'aria-hidden': 'true' }), h('div', { class: 'fan', id: 'hero-fan' }));
   const q = h('input', { class: '', id: 'home-q', type: 'search', placeholder: 'Describe a film or a scene', 'aria-label': 'Ask Cinemack', enterkeyhint: 'send' });
   const go = () => { const t = q.value.trim(); if (t) { S.pendingAsk = t; location.hash = '#/discover'; } };
   q.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); go(); } });
   hero.append(h('div', { class: 'in' },
     h('div', { class: 'feat', id: 'hero-feat' }),
     h('h1', {}, 'What are we watching tonight?'),
-    h('p', { class: 'lead' }, 'Find a film from a half-remembered scene, check where it streams, or get three picks that fit your evening.'),
+    h('p', { class: 'lead' }, "Describe the scene you half-remember, ask where something's streaming, or let me pick three films for tonight."),
     h('div', { class: 'askbox' }, q, h('button', { class: 'btn primary', type: 'button', onclick: go, 'aria-label': 'Ask', html: I.send })),
-    h('div', { class: 'row' }, h('a', { class: 'btn secondary', href: '#/pick' }, 'Pick tonight'),
-      h('a', { class: 'btn ghost', href: '#/calendar' }, 'Coming soon'))));
+    h('div', { class: 'row' }, h('a', { class: 'btn secondary', href: '#/pick' }, 'Pick tonight for me'),
+      h('a', { class: 'btn ghost', href: '#/calendar' }, "What's opening soon"))));
   view.append(hero);
   const genres = ['Comedy', 'Thriller', 'Drama', 'Science Fiction', 'Horror', 'Animation', 'Romance', 'Documentary', 'Crime', 'Family'];
   view.append(h('nav', { class: 'chips scroll', 'aria-label': 'Browse by genre' }, genres.map(g =>
@@ -180,25 +197,31 @@ async function pageHome() {
   const byKey = Object.fromEntries(data.rails.map(r => [r.key, r]));
   const lead = (byKey.now_playing?.items || []).concat(byKey.new_popular?.items || []).find(f => f.id);
   if (lead) heroBackdrop(lead);
-  const rails = data.rails.slice();
+  const fan = $('#hero-fan');
+  if (fan) [...(byKey.now_playing?.items || []), ...(byKey.new_popular?.items || []), ...(byKey.back_in_theatres?.items || [])].filter(f => f.poster_lg || f.poster).slice(0, 3).forEach(f =>
+    fan.append(h('a', { href: `#/film/${f.id}`, 'aria-label': `${f.title}: details`, tabindex: '-1' }, h('img', { src: f.poster_lg || f.poster, alt: '', width: 200, height: 300 }))));
+  const ORDER = ['continue', 'watchlist', 'now_playing', 'coming_soon', 'new_popular', 'back_in_theatres'];
+  const rank = (k) => k.startsWith('because_') ? 2.5 : (ORDER.indexOf(k) < 0 ? 99 : ORDER.indexOf(k));
+  const rails = data.rails.slice().sort((a, b) => rank(a.key) - rank(b.key));
   const wl = rails.findIndex(r => r.key === 'watchlist');
   if (wl >= 0 && !rails[wl].items.length) rails.push(rails.splice(wl, 1)[0]);     // posters first for new visitors
   for (const r of rails) {
     if (r.key === 'continue') {
-      const sec = h('section', { class: 'section' }, h('div', { class: 'section-h' }, h('h2', {}, 'Continue exploring')),
+      const sec = h('section', { class: 'section' }, h('div', { class: 'section-h' }, h('h2', {}, 'Pick up where you left off'), h('p', { class: 'lede' }, 'Your recent conversations.')),
         h('div', { class: 'chips scroll' }, r.items.map(c => h('a', { class: 'chip', href: `#/discover?chat=${encodeURIComponent(c.id)}` }, (c.title || 'Chat').slice(0, 48)))));
       holder.append(sec); continue;
     }
-    const el = rail(r.title, r.items || [], {
+    const copy = RAIL_COPY[r.key] || [r.title, r.key.startsWith('because_') ? 'People who rated it highly also loved these (MovieLens).' : null];
+    const el = rail(copy[0], r.items || [], { lede: copy[1],
       src: r.source ? `${r.source}${r.as_of ? `, ${r.as_of}` : ''}` : null,
       why: r.key.startsWith('because_') ? null : null,
       more: r.key === 'watchlist' && r.items.length ? '#/watchlist' : r.key === 'coming_soon' ? '#/calendar' : null,
-      empty: r.key === 'watchlist' ? [r.empty, '#/discover', 'Find something'] : null,
+      empty: r.key === 'watchlist' ? ['Nothing saved yet. Tap the bookmark on any poster and it waits for you here.', '#/discover', 'Find something', 'popcorn'] : null,
     });
     if (el) holder.append(el);
   }
   if (!data.rails.some(r => r.key.startsWith('because_'))) {
-    holder.append(h('div', { class: 'notice' }, 'Mark films you liked (the thumbs on any film page) and this page adds "Because you liked…" rows.'));
+    holder.append(h('div', { class: 'notice' }, 'Tell me what you liked (the thumbs-up on any film page) and this page grows "Because you liked…" rows.'));
   }
 }
 async function heroBackdrop(f) {
@@ -492,14 +515,15 @@ function renderFeedback(ui, rid) {
 
 // ---------------------------------------------------------------- Pick tonight
 async function pagePick() {
-  view.innerHTML = '';
+  view.innerHTML = ''; view.classList.add('pick-page');
   let P; try { P = await (await fetch('/v8/pick.json')).json(); } catch { view.append(h('div', { class: 'notice' }, "Couldn't load Pick tonight.")); return; }
   const sel = S.pick || (S.pick = { with: 'me', mood: 'any', time: 'any', novelty: 'familiar', services: false });
+  let step = 0;
   const group = (key, title) => {
     const box = h('div', { class: 'chips', role: 'radiogroup', 'aria-label': title });
     for (const [k, v] of Object.entries(P[key])) box.append(h('button', { class: 'chip', type: 'button', role: 'radio', 'aria-checked': String(sel[key] === k),
       onclick: (e) => { sel[key] = k; const me = e.currentTarget; box.querySelectorAll('button').forEach(b => b.setAttribute('aria-checked', String(b === me))); } }, v.label));
-    return h('div', { class: 'pick-q' }, h('h2', {}, title), box);
+    return h('div', { class: 'pick-q' }, h('h2', {}, h('span', { class: 'n', 'aria-hidden': 'true' }, String(++step)), title), box);
   };
   const svc = h('button', { class: 'chip', type: 'button', 'aria-pressed': String(sel.services), onclick: (e) => { sel.services = !sel.services; e.currentTarget.setAttribute('aria-pressed', String(sel.services)); } }, 'Only on my services');
   const out = h('div', { class: 'msgs', 'aria-live': 'polite' });
@@ -510,9 +534,9 @@ async function pagePick() {
     newChat(); out.innerHTML = '';
     ask(q, out, null, { filters: f });
   };
-  view.append(h('h1', {}, 'Pick tonight'), h('p', { class: 'muted' }, 'A few taps, three picks that fit. Time limits, age ratings and your services are enforced in code.'),
+  view.append(h('h1', {}, 'Pick tonight'), h('p', { class: 'muted' }, "A few quick questions and I'll pick three films. Time limits, age ratings and your services are hard rules, not suggestions."),
     group('with', 'Who is watching?'), group('mood', 'What mood?'), group('time', 'How much time?'), group('novelty', 'Familiar or different?'),
-    h('div', { class: 'pick-q' }, h('h2', {}, 'Where'), h('div', { class: 'chips' }, svc,
+    h('div', { class: 'pick-q' }, h('h2', {}, h('span', { class: 'n', 'aria-hidden': 'true' }, '5'), 'Where are you watching?'), h('div', { class: 'chips' }, svc,
       S.me && !(S.me.settings?.services || []).length ? h('a', { href: '#/profile?tab=settings', class: 'small textlink' }, 'Add your services') : null)),
     h('div', { class: 'sticky-cta' }, h('button', { class: 'btn primary', type: 'button', onclick: run }, 'Show my picks')), out);
 }
@@ -535,7 +559,7 @@ async function pageWatchlist(params) {
   try {
     const j = await api('/api/v8/watchlist');
     grid.innerHTML = '';
-    if (!j.items.length) { grid.replaceWith(h('div', { class: 'empty', style: 'margin-top:16px' }, h('p', {}, 'Nothing saved yet. Tap the bookmark on any film to save it here.'), h('a', { class: 'btn secondary small', href: '#/' }, 'Browse films'))); return; }
+    if (!j.items.length) { const e = emptyBox('Nothing saved yet. Tap the bookmark on any poster and it waits for you here.', 'popcorn', '#/', 'Browse films'); e.style.marginTop = '16px'; grid.replaceWith(e); return; }
     grid.append(...j.items.map(f => card(f)));
   } catch (e) { grid.innerHTML = ''; grid.append(h('p', { class: 'err' }, e.message)); }
 }
@@ -543,7 +567,7 @@ async function pageWatchlist(params) {
 // ---------------------------------------------------------------- Calendar
 async function pageCalendar() {
   view.innerHTML = '';
-  view.append(h('h1', {}, 'Release calendar'), h('p', { class: 'muted' }, 'Upcoming US releases in theatres and on streaming, and new TV seasons.'));
+  view.append(h('h1', {}, 'Release calendar'), h('p', { class: 'muted' }, "What's opening in US theatres, landing on streaming, and starting a new TV season over the next three months."));
   const tabs = h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'Show' });
   const body = h('div', { class: 'narrow' }, h('div', { class: 'skel', style: 'height:200px' }));
   view.append(tabs, body);
@@ -553,7 +577,7 @@ async function pageCalendar() {
     tabs.querySelectorAll('button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.k === k)));
     body.innerHTML = '';
     const ev = data.events.filter(e => k === 'all' || (k === 'mine' ? e.on_watchlist : k === 'theatrical' ? e.kind.startsWith('theatrical') : e.kind === k));
-    if (!ev.length) { body.append(h('div', { class: 'empty' }, h('p', {}, 'Nothing dated in the next 90 days for this view.'))); return; }
+    if (!ev.length) { body.append(emptyBox('Nothing dated in the next 90 days for this view.', 'reel')); return; }
     let day = '';
     for (const e of ev) {
       if (e.date !== day) { day = e.date; body.append(h('h2', { class: 'day' }, new Date(day + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'long', day: 'numeric' }))); }
@@ -597,7 +621,7 @@ const needAccount = (b, what) => b.append(h('div', { class: 'empty' }, h('p', {}
 const PROFILE = {
   history(b, p) {
     if (p.taste?.tastes?.length) b.append(h('p', { class: 'small muted' }, 'Your taste so far: ' + p.taste.tastes.slice(0, 5).map(t => t.split(':')[0]).join(', ')));
-    if (!p.history.length) { b.append(h('div', { class: 'empty' }, h('p', {}, 'No watch history yet. Import it from Netflix, Letterboxd or Trakt, or tap Watched on any film.'), h('button', { class: 'btn secondary small', type: 'button', onclick: () => bar_click('imports') }, 'Import history'))); return; }
+    if (!p.history.length) { const e = emptyBox('No watch history yet. Bring it in from Netflix, Letterboxd or Trakt, or tap Watched on any film.', 'ticket'); e.append(h('button', { class: 'btn secondary small', type: 'button', onclick: () => bar_click('imports') }, 'Import history')); b.append(e); return; }
     b.append(h('div', { class: 'list' }, p.history.map(x => h('div', { class: 'li', style: 'grid-template-columns:1fr auto' },
       h('div', {}, x.media === 'movie' ? h('a', { class: 't', href: `#/film/${x.id}` }, x.title) : h('span', { class: 't' }, x.title),
         h('div', { class: 's' }, [x.year, x.media === 'tv' ? `${x.episodes} episode${x.episodes === 1 ? '' : 's'}` : null, `from ${x.source}`].filter(Boolean).join(', '))),
@@ -747,7 +771,7 @@ async function route() {
     const m = path.match(re);
     if (!m) continue;
     document.querySelectorAll('[data-nav]').forEach(a => { if (a.dataset.nav === nav) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
-    document.title = 'Cinemack';
+    document.title = 'Cinemack'; view.className = 'page';
     if (fn !== pageDiscover) window.scrollTo(0, 0);
     try { await fn(m[1] ? decodeURIComponent(m[1]) : params, params); } catch (e) { if (e.status !== 401) { view.innerHTML = ''; view.append(h('div', { class: 'notice' }, e.message || 'Something went wrong.')); } }
     if (route.seen) $('#main').focus({ preventScroll: true });     // move focus on navigation, not on first load (keeps the skip link first)

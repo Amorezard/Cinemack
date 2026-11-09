@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#121316">
+<meta name="theme-color" content="#04152A">
 <meta name="description" content="Cinemack: find a film from a half-remembered scene, see where to watch it, and get picks that fit your evening.">
 <title>Cinemack</title>
 <link rel="icon" href="/v8/icon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://image.tmdb.org">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="/v8/app.css">
 <script>try{var t=localStorage.getItem('cm.theme');if(t)document.documentElement.dataset.theme=t;}catch(e){}</script>
 </head>
@@ -18,8 +18,8 @@
 <a class="skip" href="#main">Skip to content</a>
 <header class="top">
   <a class="logo" href="#/" aria-label="Cinemack home">
-    <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#F4B740"/><path d="M9 11.5h10.5v9H9zM19.5 14l4-2.5v9l-4-2.5z" fill="#1C1404"/></svg>
-    <span>Cinemack</span>
+    <svg viewBox="0 0 34 24" aria-hidden="true"><path d="M3 2h28a2 2 0 012 2v4.5a3.5 3.5 0 000 7V20a2 2 0 01-2 2H3a2 2 0 01-2-2v-4.5a3.5 3.5 0 000-7V4a2 2 0 012-2z" fill="#FFDD00"/><path d="M23 4v16" stroke="#003767" stroke-width="1.4" stroke-dasharray="2 2"/><path d="M10 7.5l7 4.5-7 4.5z" fill="#003767"/></svg>
+    <span class="word">Cinemack</span>
   </a>
   <nav class="topnav" aria-label="Main">
     <a href="#/" data-nav="home">Home</a>
@@ -34,11 +34,11 @@
   <a class="iconbtn" href="#/profile" aria-label="Your profile"><span class="avatar" id="avatar"></span></a>
 </header>
 <main id="main" tabindex="-1"><div class="page" id="view"></div></main>
-<footer class="credit">Film data and images from TMDB; this product uses the TMDB API but is not endorsed or certified by TMDB. Answers can be wrong. <a href="/about">Credits</a> · <a href="/how">How it works</a> · <a href="/">Classic page</a></footer>
+<footer class="credit">Made at Merrimack College as a student research project. Film data and images from TMDB; this product uses the TMDB API but is not endorsed or certified by TMDB. Cinemack can be wrong, and it shows you where each answer came from. <a href="/about">Credits</a> · <a href="/how">How it works</a> · <a href="/">Classic page</a></footer>
 <nav class="tabbar" aria-label="Main">
   <a href="#/" data-nav="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5L12 3l9 7.5V21h-6v-6H9v6H3z"/></svg>Home</a>
   <a href="#/discover" data-nav="discover"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg>Discover</a>
-  <a href="#/pick" data-nav="pick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V5h16v3a2 2 0 000 4v3H4v-3a2 2 0 000-4zM4 15v4h16v-4"/></svg>Pick tonight</a>
+  <a href="#/pick" data-nav="pick" class="tab-pick"><span class="tk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/></svg></span>Pick tonight</a>
   <a href="#/watchlist" data-nav="watchlist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4z"/></svg>Watchlist</a>
   <a href="#/profile" data-nav="profile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Profile</a>
 </nav>

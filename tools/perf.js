@@ -4,7 +4,7 @@ const { chromium } = require('playwright');
   for (const r of ['#/', '#/film/496243']) {
     const ctx = await b.newContext({ viewport: { width: 390, height: 844 } });
     await ctx.route(/image\.tmdb\.org/, async x => { await new Promise(s => setTimeout(s, 150)); x.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="342" height="513"><rect width="100%" height="100%" fill="#345"/></svg>' }); });
-    await ctx.route(/fonts\.(googleapis|gstatic)\.com/, x => x.abort());
+    await require('./fonts.js')(ctx);
     const page = await ctx.newPage();
     const cdp = await ctx.newCDPSession(page);
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });

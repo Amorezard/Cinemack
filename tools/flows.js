@@ -6,7 +6,7 @@ const NETFLIX = 'Title,Date\n"Parasite","3/1/26"\n"Arrival","2/20/26"\n"Stranger
 async function ctxFor(b, w = 390) {
   const ctx = await b.newContext({ viewport: { width: w, height: 800 } });
   await ctx.route(/image\.tmdb\.org/, r => r.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="15"/>' }));
-  await ctx.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
+  await require('./fonts.js')(ctx);
   const page = await ctx.newPage(); page.errors = []; page.failed = [];
   page.on('pageerror', e => page.errors.push(e.message));
   page.on('console', m => { if (m.type() === 'error' && !/ERR_FAILED/.test(m.text())) page.errors.push(m.text()); });
@@ -73,7 +73,7 @@ async function signup(page, u) {
   await A.page.keyboard.press('Enter'); await A.page.waitForSelector('.msg.bot .fb, .msg.bot .err', { timeout: 30000 });
   ok('chat answers with feedback buttons', await A.page.locator('.msg.bot .fb').count() === 1, (await A.page.locator('.msg.bot .body').first().textContent()).slice(0, 60));
   await go(A.page, '#/'); await A.page.waitForTimeout(700);
-  ok('home shows Continue exploring after a chat', /Continue exploring/.test(await A.page.textContent('#view')));
+  ok('home shows Pick up where you left off after a chat', /Pick up where you left off/.test(await A.page.textContent('#view')));
   // 9 pick tonight in 3 taps: mood, time, show
   await go(A.page, '#/pick'); await A.page.waitForSelector('[role=radio]');
   let req = null; A.page.on('request', r => { if (r.url().endsWith('/api/chat')) req = JSON.parse(r.postData()); });

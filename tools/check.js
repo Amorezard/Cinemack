@@ -16,7 +16,7 @@ function poster(path) {
   for (const w of WIDTHS) {
     const ctx = await b.newContext({ viewport: { width: w, height: w < 768 ? 800 : 900 }, deviceScaleFactor: SHOT ? 2 : 1 });
     await ctx.route(/image\.tmdb\.org/, r => r.fulfill({ contentType: 'image/svg+xml', body: poster(r.request().url()) }));
-    await ctx.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
+    await require('./fonts.js')(ctx);
     const page = await ctx.newPage();
     const errors = [];
     page.on('console', m => { if (m.type() === 'error' && !/fonts\.g|ERR_FAILED/.test(m.text())) errors.push(m.text()); });
