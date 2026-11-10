@@ -50,6 +50,7 @@ YEAR=$(date +%Y)
 [ -n "${TMDB_API_KEY:-}" ] && run "tmdb current"  python fetch_tmdb.py current --pages 10
 [ -n "${TMDB_API_KEY:-}" ] && run "tmdb stale"    python fetch_tmdb.py refresh
 [ -n "${TMDB_API_KEY:-}" ] && run "tmdb new films" python fetch_tmdb.py extra --year-from $((YEAR - 1)) --min-votes 20 --pages 5
+[ -n "${TMDB_API_KEY:-}" ] && run "tmdb home extras (TV rows, artwork; logs/tmdb_extra.db)" python tools/fetch_home_extra.py --pages 10   # 10 Nov, round 18
 [ -n "${OMDB_API_KEY:-}" ] && run "omdb"          python fetch_free_data.py omdb
 [ -n "${GUARDIAN_API_KEY:-}" ] && run "guardian"  python fetch_free_data.py guardian
 [ -n "${NYT_API_KEY:-}" ] && run "nyt"            python fetch_free_data.py nyt --limit 60

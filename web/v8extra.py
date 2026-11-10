@@ -20,6 +20,7 @@ import time
 
 import film_info
 import history
+import tmdb_extra
 
 
 
@@ -117,6 +118,8 @@ def _seasons(show_ids):
     for sid, sn, d in _facts(f"select tmdb_id, season_number, air_date from tv_seasons where tmdb_id in ({_marks(show_ids)}) "
                              f"and season_number > 0 order by season_number"):
         out.setdefault(sid, []).append((sn, (d or "")[:10]))
+    for sid, ss in tmdb_extra.seasons([i for i in show_ids if i not in out]).items():   # 10 Nov, round 18: shows from Home's TV rows
+        out[sid] = ss
     return out
 
 
@@ -130,6 +133,9 @@ def _shows(show_ids):
             net = ""
         out[i] = {"id": i, "title": n, "year": y, "network": net, "media": "tv",
                   "poster": film_info.img(p, "w342") if p else None}
+    for i, m in tmdb_extra.show_meta([x for x in show_ids if x not in out]).items():
+        out[i] = {"id": i, "title": m["title"], "year": m["year"], "network": ", ".join(m["networks"][:2]), "media": "tv",
+                  "poster": film_info.img(m["poster_path"], "w342")}
     return out
 
 
