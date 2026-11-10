@@ -21,6 +21,7 @@ import time
 import film_info
 import history
 import tmdb_extra
+import tvdata   # round 21: episodes, show pages, TV picks
 
 
 
@@ -177,6 +178,16 @@ def set_progress(user, show_id, season=None, episode=None, finished=False, clear
     return {"season": season, "episode": episode, "finished": bool(finished)}
 
 
+def _next_item(nx):
+    d = nx.get("date")
+    lab = f"S{nx['season']} E{nx['episode']}"
+    out = {"season": nx["season"], "episode": nx["episode"], "title": nx.get("title"), "date": d, "label": lab}
+    if not nx.get("aired"):
+        out["upcoming"] = True
+        out["label"] = f"{lab} airs {datetime.date.fromisoformat(d).strftime('%b %-d')}" if d else f"{lab}: date not announced"
+    return out
+
+
 def continue_watching(user, limit=24):
     """Shows the person is part-way through. Sources, in order of trust: their own recorded progress, then the
     latest imported episode (Netflix gives the season and the episode title, never the episode number)."""
@@ -219,11 +230,17 @@ def continue_watching(user, limit=24):
                             "label": f"Finished season {s}" if p["finished"] else f"S{s} E{e}"}
             if not p["finished"]:
                 item["next"] = {"season": s, "episode": e + 1, "label": f"S{s} E{e + 1}"}
+                nx = tvdata.next_after(sid, s, e)                 # round 21: the real next episode, with its date
+                if nx:
+                    item["next"] = _next_item(nx)
                 done = s - 1
             else:
                 done = s
                 nxt = s + 1
-                if nxt in aired:
+                nx = tvdata.next_after(sid, s, 10 ** 6)
+                if nx and nx["season"] == nxt:
+                    item["next"] = _next_item(nx)
+                elif nxt in aired:
                     item["next"] = {"season": nxt, "episode": 1, "label": f"S{nxt} E1"}
                 else:
                     fut = next((d for n, d in future if n == nxt), None)
@@ -236,6 +253,12 @@ def continue_watching(user, limit=24):
                             "label": (f"S{s}" if s else "Episode") + (f" · {i['title']}" if i["title"] else "")}
             item["next"] = None                      # unknown: the import has no episode numbers
             done = None                              # and no proof that earlier seasons were finished
+            m = tvdata.episode_by_title(sid, s, i["title"])   # round 21: TMDB's episode list gives the number
+            if m:
+                item["last"].update(season=m[0], episode=m[1], label=f"S{m[0]} E{m[1]}" + (f" · {i['title']}" if i["title"] else ""))
+                nx = tvdata.next_after(sid, m[0], m[1])
+                item["next"] = _next_item(nx) if nx else {"label": "You're caught up", "caught_up": True}
+                done = m[0] - 1
         if aired and done is not None:
             item["seasons_bar"] = {"done": max(0, min(done, len(aired))), "total": len(aired)}
         item["updated"] = item["last"]["at"]
@@ -504,6 +527,44 @@ def install(app, user_of, gate):
     class Rename(BaseModel):
         id: str
         title: str
+
+    @app.get("/api/v8/show/{sid}")
+    async def v8_show(sid: int, request: Request):
+        if (g := gate(request)):
+            return g
+        d = await run(tvdata.show, sid, user_of(request))
+        return JSONResponse(d) if d else JSONResponse({"error": "No details for that show yet."}, status_code=404)
+
+    @app.get("/api/v8/show/{sid}/season/{n}")
+    async def v8_season(sid: int, n: int, request: Request):
+        if (g := gate(request)):
+            return g
+        return JSONResponse({"episodes": await run(tvdata.episodes, sid, n)})
+
+    @app.get("/api/v8/pick/tv")
+    async def v8_pick_tv(request: Request, genre: str = "", max_cert: str = "", max_runtime: int = 0, services: int = 0,
+                         novelty: str = "familiar", exclude: str = ""):
+        if (g := gate(request)):
+            return g
+        import user_prefs
+        key = user_of(request)
+        st = user_prefs.load(key)["settings"] if key else {}
+        ex = [int(x) for x in exclude.split(",") if x.strip().isdigit()][:200]
+        return JSONResponse(await run(lambda: tvdata.pick(key, genre if genre in user_prefs.GENRES else None,
+                                                          max_cert if max_cert in user_prefs.CERTS[:4] else None, max_runtime or None,
+                                                          (st.get("services") or []) if services else None, st.get("never_genres") or [],
+                                                          "different" if novelty == "different" else "familiar", ex)))
+
+    @app.get("/api/v8/chips")
+    async def v8_chips(request: Request, text: str = ""):
+        """3c preference chips (PREF_CHIPS=1): limits stated in a chat message, offered as filter chips."""
+        if (g := gate(request)):
+            return g
+        import os as _os
+        if _os.environ.get("PREF_CHIPS", "0") != "1":
+            return JSONResponse({"chips": [], "on": False})
+        import pref_phrases
+        return JSONResponse({"chips": pref_phrases.chips(text[:600]), "on": True})
 
     @app.get("/api/v8/continue")
     async def v8_continue(request: Request):

@@ -25,6 +25,7 @@ import urllib.parse
 from pathlib import Path
 
 import film_info
+import tvdata       # round 21: IMDb-ranked shows, episodes
 import tmdb_extra   # 10 Nov, round 18: TV ratings / genres, missing artwork and runtimes (logs/tmdb_extra.db)
 
 RAG_DIR = Path(__file__).resolve().parent.parent
@@ -414,8 +415,15 @@ def tv_cards(ids, user="", season=None):
     meta = tmdb_extra.show_meta(ids)
     base = tv_lookup([i for i in ids if i not in meta])
     fol = _following_ids(user)
+    fb = tvdata.basics(ids)                       # round 21: facts.db card (IMDb rating first) when the show is there
     out = []
     for i in ids:
+        if i in fb:
+            c = dict(fb[i], following=i in fol)
+            if season and i in season:
+                c["season"] = {"number": season[i][0], "date": season[i][1]}
+            out.append(c)
+            continue
         m = meta.get(i)
         if m:
             t, y, p, nets = m["title"], m["year"], m["poster_path"], m["networks"]
@@ -472,10 +480,16 @@ def tv_rails(user="", sel=(), mode="any", per=20):
                   "items": tv_cards([s for s, _n, _d in ns[:per]], user, {s: (n, d) for s, n, d in ns[:per]}), "total": len(ns),
                   "rule": f"TV seasons that premiered in the last {NEW_SEASON_DAYS} days (new series included), most popular "
                           "first; news, talk, soap and reality shows left out", "source": "TMDB", "as_of": at})
-    top = tmdb_extra.top_rated_shows(sel, mode)
-    rails.append({"key": "top_shows", "title": "Top Rated Shows", "media": "tv", "items": tv_cards(top[:per], user), "total": len(top),
-                  "rule": f"TMDB's top-rated TV, weighted rating, shows with {tmdb_extra.TV_TOP_MIN_VOTES}+ votes; news, talk, soap "
-                          "and reality shows left out", "source": "TMDB TV ratings", "as_of": at})
+    top = tvdata.top_rated(sel, mode)               # round 21: IMDb ratings (20,000+ votes), weighted
+    if top:
+        rails.append({"key": "top_shows", "title": "Top Rated Shows", "media": "tv", "items": tv_cards(top[:per], user), "total": len(top),
+                      "rule": f"IMDb rating, weighted, shows with {tvdata.TOP_MIN_IMDB_VOTES:,}+ IMDb votes; news, talk, soap and reality "
+                              "shows left out", "source": "IMDb ratings", "as_of": at or "IMDb datasets"})
+    else:
+        top = tmdb_extra.top_rated_shows(sel, mode)
+        rails.append({"key": "top_shows", "title": "Top Rated Shows", "media": "tv", "items": tv_cards(top[:per], user), "total": len(top),
+                      "rule": f"TMDB's top-rated TV, weighted rating, shows with {tmdb_extra.TV_TOP_MIN_VOTES}+ votes; news, talk, soap "
+                              "and reality shows left out", "source": "TMDB TV ratings", "as_of": at})
     return rails
 
 
@@ -686,6 +700,19 @@ def calendar(user="", days=60, start=None):
         out.append({"date": d, "kind": "tv_season", "media": "tv", "label": f"Season {sn} premieres" + (f" on {net}" if net else ""),
                     "following": sid in following, "confirmed": True, "network": net,
                     "show": {"id": sid, "title": name, "season": sn, "poster": film_info.img(poster, "w185") if poster else None}})
+    # round 21: episodes of followed shows (every episode) and season finales of well-known shows
+    prem = {(e["show"]["id"], e["show"]["season"]) for e in out if e["kind"] == "tv_season"}
+    eps = tvdata.episodes_between(start, end, following)
+    eb = tvdata.basics(list({r[0] for r in eps}))
+    for sid, sn, ep, title, d, typ in eps:
+        if ep == 1 and (sid, sn) in prem:
+            continue                                    # the premiere is already there as a new season
+        b = eb.get(sid)
+        if not b or set(b["tv_genres"]) & tvdata.SKIP_TV:
+            continue
+        out.append({"date": d[:10], "kind": "tv_episode", "media": "tv", "label": f"S{sn} E{ep}" + (" (season finale)" if typ == "finale" else ""),
+                    "following": sid in following, "confirmed": True, "network": b["network"], "finale": typ == "finale",
+                    "show": {"id": sid, "title": b["title"], "season": sn, "episode": ep, "episode_title": title, "poster": b["poster"]}})
     out.sort(key=lambda e: (e["date"], e["kind"]))
     at = _q("select max(fetched_at) from lists")
     return {"from": start, "to": end, "events": out, "as_of": (at[0][0] or "")[:10] if at else None,
