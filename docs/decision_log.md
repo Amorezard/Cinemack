@@ -3,6 +3,10 @@ Newest first. Each decision names its evidence; rules were written before result
 
 | Date | Decision | Evidence | Rule written before results? |
 |---|---|---|---|
+| 10 Nov | 3c preference chips: PASS on the 8 Nov rule (tune_v8_phrases 28/28 real, 0/12 traps); PREF_CHIPS=1 on the live site (website only: offers chips, never applies a limit without a click; sealed sets send no chips) | second check written after the detector, before running it: first run 19/20 real, 1/10 traps ("romantic comedies" also blocked comedy; "my mom only watches Netflix"); fixed after seeing -> 20/20, 0/10 | rule yes; check set not blind after the fix |
+| 10 Nov | 3b long-chat summaries (LONG_SUMMARY, no model call): tuning rule written ~14:00 before any on-arm run: tune_v8_long ON >= 5/6 and ON >= OFF, multiturn.json retrieval ON loses <= 1; if passed, proposed for v8_lock.env (user confirms at the freeze) | tools/run_3b_tune.sh -> results/tune_3b.txt | yes |
+| 10 Nov | run_final_v8.sh gains the `long` step (sealed_v8_long through a copy of the website server, v7 / v8 / v8 minus LONG_SUMMARY), scored by tools/long_eval.py from facts.db (no judge); stamp adds conv.py, server.py, longsum.py, pref_phrases.py, long_eval.py and facts.db size/date | 3b runner now exists; added before the freeze | yes (declared before the run) |
+| 10 Nov | facts.db refreshed before the freeze with the user's OK (round 19: TV shows/seasons, every episode, posters, logos, US services, IMDb datasets); both sealed arms read the same file; nightly.sh skips nights when run_final_v8 runs | user, 10:19 | - |
 | 8 Nov | pf5 data fetch order: Guardian test years (2016-19) first, then 2020-23, then 2015 back to 2000 | 5,000 calls/day free key; test coverage matters most | yes (plan 6 Nov) |
 | 8 Nov | Guardian, not NYT, for pre-release articles | ~5,000/day vs ~3,900/day at our NYT pace; archive from 1999 | yes |
 | 8 Nov | FRED CPIAUCNS (never revised) + UNRATE + UMCSENT at release month - 2 | Time-honest: published before release; small revisions noted | yes |

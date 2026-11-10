@@ -204,6 +204,21 @@ def clean_chat(raw):
         out["services_only"] = True
     if raw.get("strict") is True:            # v8 Pick tonight: a film whose fact is unknown fails that limit too
         out["strict"] = True
+    # round 21 (3c preference chips): limits accepted from a chat message, for this chat only
+    if isinstance(raw.get("never_genres"), list):
+        ng = list(dict.fromkeys(g for g in raw["never_genres"] if g in GENRES))
+        if ng:
+            out["never_genres"] = ng
+    try:
+        my = int(raw.get("min_year")) if raw.get("min_year") not in (None, "") else None
+    except (TypeError, ValueError):
+        my = None
+    if my and 1900 <= my <= 2030:
+        out["min_year"] = my
+    if isinstance(raw.get("services"), list):
+        sv = list(dict.fromkeys(k for k in raw["services"] if k in SERVICES))
+        if sv:
+            out["services"] = sv
     return out
 
 
@@ -228,8 +243,16 @@ def merge_chat(settings, chat):
     if c.get("max_cert"):
         mine = s.get("max_cert")
         s["max_cert"] = c["max_cert"] if not mine or CERT_RANK[c["max_cert"]] < CERT_RANK[mine] else mine
-    if c.get("services_only") and s.get("services"):
+    if c.get("services"):                    # round 21: "we only have Disney+ and Hulu" said in this chat
+        s["services"] = c["services"]
+        if c.get("services_only"):
+            s["services_only"] = True
+    elif c.get("services_only") and s.get("services"):
         s["services_only"] = True
+    if c.get("never_genres"):
+        s["never_genres"] = sorted(set(s.get("never_genres") or []) | set(c["never_genres"]))
+    if c.get("min_year"):
+        s["min_year"] = max(c["min_year"], s.get("min_year") or c["min_year"])
     if c.get("strict"):
         s["strict"] = True
     s["chat_filters"] = c

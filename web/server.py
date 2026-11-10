@@ -81,6 +81,7 @@ import accounts
 import user_prefs
 import memory
 import semcache       # v7 D11
+import longsum        # 3b long-chat summaries (LONG_SUMMARY=1), 10 Nov
 
 import sys
 if str(pipeline.RAG_DIR) not in sys.path:      # feedback.py / personal.py live next to chat.py
@@ -630,9 +631,11 @@ async def chat(req: ChatRequest, request: Request):
 
     history = [{"role": t.role, "content": t.content}
                for t in req.history if t.role in ("user", "assistant") and t.content]
+    full_history = history
     history = history[-pipeline.MAX_HISTORY_MESSAGES:]
     if hasattr(pipeline, "trim_history"):
         history = pipeline.trim_history(history)
+    earlier = longsum.note(full_history, history)      # 3b (LONG_SUMMARY=1): what the cut turns said, and the stated limits
     rid = uuid.uuid4().hex[:12]
     conv_in = req.conv if pipeline.CONV_ON else None
     if conv_in is not None and len(json.dumps(conv_in, default=str)) > 20000:
@@ -649,7 +652,7 @@ async def chat(req: ChatRequest, request: Request):
             rec_block, rec_tag = memory.recall_block(user, question, conv_id)
         except Exception as e:  # noqa: BLE001
             print(f"[movie-buff] recall failed: {e!r}", flush=True)
-    extra_tag = "|".join(t for t in (user_prefs.tag(prefs), memory.tag(user) if mem_on else "", rec_tag) if t)
+    extra_tag = "|".join(t for t in (user_prefs.tag(prefs), memory.tag(user) if mem_on else "", rec_tag, longsum.cache_tag(earlier)) if t)
     if extra_tag:
         utag = f"{utag}|{extra_tag}"
     key = site_cache.answer_key(question, req.recent_titles, history, conv_in, utag)
@@ -755,6 +758,8 @@ async def chat(req: ChatRequest, request: Request):
                 return
 
             put(sse("status", stage="answering"))
+            if earlier:
+                prompt = earlier + prompt
             messages = history + [{"role": "user", "content": prompt}]
             t1 = time.perf_counter()
             first = None

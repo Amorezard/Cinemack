@@ -129,6 +129,14 @@ def planner_block(state):
             return f"{label(e['title'], e['year'])} [{'; '.join(bits)}]" if bits else label(e["title"], e["year"])
         lines.append("Films mentioned so far, in order: " +
                      "  ".join(f"{i}. {tag(e)}" for i, e in enumerate(ents, 1)))
+    try:                                     # 3b (LONG_SUMMARY=1, 10 Nov): limits and questions from turns no longer shown
+        import longsum
+    except ImportError:                      # evaluation scripts run from the rag folder: longsum lives in web/
+        import os
+        import sys
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "web"))
+        import longsum
+    lines += longsum.planner_lines(turns, MAX_TURNS)
     if state.get("prefs"):
         lines.append("User's stated tastes: " + "; ".join(
             ("likes " if p["polarity"] > 0 else "dislikes ") + p["text"] for p in state["prefs"]))

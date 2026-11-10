@@ -6,7 +6,8 @@
 #   feature arms (v8 without one switch, on the set it affects):
 #            SAME_NAME, TV_SEASONS, CLARIFY -> sn       IDENT_HONEST -> inv
 # Sets (frozen Sun 8 Nov 13:39, results/sealed_v8_sets.md5): ret mt (stage_scores), an sn (eval_v3), inv (eval_v3 copy
-# made here: invented + real_vague), rc (memory_eval). long: NOT run - its runner (3b long-chat summaries) was not built.
+# made here: invented + real_vague), rc (memory_eval), long (tools/long_eval.py through a copy of the website server on
+# port 49160, added Tue 10 Nov before the freeze: 3b long-chat summaries; scored from facts.db, no judge).
 # Scores: the judge (eval_v3) AND final_score.py (no judge) AND judge_audit.py flags; samename_check.py routing for sn.
 #   tmux new -s final8
 #   source ~/venvs/movie-rag/bin/activate && cd ~/movie-buff/rag && bash run_final_v8.sh
@@ -16,10 +17,10 @@ EVAL_ENV="TOOLS=1 EXTRA_DATA=1 DATE_WORDS=1"
 for f in v7_lock.env v8_lock.env; do [ -f $f ] || { echo "no $f: stop"; exit 1; }; done
 V7_LOCK=$(grep -v '^#' v7_lock.env | tr '\n' ' ')
 V8_ADD=$(grep -v '^#' v8_lock.env | tr '\n' ' ')
-V7_ENV="$EVAL_ENV $V7_LOCK SAME_NAME=0 TV_SEASONS=0 IDENT_HONEST=0"
+V7_ENV="$EVAL_ENV $V7_LOCK SAME_NAME=0 TV_SEASONS=0 IDENT_HONEST=0 LONG_SUMMARY=0"
 V8_ENV="$EVAL_ENV $V7_LOCK $V8_ADD"
 LOG=results/final_v8.log; SUM=results/final_v8_summary.txt; STAMP=results/final_v8_stamp.txt
-STEPS=${*:-stamp retrieval analytic multiturn samename invented recall features score summary}
+STEPS=${*:-stamp retrieval analytic multiturn samename invented recall long features score summary}
 mkdir -p results
 exec > >(tee -a "$LOG") 2>&1
 echo "=== run_final_v8.sh started $(date)   steps: $STEPS"
@@ -37,7 +38,8 @@ if has stamp; then
     echo "v7 arm: $V7_ENV"; echo "v8 arm: $V8_ENV"
     echo "sealed sets:"; md5sum -c results/sealed_v8_sets.md5 2>&1 | sed 's/^/  /'
     md5sum retrieve.py chat.py tools.py tv.py aliases.py eval_v3.py ident_score.py final_score.py judge_audit.py \
-           samename_check.py v7_lock.env v8_lock.env | sed 's/^/  /'; } | tee "$STAMP"
+           samename_check.py conv.py web/server.py web/longsum.py web/pref_phrases.py tools/long_eval.py v7_lock.env v8_lock.env | sed 's/^/  /'
+    ls -la facts.db | awk '{print "  facts.db", $5, "bytes,", $6, $7, $8}'; } | tee "$STAMP"
   grep -q "FAILED" "$STAMP" && { echo "a sealed set changed since the freeze: stop"; exit 1; }
 fi
 if has retrieval; then
@@ -87,9 +89,22 @@ if has recall; then
   for a in v7 v8; do echo "=== recall $a $(date +%H:%M)"
     $a python memory_eval.py --set sets/sealed_v8_rc.json --tag sealed8_$a | tail -3 | tee results/final_v8_recall_$a.txt; done
 fi
+# long chats: the website path (history cut to 12 messages / 6,000 characters), one server copy per arm, no answer cache
+long_arm() {   # long_arm "<env>" <tag>
+  ( cd web && env $1 SITE_CACHE=0 MOVIE_BUFF_CODE=movies PORT=49160 python server.py > ../logs/final_long_$2.log 2>&1 ) &
+  local pid=$!
+  for i in $(seq 1 100); do curl -s -o /dev/null -H "X-Access-Code: movies" localhost:49160/api/health && break; sleep 3; done
+  env $1 python tools/long_eval.py --set sets/sealed_v8_long.json --base http://localhost:49160 --tag sealed8_long_$2 | tail -8
+  pkill -P $pid 2>/dev/null; kill $pid 2>/dev/null; sleep 3; pkill -f "PORT=49160" 2>/dev/null; true
+}
+if has long; then
+  echo "=== long chats v7 $(date +%H:%M)"; long_arm "$V7_ENV" v7
+  echo "=== long chats v8 $(date +%H:%M)"; long_arm "$V8_ENV" v8
+fi
 if has features; then
   for sw in SAME_NAME TV_SEASONS CLARIFY; do l=$(echo $sw | tr A-Z a-z)
     echo "=== feature arm: v8 without $sw (sn) $(date +%H:%M)"; v8 env $sw=0 python eval_v3.py --questions sets/sealed_v8_sn.json --tag sealed8_sn_no-$l --answers | tail -4; done
+  if has long; then echo "=== feature arm: v8 without LONG_SUMMARY (long) $(date +%H:%M)"; long_arm "$V8_ENV LONG_SUMMARY=0" no-long_summary; fi
   echo "=== feature arm: v8 without IDENT_HONEST (inv) $(date +%H:%M)"
   v8 env IDENT_HONEST=0 python eval_v3.py --questions results/sealed_v8_inv_ev.json --tag sealed8_inv_no-ident_honest --answers | tail -4
 fi
@@ -107,7 +122,8 @@ if has summary; then
     echo "## same-name routing"; tail -3 results/final_v8_sn_routing.txt 2>/dev/null
     echo "## scores without the judge"; cat results/final_v8_scores.txt 2>/dev/null
     echo "## judge audit (flags = checker likely wrong; read these rows before deciding)"; cat results/final_v8_audit.txt 2>/dev/null
-    echo "## not run: sealed_v8_long (3b long-chat runner not built)"; } > "$SUM"
+    echo "## long chats (tools/long_eval.py: every named film meets the turn-1 limit; rule >= 5/6 with LONG_SUMMARY)"
+    for f in results/long_sealed8_long_*.json; do [ -f "$f" ] && python -c "import json,sys; d=json.load(open(sys.argv[1])); print(f\"  {d['tag']}: {d['pass']}/{d['n']}\")" "$f"; done; } > "$SUM"
   echo "=== summary -> $SUM"
 fi
 echo "=== run_final_v8.sh finished $(date)"
