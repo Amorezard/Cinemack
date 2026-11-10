@@ -167,6 +167,75 @@ class WatchlistOverview(unittest.TestCase):
         self.assertIn("Before it leaves theatres", [c for c in nxt if c["title"] == "Old Run"][0]["why"])
 
 
+class Evening9Nov(unittest.TestCase):
+    """Home genre chips, showtimes links, followed TV shows, shared chat filters."""
+    @classmethod
+    def setUpClass(cls):
+        import datetime as dt
+        today = dt.date.today()
+        fc = sqlite3.connect(os.environ["FACTS_DB"])
+        rows = [(60, "Tense One", '["Thriller", "Mystery"]', 9000, 8.1), (61, "Laugh One", '["Comedy"]', 9000, 8.3),
+                (62, "Tense Two", '["Thriller"]', 5000, 7.4), (63, "No Genre", '[]', 5000, 9.0)]
+        for fid, t, g, vc, va in rows:
+            fc.execute("insert or ignore into films(tmdb_id, title, year, release_date, us_release_date, vote_count, vote_average, genres_json) "
+                       "values (?,?,?,?,?,?,?,?)", (fid, t, today.year, today.isoformat(), today.isoformat(), vc, va, g))
+            fc.execute("insert into certifications values (?, 'US', 'R', 3, ?)", (fid, today.isoformat() + "T00:00:00.000Z"))
+        now = today.isoformat() + "T06:00:00"
+        fc.execute("delete from lists where list_name = 'now_playing'")
+        fc.executemany("insert into lists values ('now_playing', 'US', ?, ?, ?)", [(60, 1, now), (61, 2, now), (63, 3, now)])
+        fc.execute("insert or ignore into tv_shows values (200, 'Ongoing Show', 'Ongoing Show', 2020, 5000, '[\"HBO\"]', '/x.jpg')")
+        fc.execute("insert into tv_seasons values (200, 1, '2020-01-01', null)")
+        fc.execute("insert into tv_seasons values (200, 2, ?, null)", ((today + dt.timedelta(days=30)).isoformat(),))
+        fc.execute("insert into tv_seasons values (200, 3, null, null)")                 # announced, no date
+        fc.commit(); fc.close()
+        cls.future = (today + dt.timedelta(days=30)).isoformat()
+
+    def test_home_genre_filter_has_no_other_genres(self):
+        h = discovery.home("", ["Thriller"])
+        self.assertEqual(h["genres"], ["Thriller"])
+        for r in h["rails"]:
+            for c in r["items"]:
+                self.assertIn("Thriller", c.get("genres", ""), f"{c['title']} in {r['key']}")
+        titles = {c["title"] for r in h["rails"] for c in r["items"]}
+        self.assertIn("Tense One", titles); self.assertNotIn("Laugh One", titles); self.assertNotIn("No Genre", titles)
+        self.assertIn("Laugh One", {c["title"] for c in h["hero"]})        # the carousel is not filtered
+        self.assertTrue(any(r["key"] == "genre_top" and r["items"] for r in h["rails"]))
+
+    def test_showtimes_only_for_films_in_theatres(self):
+        t = discovery.theatres(60, "01845")
+        self.assertTrue(t["in_theatres"]); self.assertIn("01845", t["links"][0]["url"])
+        self.assertTrue(all(l["url"].startswith("https://") for l in t["links"]))
+        self.assertEqual(discovery.theatres(62), {"in_theatres": False, "links": []})
+        self.assertNotIn("zip", discovery.theatres(60, "abc")["links"][0]["url"])
+        self.assertTrue(discovery.cards([60])[0].get("in_theatres")); self.assertFalse(discovery.cards([62])[0].get("in_theatres"))
+
+    def test_follow_show_next_season_and_one_alert(self):
+        u = "browser-tvfan"
+        discovery.tv_follow(u, 200)
+        sh = discovery.tv_following(u)[0]
+        self.assertEqual(sh["next_season"], {"number": 2, "date": self.future})    # the undated season 3 is not shown
+        self.assertEqual(sh["seasons_out"], 1); self.assertEqual(sh["badge"], "Upcoming season")
+        a1 = [a for a in discovery.alerts(u)["alerts"] if a["kind"].startswith("tv_")]
+        a2 = [a for a in discovery.alerts(u)["alerts"] if a["kind"].startswith("tv_")]
+        self.assertEqual(len(a1), 1); self.assertEqual(len(a2), 1)
+        self.assertIn("season 2 has a date", a1[0]["text"])
+        ev = [e for e in discovery.calendar(u, days=60)["events"] if e["kind"] == "tv_season" and e["show"]["id"] == 200]
+        self.assertTrue(ev and ev[0]["following"])
+        discovery.tv_follow(u, 200, True, notify=False)
+        self.assertFalse(discovery.tv_following(u)[0]["notify"])
+        discovery.tv_follow(u, 200, False)
+        self.assertEqual(discovery.tv_following(u), [])
+
+    def test_chat_filters_take_several_genres_and_brief(self):
+        import user_prefs
+        c = user_prefs.clean_chat({"genres": ["Thriller", "Mystery", "Nope"], "brief": True})
+        self.assertEqual(c, {"genres": ["Thriller", "Mystery"], "brief": True})
+        s = user_prefs.merge_chat(dict(user_prefs.DEFAULTS), c)
+        self.assertEqual(s["only_genres"], ["Mystery", "Thriller"]); self.assertEqual(s["length"], "short")
+        s2 = user_prefs.merge_chat(dict(user_prefs.DEFAULTS, length="detailed"), c)
+        self.assertEqual(s2["length"], "detailed")
+
+
 NETFLIX_SIMPLE = 'Title,Date\n"Parasite","3/1/23"\n"The Office: Season 2: The Dundies","3/2/23"\n' \
                  '"The Office: Season 2: Sexual Harassment","3/3/23"\n"Crash","3/4/23"\n"Unknown Film Xyz","3/5/23"\n'
 NETFLIX_FULL = ("Profile Name,Start Time,Duration,Attributes,Title,Supplemental Video Type,Device Type,Bookmark,Latest Bookmark,Country\n"

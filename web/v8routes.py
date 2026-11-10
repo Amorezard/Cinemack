@@ -100,6 +100,12 @@ class Review(BaseModel):
     text: str = ""
 
 
+class Follow(BaseModel):
+    id: int
+    on: bool = True
+    notify: Optional[bool] = None
+
+
 class Upload(BaseModel):
     text: str
     kind: str = "netflix"          # netflix | letterboxd_watched
@@ -128,10 +134,39 @@ def install(app, user_of, account_of, gate):
         return FileResponse(p, media_type=ASSET_TYPES[p.suffix], headers={"Cache-Control": "no-cache"})
 
     @app.get("/api/v8/home")
-    async def v8_home(request: Request):
+    async def v8_home(request: Request, genres: str = ""):
         if (g := gate(request)):
             return g
-        return JSONResponse(await _run(discovery.home, user_of(request)))
+        import user_prefs
+        gs = [x for x in (genres or "").split(",") if x in user_prefs.GENRES][:6]
+        return JSONResponse(await _run(discovery.home, user_of(request), gs))
+
+    @app.get("/api/v8/theatres/{fid}")
+    async def v8_theatres(fid: int, request: Request, zip: str = ""):
+        if (g := gate(request)):
+            return g
+        return JSONResponse(await _run(discovery.theatres, fid, zip))
+
+    @app.get("/api/v8/tv/search")
+    async def v8_tv_search(request: Request, q: str = ""):
+        if (g := gate(request)):
+            return g
+        key = user_of(request)
+
+        def build():
+            mine = {x["id"] for x in discovery.tv_following(key)}
+            return {"shows": [dict(x, following=x["id"] in mine) for x in discovery.tv_search(q[:80])]}
+        return JSONResponse(await _run(build))
+
+    @app.post("/api/v8/tv/follow")
+    async def v8_tv_follow(body: Follow, request: Request):
+        if (g := gate(request)):
+            return g
+        key = user_of(request)
+        if not key:
+            return JSONResponse({"error": "No browser id."}, status_code=400)
+        await _run(discovery.tv_follow, key, body.id, body.on, body.notify)
+        return JSONResponse({"ok": True, "shows": await _run(discovery.tv_following, key)})
 
     @app.get("/api/v8/similar/{fid}")
     async def v8_similar(fid: int, request: Request):
@@ -140,10 +175,12 @@ def install(app, user_of, account_of, gate):
         return JSONResponse({"items": await _run(discovery.similar, fid, user_of(request))})
 
     @app.get("/api/v8/calendar")
-    async def v8_calendar(request: Request, days: int = 60):
+    async def v8_calendar(request: Request, days: int = 60, start: str = ""):
         if (g := gate(request)):
             return g
-        return JSONResponse(await _run(discovery.calendar, user_of(request), max(1, min(days, 180))))
+        import re as _re
+        st = start if _re.fullmatch(r"\d{4}-\d{2}-\d{2}", start or "") else None
+        return JSONResponse(await _run(discovery.calendar, user_of(request), max(1, min(days, 180)), st))
 
     @app.get("/api/v8/alerts")
     async def v8_alerts(request: Request):

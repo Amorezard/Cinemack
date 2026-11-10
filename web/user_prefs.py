@@ -184,6 +184,12 @@ def clean_chat(raw):
         out["era"] = raw["era"]
     if raw.get("genre") in GENRES:
         out["genre"] = raw["genre"]
+    if isinstance(raw.get("genres"), list):        # 9 Nov: Home's genre chips (any of these), shared with the chat
+        gs = [g for g in raw["genres"] if g in GENRES][:6]
+        if gs:
+            out["genres"] = gs
+    if raw.get("brief") is True:                   # 9 Nov: the v8 chat asks for short answers unless told otherwise
+        out["brief"] = True
     try:
         rt = int(raw.get("max_runtime")) if raw.get("max_runtime") not in (None, "") else None
     except (TypeError, ValueError):
@@ -211,8 +217,10 @@ def merge_chat(settings, chat):
         s["min_year"] = max(lo, s.get("min_year") or lo)
     if hi:
         s["max_year"] = hi
-    if c.get("genre"):
-        s["only_genres"] = [c["genre"]]
+    if c.get("genre") or c.get("genres"):
+        s["only_genres"] = sorted(set(([c["genre"]] if c.get("genre") else []) + (c.get("genres") or [])))
+    if c.get("brief") and s.get("length", "normal") == "normal":   # the person's own short/detailed setting wins
+        s["length"] = "short"
     if c.get("max_runtime"):
         s["max_runtime"] = min(c["max_runtime"], s.get("max_runtime") or c["max_runtime"])
     if c.get("max_cert"):

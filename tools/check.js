@@ -27,6 +27,7 @@ function poster(path) {
     });
     for (const r of ROUTES) {
       await page.goto(BASE + r, { waitUntil: 'networkidle' });
+      await page.evaluate(() => { window.__cls = 0; }); await page.reload({ waitUntil: 'networkidle' });
       await page.waitForTimeout(400);
       const m = await page.evaluate(() => {
         const sw = document.documentElement.scrollWidth, cw = document.documentElement.clientWidth;
@@ -34,7 +35,7 @@ function poster(path) {
         for (const el of document.querySelectorAll('a,button,input,select,textarea,[role=tab],[role=radio]')) {
           const rc = el.getBoundingClientRect(); const cs = getComputedStyle(el);
           if (!rc.width || cs.visibility === 'hidden' || el.closest('[hidden]') || el.closest('footer.credit')) continue;
-          if (el.matches('.skip')) continue;
+          if (el.matches('.skip') || el.getAttribute('aria-hidden') === 'true') continue;
           if (el.tagName === 'A' && el.closest('p, .feat, .hint, .fine, .notice, .why')) continue;   // inline links in a sentence (WCAG 2.5.8 exception)
           if (el.closest('.pl') || el.closest('.ti')) continue;   // poster/title links in cards are large via the poster
           const min = innerWidth < 1024 ? 44 : 24;

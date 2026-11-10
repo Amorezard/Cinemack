@@ -73,7 +73,9 @@ async function signup(page, u) {
   await A.page.keyboard.press('Enter'); await A.page.waitForSelector('.msg.bot .fb, .msg.bot .err', { timeout: 30000 });
   ok('chat answers with feedback buttons', await A.page.locator('.msg.bot .fb').count() === 1, (await A.page.locator('.msg.bot .body').first().textContent()).slice(0, 60));
   await go(A.page, '#/'); await A.page.waitForTimeout(700);
-  ok('home banner offers Continue after a chat', /Continue:/.test(await A.page.textContent('#hero-cont')));
+  ok('home has no Continue row after a chat', !/Continue:|left off/.test(await A.page.textContent('#view')));
+  await go(A.page, '#/discover'); await A.page.waitForSelector('.resume-list button', { timeout: 5000 }).catch(() => {});
+  ok('Discover offers Pick up where you left off', await A.page.locator('.resume-list button').count() >= 1);
   // chats panel from the top bar, on a page that is not Discover
   await go(A.page, '#/calendar'); await A.page.click('#chats-top'); await A.page.waitForSelector('dialog[open] .chatlist .row, dialog[open] .chatlist .empty', { timeout: 5000 }).catch(() => {});
   ok('Chats panel lists the chat', await A.page.locator('dialog[open] .chatlist .row').count() >= 1);
@@ -93,7 +95,7 @@ async function signup(page, u) {
   await go(B.page, '#/watchlist'); await B.page.waitForTimeout(800);
   const wt = await B.page.textContent('#view');
   ok('watchlist plan shows Watch together with the shared film', /Watch together/.test(wt) && /both want to watch/.test(wt), (wt.match(/Watch together[^.]*\./) || [''])[0].slice(0, 80));
-  ok('watchlist plan has Everything on your list', /Everything on your list/.test(wt));
+  ok('watchlist plan has Every film on your list', /Every film on your list/.test(wt));
   // 11 guest cannot use friends
   const G = await ctxFor(b); await go(G.page, '#/profile?tab=friends'); await G.page.waitForTimeout(500);
   ok('guest sees sign-in prompt on friends', /Sign in to add friends/.test(await G.page.textContent('#view')));

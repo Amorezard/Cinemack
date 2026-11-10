@@ -53,7 +53,74 @@ def cards(ids, user=""):
     out = [{"id": i, "title": meta[i][0], "year": meta[i][1],
             "rating": round(meta[i][2], 1) if meta[i][2] and (meta[i][3] or 0) >= 20 else None}
            for i in ids if i in meta and meta[i][0]]
+    playing = _now_playing_set()
+    for c in out:
+        if c["id"] in playing:
+            c["in_theatres"] = True                 # on TMDB's US now-playing list: a Showtimes link is offered
     return film_info.enrich(out, user)
+
+
+def _now_playing_set():
+    ids, _at = _list("now_playing", 60)
+    return set(ids)
+
+
+def _genres_of(ids):
+    out = {}
+    for fid, g in film_info._many(_f(), "select tmdb_id, genres_json from films where tmdb_id in", [int(i) for i in ids]):
+        try:
+            out[fid] = set(json.loads(g or "[]"))
+        except (ValueError, TypeError):
+            out[fid] = set()
+    return out
+
+
+def _keep_genres(ids, genres):
+    """ids whose film has at least one of `genres`, films matching more of them first; unknown genres are dropped."""
+    if not genres:
+        return ids
+    want = set(genres)
+    g = _genres_of(ids)
+    hit = [i for i in ids if g.get(i, set()) & want]
+    return sorted(hit, key=lambda i: -len(g[i] & want))
+
+
+def top_by_genre(genres, user="", limit=20, min_votes=800, since=None):
+    """Well-rated films with any of these genres (all of them first), from facts.db; never films the person rated."""
+    if not genres:
+        return []
+    like = " or ".join("genres_json like ?" for _ in genres)
+    args = [f'%"{g}"%' for g in genres] + [min_votes]
+    sql = f"select tmdb_id from films where ({like}) and vote_count >= ?"
+    if since:
+        sql += " and year >= ?"; args.append(since)
+    ids = [r[0] for r in _q(sql + " order by vote_average desc limit 400", tuple(args))]
+    seen = _seen_or_rated(user)
+    return _keep_genres([i for i in ids if i not in seen], genres)[:limit]
+
+
+def theatres(fid, zip_code=""):
+    """Showtimes links for a film on TMDB's US now-playing list. Cinemack has no showtime data, so these are
+    searches on sites that do; nothing is offered for a film that is not on the list."""
+    fid = int(fid)
+    if fid not in _now_playing_set():
+        return {"in_theatres": False, "links": []}
+    row = _q("select title, year from films where tmdb_id = ?", (fid,))
+    if not row:
+        return {"in_theatres": False, "links": []}
+    title = row[0][0]
+    z = "".join(ch for ch in str(zip_code or "") if ch.isdigit())[:5]
+    z = z if len(z) == 5 else ""
+    q = urllib.parse.urlencode
+    near = f" near {z}" if z else " near me"
+    links = [{"label": "Google showtimes", "site": "Google", "url": "https://www.google.com/search?" + q({"q": f"{title} showtimes{near}"})},
+             {"label": "Fandango", "site": "Fandango", "url": "https://www.fandango.com/search?" + q({"q": title})},
+             {"label": "AMC Theatres", "site": "AMC", "url": "https://www.google.com/search?" + q({"q": f"{title} showtimes AMC Theatres{near}"})},
+             {"label": "Regal", "site": "Regal", "url": "https://www.google.com/search?" + q({"q": f"{title} showtimes Regal{near}"})},
+             {"label": "Showcase Cinemas", "site": "Showcase", "url": "https://www.google.com/search?" + q({"q": f"{title} showtimes Showcase Cinemas{near}"})}]
+    new, old = _split_rereleases([fid])
+    return {"in_theatres": True, "rerelease": bool(old), "zip": z, "links": links,
+            "note": "Cinemack doesn't have showtimes; these open a search on sites that do."}
 
 
 def _list(name, limit=20):
@@ -154,38 +221,151 @@ def because_you_liked(user, rails=2, per=12):
     return out
 
 
-def home(user=""):
+def home(user="", genres=None):
+    """Home rows. With `genres` (Home's genre chips) every row keeps only films with at least one of them, and two
+    genre rows are added from the whole catalogue. `hero` is always the unfiltered new films in theatres."""
+    genres = [g for g in (genres or []) if isinstance(g, str)][:6]
+    keep = (lambda ids: _keep_genres(ids, genres)) if genres else (lambda ids: ids)
     rails = []
-    try:
-        import chats
-        cs = chats.list_chats(user)[:6] if user else []
-        if cs:
-            rails.append({"key": "continue", "title": "Continue exploring", "kind": "chats", "items": cs})
-    except Exception:  # noqa: BLE001
-        pass
-    wl = film_info.watchlist(user, limit=20) if user else []
-    rails.append({"key": "watchlist", "title": "Your watchlist", "items": cards([w["id"] for w in wl], user),
+    wl = film_info.watchlist(user, limit=60) if user else []
+    rails.append({"key": "watchlist", "title": "Your watchlist", "items": cards(keep([w["id"] for w in wl])[:20], user),
                   "empty": "Tap Want to watch on any film and it lands here."})
-    rails += because_you_liked(user) if user else []
-    ids, at = _list("now_playing", 40)
+    if not genres:
+        rails += because_you_liked(user) if user else []
+    ids, at = _list("now_playing", 60)
     new_ids, rerel = _split_rereleases(ids)
-    rails.append({"key": "now_playing", "title": "In theatres now", "items": cards(new_ids[:20], user),
+    hero = cards((new_ids + rerel)[:8], user)          # new films first; re-releases are in theatres too
+    rails.append({"key": "now_playing", "title": "In theatres now", "items": cards(keep(new_ids)[:20], user),
                   "source": "TMDB now playing (US), new releases", "as_of": at})
-    if rerel:
-        rails.append({"key": "back_in_theatres", "title": "Back in theatres", "items": cards(rerel[:20], user),
-                      "source": "Re-releases on TMDB's now-playing list (US)", "as_of": at})
-    ids, at = _list("upcoming", 40)
+    if genres:
+        label = " and ".join(genres) if len(genres) <= 2 else ", ".join(genres[:-1]) + " and " + genres[-1]
+        rails.append({"key": "genre_top", "title": f"Top-rated {label}", "items": cards(top_by_genre(genres, user), user),
+                      "source": "TMDB ratings, 800+ votes"})
+        rails.append({"key": "genre_recent", "title": f"Recent {label}",
+                      "items": cards(top_by_genre(genres, user, min_votes=150, since=datetime.date.today().year - 3), user),
+                      "source": "TMDB ratings, released in the last three years"})
+    ids, at2 = _list("upcoming", 60)
     dates = dict(_q("select tmdb_id, coalesce(us_release_date, release_date) from films where tmdb_id in (" +
                     ",".join(str(int(i)) for i in ids or [0]) + ")"))
     soon = [i for i in ids if dates.get(i) and dates[i] >= _today()]          # keep TMDB's list order
-    rails.append({"key": "coming_soon", "title": "Coming soon", "items": cards(soon[:20], user),
-                  "source": "TMDB upcoming (US)", "as_of": at})
+    rails.append({"key": "coming_soon", "title": "Coming soon", "items": cards(keep(soon)[:20], user),
+                  "source": "TMDB upcoming (US)", "as_of": at2})
     since = (datetime.date.today() - datetime.timedelta(days=120)).isoformat()
     pop = [r[0] for r in _q("select tmdb_id from films where coalesce(us_release_date, release_date) between ? and ? "
-                            "and coalesce(vote_count, 0) >= 20 order by popularity desc limit 20", (since, _today()))]
-    rails.append({"key": "new_popular", "title": "Popular new releases", "items": cards(pop, user),
+                            "and coalesce(vote_count, 0) >= 20 order by popularity desc limit 80", (since, _today()))]
+    rails.append({"key": "new_popular", "title": "Popular new releases", "items": cards(keep(pop)[:20], user),
                   "source": "TMDB popularity, released in the last 120 days"})
-    return {"rails": rails, "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S")}
+    if rerel:
+        rails.append({"key": "back_in_theatres", "title": "Back in theatres", "items": cards(keep(rerel)[:20], user),
+                      "source": "Re-releases on TMDB's now-playing list (US)", "as_of": at})
+    return {"rails": rails, "hero": hero, "genres": genres, "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S")}
+
+
+# ------------------------------------------------------------------ TV shows the person follows (9 Nov evening)
+def _tvdb():
+    c = _adb()
+    c.execute("create table if not exists tv_follow(user_key text, show_id integer, created_at text, notify integer default 1, "
+              "primary key (user_key, show_id))")
+    return c
+
+
+def tv_follow(user, show_id, on=True, notify=None):
+    if not user:
+        raise ValueError("no user")
+    with _lock:
+        c = _tvdb()
+        if on:
+            c.execute("insert or ignore into tv_follow(user_key, show_id, created_at) values (?,?,?)",
+                      (user, int(show_id), time.strftime("%Y-%m-%dT%H:%M:%S")))
+            if notify is not None:
+                c.execute("update tv_follow set notify = ? where user_key = ? and show_id = ?",
+                          (int(bool(notify)), user, int(show_id)))
+        else:
+            c.execute("delete from tv_follow where user_key = ? and show_id = ?", (user, int(show_id)))
+        c.commit()
+
+
+def tv_search(q, limit=8):
+    q = (q or "").strip()
+    if len(q) < 2:
+        return []
+    rows = _q("select tmdb_id, name, first_year, poster_path from tv_shows where name like ? order by vote_count desc limit ?",
+              (f"%{q}%", limit))
+    return [{"id": i, "title": n, "year": y, "poster": film_info.img(p, "w185") if p else None} for i, n, y, p in rows]
+
+
+def tv_following(user):
+    """Followed shows with what is confirmed: seasons out, the next dated season, and episodes watched (from the
+    person's imported history). Episode-level air dates are not in the database, so none are shown."""
+    if not user:
+        return []
+    with _lock:
+        rows = _tvdb().execute("select show_id, created_at, notify from tv_follow where user_key = ? "
+                               "order by created_at desc", (user,)).fetchall()
+    if not rows:
+        return []
+    marks = ",".join(str(int(r[0])) for r in rows)
+    shows = {i: (n, y, p, nets) for i, n, y, p, nets in _q(
+        f"select tmdb_id, name, first_year, poster_path, networks_json from tv_shows where tmdb_id in ({marks})")}
+    seasons = {}
+    for sid, sn, d in _q(f"select tmdb_id, season_number, air_date from tv_seasons where tmdb_id in ({marks}) "
+                         f"and season_number > 0 order by season_number"):
+        seasons.setdefault(sid, []).append((sn, (d or "")[:10]))
+    watched = {}
+    try:
+        import history
+        for sid, n, last in history.conn().execute(
+                f"select tmdb_id, count(*), max(watched_at) from watch_events where user_key = ? and media_type = 'tv' "
+                f"and tmdb_id in ({marks}) group by tmdb_id", (user,)):
+            watched[sid] = (n, (last or "")[:10])
+    except Exception:  # noqa: BLE001
+        pass
+    today = _today()
+    out = []
+    for sid, at, notify in rows:
+        if sid not in shows:
+            continue
+        name, year, poster, nets = shows[sid]
+        ss = seasons.get(sid, [])
+        aired = [(n, d) for n, d in ss if d and d <= today]
+        upcoming = [(n, d) for n, d in ss if d and d > today]
+        try:
+            net = ", ".join(json.loads(nets or "[]")[:2])
+        except (ValueError, TypeError):
+            net = ""
+        nxt = upcoming[0] if upcoming else None
+        latest = aired[-1] if aired else None
+        new_recent = bool(latest and (datetime.date.today() - datetime.date.fromisoformat(latest[1])).days <= 45)
+        out.append({"id": sid, "title": name, "year": year, "network": net, "media": "tv",
+                    "poster": film_info.img(poster, "w185") if poster else None,
+                    "seasons_out": len(aired), "latest_season": {"number": latest[0], "date": latest[1]} if latest else None,
+                    "next_season": {"number": nxt[0], "date": nxt[1]} if nxt else None,
+                    "badge": ("Upcoming season" if nxt else "New season" if new_recent else None),
+                    "episodes_watched": watched.get(sid, (0, None))[0], "last_watched": watched.get(sid, (0, None))[1],
+                    "notify": bool(notify), "followed": (at or "")[:10]})
+    return out
+
+
+def _refresh_tv_alerts(user):
+    """One alert when a followed show (notifications on) gets a dated future season, one when a season starts.
+    The unique key (user, show, kind, detail) stops repeats; undated seasons never alert."""
+    new = 0
+    today = _today()
+    for sh in tv_following(user):
+        if not sh["notify"]:
+            continue
+        rowsets = []
+        if sh["next_season"]:
+            rowsets.append(("tv_season_dated", f"{sh['next_season']['number']}|{sh['next_season']['date']}"))
+        if sh["latest_season"] and sh["followed"] <= sh["latest_season"]["date"] <= today:
+            rowsets.append(("tv_season_out", str(sh["latest_season"]["number"])))
+        with _lock:
+            c = _adb()
+            for kind, detail in rowsets:
+                new += c.execute("insert or ignore into alerts values (?,?,?,?,?,0)",
+                                 (user, sh["id"], kind, detail, time.strftime("%Y-%m-%dT%H:%M:%S"))).rowcount
+            c.commit()
+    return new
 
 
 def similar(fid, user="", n=12):
@@ -263,6 +443,7 @@ def calendar(user="", days=60, start=None):
             e["showtimes"] = {"label": "Find showtimes (Google search)",
                               "url": "https://www.google.com/search?" + urllib.parse.urlencode({"q": f"{c['title']} showtimes"})}
         out.append(e)
+    following = {x["id"] for x in tv_following(user)} if user else set()
     for sid, sn, d, name, poster, nets in _q(
             "select s.tmdb_id, s.season_number, s.air_date, t.name, coalesce(s.poster_path, t.poster_path), t.networks_json "
             "from tv_seasons s join tv_shows t on t.tmdb_id = s.tmdb_id where s.season_number > 0 and s.air_date between ? and ?",
@@ -272,6 +453,7 @@ def calendar(user="", days=60, start=None):
         except (ValueError, TypeError):
             net = ""
         out.append({"date": d, "kind": "tv_season", "media": "tv", "label": f"Season {sn} premieres" + (f" on {net}" if net else ""),
+                    "following": sid in following,
                     "show": {"id": sid, "title": name, "season": sn, "poster": film_info.img(poster, "w185") if poster else None}})
     out.sort(key=lambda e: (e["date"], e["kind"]))
     at = _q("select max(fetched_at) from lists")
@@ -343,11 +525,27 @@ def alerts(user, refresh=True):
         return {"alerts": [], "unseen": 0}
     if refresh:
         refresh_alerts(user)
+        try:
+            _refresh_tv_alerts(user)
+        except Exception as e:  # noqa: BLE001
+            print(f"[cinemack] tv alerts failed: {e!r}", flush=True)
     rows = _adb().execute("select tmdb_id, kind, detail, created_at, seen from alerts where user_key = ? "
                           "order by created_at desc limit 100", (user,)).fetchall()
-    cs = {c["id"]: c for c in cards(list({r[0] for r in rows}), user)}
+    cs = {c["id"]: c for c in cards(list({r[0] for r in rows if not r[1].startswith("tv_")}), user)}
+    tv = {x["id"]: x for x in tv_following(user)}
     out = []
     for fid, kind, detail, at, seen in rows:
+        if kind.startswith("tv_"):
+            sh = tv.get(fid)
+            if not sh:
+                continue
+            if kind == "tv_season_dated":
+                n, d = (detail.split("|") + [""])[:2]
+                text = f"{sh['title']}: season {n} has a date, {d}"
+            else:
+                text = f"{sh['title']}: season {detail} is out"
+            out.append({"film": dict(sh), "kind": kind, "detail": detail, "text": text, "at": at, "seen": bool(seen)})
+            continue
         c = cs.get(fid, {"id": fid, "title": ""})
         text = (f"{c.get('title')} is now streaming on {detail}" if kind == "now_streaming"
                 else f"{c.get('title')} is out now")
@@ -391,7 +589,7 @@ def watchlist_overview(user, name_of=lambda k: k, landed_days=30, last_chance_da
     import social as social_mod
     wl = film_info.watchlist(user, 500)
     ids = [w["id"] for w in wl]
-    out = {"items": [], "watch_next": [], "just_landed": [], "last_chance": [], "together": []}
+    out = {"items": [], "watch_next": [], "just_landed": [], "last_chance": [], "together": [], "shows": tv_following(user)}
     if not ids:
         return out
     added = {w["id"]: (w.get("added") or "")[:10] for w in wl}
@@ -478,6 +676,7 @@ def watchlist_overview(user, name_of=lambda k: k, landed_days=30, last_chance_da
     scored.sort(key=lambda x: -x[0])
     out["watch_next"] = [dict(by[fid], why="; ".join(why)) for _s, fid, why in scored[:6]]
     out["has_services"] = bool(services)
+    out["shows"] = tv_following(user)
     return out
 
 
@@ -486,4 +685,8 @@ def delete_user(user):
         c = _adb()
         c.execute("delete from alerts where user_key = ?", (user,))
         c.execute("delete from snapshot where user_key = ?", (user,))
+        try:
+            c.execute("delete from tv_follow where user_key = ?", (user,))
+        except sqlite3.Error:
+            pass
         c.commit()
