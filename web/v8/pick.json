@@ -1,27 +1,117 @@
 {
-  "about": "Pick tonight: each answer maps to this chat's filters (user_prefs.clean_chat). Hard limits are enforced in code with strict=true: a film whose fact is unknown fails that limit. Shared by app.js and tests/test_v8_pick.py.",
+  "about": "Pick tonight: each answer maps to this chat's filters (user_prefs.clean_chat). Hard limits are enforced in code with strict=true: a film whose fact is unknown fails that limit. Shared by app.js and tests/test_v8_pick.py. 10 Nov round 21: kind = movie (the chat pipeline) or tv (deterministic ranking over facts.db shows, /api/v8/pick/tv).",
   "with": {
-    "me": {"label": "Just me", "filters": {}, "words": "for me"},
-    "partner": {"label": "With a partner", "filters": {}, "words": "for two adults"},
-    "friends": {"label": "With friends", "filters": {}, "words": "for a group of friends"},
-    "kids": {"label": "With kids", "filters": {"max_cert": "PG"}, "words": "for a family with young kids"}
+    "me": {
+      "label": "Just me",
+      "filters": {},
+      "words": "for me"
+    },
+    "partner": {
+      "label": "With a partner",
+      "filters": {},
+      "words": "for two adults"
+    },
+    "friends": {
+      "label": "With friends",
+      "filters": {},
+      "words": "for a group of friends"
+    },
+    "kids": {
+      "label": "With kids",
+      "filters": {
+        "max_cert": "PG"
+      },
+      "words": "for a family with young kids"
+    }
   },
   "mood": {
-    "funny": {"label": "Funny", "filters": {"genre": "Comedy"}, "words": "funny"},
-    "thrilling": {"label": "Thrilling", "filters": {"genre": "Thriller"}, "words": "gripping"},
-    "moving": {"label": "Moving", "filters": {"genre": "Drama"}, "words": "moving"},
-    "mind": {"label": "Mind-bending", "filters": {"genre": "Science Fiction"}, "words": "mind-bending"},
-    "scary": {"label": "Scary", "filters": {"genre": "Horror"}, "words": "scary"},
-    "cozy": {"label": "Cosy", "filters": {"genre": "Family"}, "words": "cosy, comforting"},
-    "any": {"label": "Surprise me", "filters": {}, "words": "great"}
+    "funny": {
+      "label": "Funny",
+      "filters": {
+        "genre": "Comedy"
+      },
+      "words": "funny"
+    },
+    "thrilling": {
+      "label": "Thrilling",
+      "filters": {
+        "genre": "Thriller"
+      },
+      "words": "gripping"
+    },
+    "moving": {
+      "label": "Moving",
+      "filters": {
+        "genre": "Drama"
+      },
+      "words": "moving"
+    },
+    "mind": {
+      "label": "Mind-bending",
+      "filters": {
+        "genre": "Science Fiction"
+      },
+      "words": "mind-bending"
+    },
+    "scary": {
+      "label": "Scary",
+      "filters": {
+        "genre": "Horror"
+      },
+      "words": "scary"
+    },
+    "cozy": {
+      "label": "Cosy",
+      "filters": {
+        "genre": "Family"
+      },
+      "words": "cosy, comforting"
+    },
+    "any": {
+      "label": "Surprise me",
+      "filters": {},
+      "words": "great"
+    }
   },
   "time": {
-    "90": {"label": "Under 1½ hours", "filters": {"max_runtime": 90}, "words": "under 90 minutes"},
-    "120": {"label": "Under 2 hours", "filters": {"max_runtime": 120}, "words": "under two hours"},
-    "any": {"label": "Any length", "filters": {}, "words": ""}
+    "90": {
+      "label": "Under 1\u00bd hours",
+      "filters": {
+        "max_runtime": 90
+      },
+      "words": "under 90 minutes"
+    },
+    "120": {
+      "label": "Under 2 hours",
+      "filters": {
+        "max_runtime": 120
+      },
+      "words": "under two hours"
+    },
+    "any": {
+      "label": "Any length",
+      "filters": {},
+      "words": ""
+    }
   },
   "novelty": {
-    "familiar": {"label": "Something familiar", "words": "a well-loved, popular pick"},
-    "different": {"label": "Something different", "words": "something less obvious that I may not have heard of"}
+    "familiar": {
+      "label": "Something familiar",
+      "words": "a well-loved, popular pick"
+    },
+    "different": {
+      "label": "Something different",
+      "words": "something less obvious that I may not have heard of"
+    }
+  },
+  "kind": {
+    "movie": {
+      "label": "A movie",
+      "words": "film"
+    },
+    "tv": {
+      "label": "A TV show",
+      "words": "show"
+    }
   }
 }

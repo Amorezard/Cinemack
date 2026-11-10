@@ -6,7 +6,7 @@ import { $, $$, S, h, I, LOGO, ART, api, post, view, store, toast, sheet, popMen
 
 const c = S.chat;
 let ui = null;                 // the mounted page's elements
-export function newChat() { Object.assign(c, { convId: newId(), history: [], recent: [], conv: null, log: null, title: '' }); }
+export function newChat(priv = false) { Object.assign(c, { convId: newId(), history: [], recent: [], conv: null, log: null, title: '', private: !!priv }); }
 const clock = () => new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
 export function pageChat(params) {
@@ -17,7 +17,8 @@ export function pageChat(params) {
   const list = h('nav', { class: 'clist', 'aria-label': 'Conversations' });
   const collapse = h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Hide conversation list', html: I.dleft, onclick: () => setSide(false) });
   const side = h('aside', { class: 'cside', 'aria-label': 'Conversation history' }, h('div', { class: 'cside-in' },
-    h('div', { class: 'cside-top' }, h('button', { class: 'btn primary', type: 'button', html: I.plus + 'New chat', onclick: startNew }), collapse),
+    h('div', { class: 'cside-top' }, h('button', { class: 'btn primary', type: 'button', html: I.plus + 'New chat', onclick: () => startNew() }),
+      h('button', { class: 'iconbtn bordered', type: 'button', 'aria-label': 'New private chat', title: 'Private chat: not saved, nothing remembered', html: I.lock, onclick: () => startNew(true) }), collapse),
     h('div', { class: 'csearch' }, h('span', { html: I.search }), q), list,
     h('div', { class: 'cside-foot' }, h('a', { href: '#/profile?tab=settings&sec=preferences', html: I.gear + 'Chat settings' }), h('a', { href: '/how', html: I.help + 'How Cinemack works' }))));
   q.addEventListener('input', () => drawList(list, q.value));
@@ -37,13 +38,17 @@ export function pageChat(params) {
     h('button', { class: 'iconbtn bordered tog mob', type: 'button', 'aria-label': 'Your conversations', html: I.menu, onclick: openDrawer }),
     expand, h('span', { class: 'ico', html: I.bubble }),
     h('div', { style: 'flex:1;min-width:0' }, h('h1', {}, 'Ask Cinemack'), h('p', {}, 'Recommendations, film facts, where to watch, and what is coming out.')),
-    h('button', { class: 'iconbtn bordered tog mob', type: 'button', 'aria-label': 'New chat', html: I.plus, onclick: startNew }));
-  const main = h('section', { class: 'cmain', 'aria-label': 'Conversation' }, head, scroller,
+    h('button', { class: 'iconbtn bordered tog mob', type: 'button', 'aria-label': 'New chat', html: I.plus, onclick: () => startNew() }));
+  // round 21: private chat (X-MB-Private: 1): not saved to the list, nothing remembered, history and taste not used
+  const pbar = h('div', { class: 'pbar', role: 'status', hidden: !c.private }, h('span', { html: I.lock }),
+    h('span', { class: 'pt' }, h('b', {}, 'Private chat. '), 'Not saved to your chats, nothing remembered, and your history is not used.'),
+    h('button', { class: 'btn ghost sm', type: 'button', onclick: () => startNew() }, 'End private chat'));
+  const main = h('section', { class: 'cmain' + (c.private ? ' private' : ''), 'aria-label': 'Conversation' }, head, pbar, scroller,
     h('div', { class: 'cbottom' }, h('div', { class: 'cbottom-in' }, fbar,
       h('div', { class: 'composer' }, h('span', { class: 'spark', html: I.sparkle }), ta, send),
       h('div', { class: 'cfine' }, 'Cinemack can be wrong; answers show their sources. ', h('a', { href: '/about' }, 'Credits')))));
   view.append(side, main);
-  ui = { msgs, scroller, send, ta, list, fbar, expand, side };
+  ui = { msgs, scroller, send, ta, list, fbar, expand, side, pbar, main };
   syncSideButtons();
   drawFilters();
   on('cm:filters', drawFilters, fbar);
@@ -63,13 +68,20 @@ function setSide(open) {
 }
 function syncSideButtons() { const col = view.classList.contains('collapsed'); ui.expand.hidden = !col || !matchMedia('(min-width:1024px)').matches; }
 addEventListener('resize', () => { if (ui && document.body.contains(ui.expand)) syncSideButtons(); });
-function startNew() { if (c.busy) c.ctrl?.abort(); newChat(); ui.msgs.innerHTML = ''; ui.msgs.append(intro()); markCurrent(); ui.ta.focus(); history.replaceState(null, '', '#/ask'); }
+function startNew(priv = false) {
+  if (c.busy) c.ctrl?.abort(); newChat(priv); ui.msgs.innerHTML = ''; ui.msgs.append(intro()); markCurrent();
+  ui.pbar.hidden = !priv; ui.main.classList.toggle('private', priv);
+  ui.ta.placeholder = priv ? 'Private: ask anything; nothing is saved' : 'Ask about a movie, show, or what to watch…';
+  if (priv) toast('Private chat: not saved, nothing remembered.');
+  ui.ta.focus(); history.replaceState(null, '', '#/ask');
+}
 function openDrawer() {
   sheet('Your conversations', (b, d) => {
     d.classList.add('drawer-list');
     const q2 = h('input', { class: 'input', type: 'search', placeholder: 'Search conversations', 'aria-label': 'Search conversations' });
     const l2 = h('nav', { class: 'clist', 'aria-label': 'Conversations', style: 'margin-top:12px' });
-    b.append(h('button', { class: 'btn primary block', type: 'button', html: I.plus + 'New chat', onclick: () => { d.close(); startNew(); } }), h('div', { style: 'margin-top:12px' }, q2), l2);
+    b.append(h('button', { class: 'btn primary block', type: 'button', html: I.plus + 'New chat', onclick: () => { d.close(); startNew(); } }),
+      h('button', { class: 'btn secondary block', type: 'button', style: 'margin-top:8px', html: I.lock + 'New private chat', onclick: () => { d.close(); startNew(true); } }), h('div', { style: 'margin-top:12px' }, q2), l2);
     q2.addEventListener('input', () => drawList(l2, q2.value, d));
     drawList(l2, '', d);
   }, { side: true, left: true });
@@ -136,7 +148,7 @@ async function loadChat(id) {
   if (c.busy) c.ctrl?.abort();
   try {
     const j = await api('/api/chats/' + encodeURIComponent(id));
-    newChat(); c.convId = id; c.title = j.title || ''; ui.msgs.innerHTML = '';
+    newChat(); c.convId = id; c.title = j.title || ''; ui.msgs.innerHTML = ''; ui.pbar.hidden = true; ui.main.classList.remove('private');
     for (const t of j.turns || []) {
       ui.msgs.append(userMsg(t.question, null));
       const b = botShell(null); b.status.remove(); render(b, t.answer || '', true);
@@ -144,12 +156,34 @@ async function loadChat(id) {
       ui.msgs.append(b.el);
       c.history.push({ role: 'user', content: t.question }, { role: 'assistant', content: t.answer || '' });
     }
-    c.history = c.history.slice(-12); c.recent = j.recent_titles || []; c.conv = j.conv || null;
+    c.history = c.history.slice(-40); c.recent = j.recent_titles || []; c.conv = j.conv || null;
     c.log = [...ui.msgs.children];
     ui.scroller.scrollTop = ui.scroller.scrollHeight;
     markCurrent();
     history.replaceState(null, '', '#/ask');
   } catch (e) { toast(e.message, null, true); }
+}
+
+// ---------------------------------------------------------------- 3c preference chips (round 21)
+// A limit said in a message ("nothing over two hours", "no horror", "we only have Hulu") is offered as a chip under
+// it. Nothing changes until the chip is pressed; then it joins this chat's filter bar like any other filter.
+async function offerChips(after, text) {
+  let j; try { j = await api(`/api/v8/chips?text=${encodeURIComponent(text.slice(0, 600))}`); } catch { return; }
+  if (!j.chips?.length || !document.body.contains(after)) return;
+  const row = h('div', { class: 'offer', role: 'group', 'aria-label': 'Use what you said as a filter' }, h('span', { class: 'small muted' }, 'Use as a filter for this chat?'));
+  for (const ch of j.chips) {
+    const b = h('button', { class: 'chip', type: 'button', 'aria-pressed': 'false', html: I.plus + `<span>${ch.label}</span>` });
+    b.addEventListener('click', () => {
+      const f = S.filters;
+      if (ch.field === 'services') { f.services = ch.value; f.services_only = true; }
+      else if (ch.field === 'never_genres') f.never_genres = [...new Set([...(f.never_genres || []), ...ch.value])];
+      else f[ch.field] = ch.value;
+      F.save(); b.setAttribute('aria-pressed', 'true'); b.disabled = true; b.innerHTML = I.check + `<span>${ch.label}</span>`;
+      toast(`Filter on: ${ch.label}. It applies to the next answers in this chat.`);
+    });
+    row.append(b);
+  }
+  after.after(row);
 }
 
 // ---------------------------------------------------------------- filters (shared with Home through S.filters)
@@ -165,7 +199,9 @@ function drawFilters() {
   if (f.max_runtime) tag((FILTERS.max_runtime.find(x => x[0] === String(f.max_runtime)) || [])[1], () => { delete f.max_runtime; });
   if (f.era) tag((FILTERS.era.find(x => x[0] === f.era) || [])[1] || f.era, () => { delete f.era; });
   if (f.max_cert) tag(`${f.max_cert} or milder`, () => { delete f.max_cert; });
-  if (f.services_only) tag('My services', () => { delete f.services_only; });
+  if (f.services_only) tag((f.services || []).length ? `${f.services.length === 1 ? f.services[0] : `${f.services.length} services`} only` : 'My services', () => { delete f.services_only; delete f.services; });
+  if ((f.never_genres || []).length) tag('No ' + f.never_genres.map(g => shortGenre(g).toLowerCase()).join(', '), () => { delete f.never_genres; });
+  if (f.min_year) tag(`${f.min_year} or later`, () => { delete f.min_year; });
   const add = (label, fn) => bar.append(h('button', { class: 'chip add', type: 'button', 'aria-haspopup': 'menu', 'aria-expanded': 'false', html: I.plus + `<span>${label}</span>`, onclick: fn }));
   if (!(f.genres || []).length) add('Genre', (e) => popMenu(e.currentTarget, GENRES.map(g => ({ label: shortGenre(g), onclick: () => F.toggleGenre(g) })), { label: 'Genre', title: 'Genre' }));
   if (!f.max_runtime) add('Length', (e) => popMenu(e.currentTarget, FILTERS.max_runtime.slice(1).map(([v, l]) => ({ label: l, onclick: () => { f.max_runtime = Number(v); F.save(); } })), { label: 'Length', title: 'Length' }));
@@ -196,7 +232,10 @@ function filterSheet() {
         h('span', { class: 'hint' }, 'Off: answers stay short. Your own length setting wins over this.')),
       h('p', { class: 'hint', style: 'margin-bottom:16px' }, 'Filters are enforced in code for recommendations here and on Home, not just suggested to the model.'),
       h('div', { class: 'actions', style: 'margin:0' }, h('button', { class: 'btn primary', type: 'button', onclick: () => {
+        const keep = { never_genres: f.never_genres, min_year: f.min_year, services: f.services };   // chips from messages stay
         S.filters = { genres: GENRES.filter(g => on.has(g)) };
+        for (const [k, v] of Object.entries(keep)) if (v && (!Array.isArray(v) || v.length)) S.filters[k] = v;
+        if (!svc.checked) delete S.filters.services;
         if (draft.era) S.filters.era = draft.era;
         if (draft.max_runtime) S.filters.max_runtime = Number(draft.max_runtime);
         if (draft.max_cert) S.filters.max_cert = draft.max_cert;
@@ -265,7 +304,8 @@ export async function ask(text, opts = {}) {
   if (c.busy) return;
   const msgs = ui.msgs, sc = ui.scroller;
   $('.chat-intro', msgs)?.remove();
-  msgs.append(userMsg(text, clock()));
+  const um = userMsg(text, clock()); msgs.append(um);
+  offerChips(um, text);
   const b = botShell(clock()); msgs.append(b.el);
   const toEnd = (force) => { if (force || sc.scrollHeight - sc.scrollTop - sc.clientHeight < 160) sc.scrollTop = sc.scrollHeight; };
   toEnd(true);
@@ -309,7 +349,7 @@ export async function ask(text, opts = {}) {
       }
     }
     if (!answer) throw Object.assign(new Error('The model finished without an answer. Try rephrasing.'), { friendly: true });
-    c.history.push({ role: 'user', content: text }, { role: 'assistant', content: answer.trim() }); c.history = c.history.slice(-12);
+    c.history.push({ role: 'user', content: text }, { role: 'assistant', content: answer.trim() }); c.history = c.history.slice(-40);
   } catch (e) {
     b.status.hidden = true;
     if (e.name === 'AbortError') b.extra.append(h('p', { class: 'muted small' }, 'Stopped.'));

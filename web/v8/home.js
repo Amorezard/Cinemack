@@ -7,7 +7,7 @@
 // Genre chips filter every shelf (Match Any by default, Match All optional); every genre selected = no filter. The page
 // never re-sorts what the server ranked. Only the hero moves on its own.
 import { $, $$, S, h, I, api, view, F, GENRES, setGenres, shortGenre, firstGenre, section, shelf, posterCard, empty, rt, fmtDate,
-  showtimesSheet, CW, continueRow, wantButton, posterImg, ratingEl, on, tvCard } from './core.js';
+  showtimesSheet, CW, continueRow, wantButton, posterImg, ratingEl, on, tvCard, authSheet, displayName } from './core.js';
 
 const PRIMARY = 9;          // chips shown before "More"
 const SHELF = {
@@ -24,6 +24,7 @@ const KIND = { theatrical: 'In theaters', digital: 'Streaming', us_release: 'US 
 const joinG = (gs, mode) => { const n = gs.map(shortGenre); return n.length <= 2 ? n.join(mode === 'all' ? ' and ' : ' or ') : `${n.slice(0, -1).join(', ')} ${mode === 'all' ? 'and' : 'or'} ${n[n.length - 1]}`; };
 
 export async function pageHome() {
+  if (!S.me) { try { S.me = await api('/api/me'); } catch {} }      // round 21: decides the account card below, before first paint
   view.innerHTML = '';
   view.classList.add('home');
   const hero = h('section', { class: 'hh', 'aria-label': 'Featured' }, h('div', { class: 'hh-bd', 'aria-hidden': 'true' }), h('div', { class: 'hh-bd hh-bd2', 'aria-hidden': 'true' }));
@@ -37,6 +38,8 @@ export async function pageHome() {
         h('a', { class: 'btn outline hh-pick', href: '#/pick', html: I.sparkle + '<span>Pick Tonight</span>' }))),
     feat));
   view.append(hero);
+  const ac = accountCard();
+  if (ac) view.append(ac);
 
   // ---------------------------------------------------------------- Explore by Genre
   const f = S.filters;
@@ -158,6 +161,29 @@ function drawRails(holder, d, cwItems = []) {
     return;
   }
   holder.append(...out);
+}
+// round 21: signed out -> invite to create an account or sign in; signed in but not set up -> finish setting up.
+// "Not now" hides it for this browser session only.
+function accountCard() {
+  let hidden = false; try { hidden = sessionStorage.getItem('cm.acct') === 'hide'; } catch {}
+  if (hidden || !S.me) return null;
+  const hide = (el) => { try { sessionStorage.setItem('cm.acct', 'hide'); } catch {} el.remove(); };
+  if (!S.me.account) {
+    const card = h('section', { class: 'acct', 'aria-label': 'Create an account' }, h('span', { class: 'acct-ic', html: I.user }),
+      h('div', { class: 'acct-tx' }, h('h2', {}, 'Make Cinemack yours'),
+        h('p', {}, 'Create a free account to keep your watchlist, ratings, chats and TV progress on every device, get picks from your own taste, and add friends. What you did here as a guest comes with you.')),
+      h('div', { class: 'acct-a' }, h('a', { class: 'btn primary', href: '#/join' }, 'Create account'), h('button', { class: 'btn secondary', type: 'button', onclick: () => authSheet('in') }, 'Sign in'),
+        h('button', { class: 'btn ghost sm', type: 'button', onclick: () => hide(card) }, 'Not now')));
+    return card;
+  }
+  if (!S.me.onboarded) {
+    const card = h('section', { class: 'acct', 'aria-label': 'Finish setting up' }, h('span', { class: 'acct-ic', html: I.sliders }),
+      h('div', { class: 'acct-tx' }, h('h2', {}, `Finish setting up${displayName(S.me) ? `, ${displayName(S.me)}` : ''}`),
+        h('p', {}, 'Tell Cinemack what you love, which services you have and any limits. About two minutes; every step can be skipped.')),
+      h('div', { class: 'acct-a' }, h('a', { class: 'btn primary', href: '#/join?step=taste' }, 'Continue set-up'), h('button', { class: 'btn ghost sm', type: 'button', onclick: () => hide(card) }, 'Not now')));
+    return card;
+  }
+  return null;
 }
 function miniCard(x) {
   return h('div', { class: 'mini' }, h('a', { class: 'pp', href: `#/film/${x.id}`, tabindex: '-1', 'aria-hidden': 'true' }, posterImg(x, 'poster', 64)),

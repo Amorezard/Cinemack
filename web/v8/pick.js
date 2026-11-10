@@ -3,23 +3,24 @@
 // Hard limits (time, age rating, never-genres, required services, the mood's genre) are enforced on the server AND
 // re-checked here; a film whose fact is unknown fails the limit. Fewer than three films? It says why and offers to
 // loosen a specific limit, and only does so when the person presses that button.
-import { $, $$, S, h, I, api, view, store, toast, popMenu, newId, hdrs, md, splitSources, ratingEl, rt, firstGenre, shortGenre,
-  wantButton, setChoice, isWant, showtimesSheet, empty, emit } from './core.js';
+import { $, $$, S, h, I, api, post, view, store, toast, popMenu, newId, hdrs, md, splitSources, ratingEl, rt, firstGenre, shortGenre,
+  wantButton, setChoice, isWant, showtimesSheet, empty, emit, posterImg } from './core.js';
 
 let P = null;
 const CERT = ['G', 'PG', 'PG-13', 'R', 'NC-17'];
-const ICON = { with: I.user, mood: I.bolt, time: I.clock, novelty: I.compass, services: I.monitor };
-const Q = { with: 'Who is watching?', mood: 'What mood?', time: 'How much time?', novelty: 'Familiar or different?', services: 'Which services?' };
+const ICON = { kind: I.tv, with: I.user, mood: I.bolt, time: I.clock, novelty: I.compass, services: I.monitor };
+const Q = { kind: 'Movie or show?', with: 'Who is watching?', mood: 'What mood?', time: 'How much time?', novelty: 'Familiar or different?', services: 'Which services?' };
 
 export async function pagePick() {
   view.innerHTML = '';
   if (!P) { try { P = await (await fetch('/v8/pick.json')).json(); } catch { view.append(h('div', { class: 'notice' }, "Couldn't load Pick Tonight.")); return; } }
-  const sel = S.pick || (S.pick = Object.assign({ with: 'me', mood: 'any', time: 'any', novelty: 'familiar', services: false }, store.json('cm.pick', {})));
+  const sel = S.pick || (S.pick = Object.assign({ kind: 'movie', with: 'me', mood: 'any', time: 'any', novelty: 'familiar', services: false }, store.json('cm.pick', {})));
+  if (!P.kind[sel.kind]) sel.kind = 'movie';
   const prefs = h('div', { class: 'prefs', role: 'group', 'aria-label': 'Your preferences' });
   const go = h('button', { class: 'btn primary lg go', type: 'button', html: I.sparkle + '<span>Find My Picks</span>', onclick: () => run() });
   const drawPrefs = () => {
     prefs.innerHTML = '';
-    for (const key of ['with', 'mood', 'time', 'novelty']) {
+    for (const key of ['kind', 'with', 'mood', 'time', 'novelty']) {
       const b = h('button', { class: 'pref', type: 'button', 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'aria-label': `${Q[key]} ${P[key][sel[key]].label}`, 'data-k': key },
         h('span', { class: 'pi', html: ICON[key] }), h('span', { class: 'tx' }, h('span', { class: 'q' }, Q[key]), h('span', { class: 'v' }, P[key][sel[key]].label)), h('span', { class: 'cv', html: I.chev }));
       b.addEventListener('click', () => popMenu(b, Object.entries(P[key]).map(([k, v]) => ({ label: v.label, checked: sel[key] === k, onclick: () => { sel[key] = k; save(); drawPrefs(); $(`.pref[data-k="${key}"]`)?.focus(); } })), { radio: true, label: Q[key], title: Q[key] }));
@@ -37,13 +38,14 @@ export async function pagePick() {
   const out = h('section', { class: 'pick-out', 'aria-live': 'polite', 'aria-label': 'Your picks' });
   view.append(h('div', { class: 'pick-hero' }, h('span', { class: 'reel', html: '<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><circle cx="50" cy="50" r="44"/><circle cx="50" cy="50" r="7"/><circle cx="50" cy="24" r="11"/><circle cx="75" cy="42" r="11"/><circle cx="66" cy="72" r="11"/><circle cx="34" cy="72" r="11"/><circle cx="25" cy="42" r="11"/></svg>' }),
     h('div', { class: 'page-h' }, h('span', { class: 'ic', html: I.sparkle }), h('div', { class: 'tx' }, h('h1', {}, 'Pick Tonight'),
-      h('p', {}, "Tell us what you're in the mood for and we'll rank three films. Time, age rating and services are hard limits, never suggestions."))),
+      h('p', {}, "Tell us what you're in the mood for and we'll rank three films or shows. Time, age rating and services are hard limits, never suggestions."))),
     prefs), out);
   drawPrefs();
   if (S.pickResult) drawResult(out, S.pickResult); else out.append(h('p', { class: 'muted', style: 'text-align:center;margin-top:8px' }, 'Change any choice above, then press Find My Picks.'));
 
   // ---------------------------------------------------------------- run
   async function run(extraExclude = []) {
+    if (sel.kind === 'tv') return runTv(extraExclude);
     if (run.ctrl) run.ctrl.abort();
     const ctrl = run.ctrl = new AbortController();
     const limits = limitsOf(sel);
@@ -92,6 +94,19 @@ export async function pagePick() {
     }
   }
   pagePick.run = run;
+
+  // ---------------------------------------------------------------- TV (round 21): ranked in code from facts.db, no model call
+  async function runTv(exclude = []) {
+    if (run.ctrl) run.ctrl.abort();
+    const L = limitsOf(sel), res = { tv: true, sel: Object.assign({}, sel), limits: L, picks: [], removed: {}, pending: true, exclude, t0: performance.now() };
+    S.pickResult = res; drawResult(out, res);
+    out.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    const q = new URLSearchParams({ genre: L.genre || '', max_cert: L.cert || '', max_runtime: L.cap || 0, services: L.services ? 1 : 0, novelty: sel.novelty, exclude: exclude.join(',') });
+    try { const j = await api(`/api/v8/pick/tv?${q}`); Object.assign(res, { picks: j.picks || [], candidates: j.candidates || [], removed: j.removed || {}, considered: j.considered }); }
+    catch (e) { res.error = e.message || "Couldn't reach the Cinemack server."; }
+    res.pending = false; res.doneAt = performance.now() - res.t0;
+    if (S.pickResult === res && document.body.contains(out)) drawResult(out, res);
+  }
 }
 
 // ---------------------------------------------------------------- constraints
@@ -99,7 +114,8 @@ function limitsOf(sel) {
   const L = { cap: Number(P.time[sel.time].filters?.max_runtime) || null, cert: P.with[sel.with].filters?.max_cert || null,
     genre: P.mood[sel.mood].filters?.genre || null, services: !!sel.services, never: S.me?.settings?.never_genres || [] };
   const words = [];
-  if (L.cap) words.push(`under ${L.cap} minutes`);
+  L.tv = sel.kind === 'tv';
+  if (L.cap) words.push(L.tv ? `episodes under ${L.cap} minutes` : `under ${L.cap} minutes`);
   if (L.cert) words.push(`rated ${L.cert} or milder`);
   if (L.genre) words.push(`${shortGenre(L.genre).toLowerCase()}`);
   if (L.services) words.push('on your services');
@@ -201,6 +217,7 @@ const skelRank = (best) => h('div', { class: `rk${best ? ' rk1' : ''}`, 'aria-hi
   h('div', { style: 'display:grid;gap:10px;align-content:start' }, h('div', { class: 'skel', style: 'height:22px;width:60%' }), h('div', { class: 'skel', style: 'height:14px;width:40%' }), h('div', { class: 'skel', style: 'height:44px;width:92%' })));
 
 function drawResult(out, res) {
+  if (res.tv) return drawTv(out, res);
   out.innerHTML = '';
   const head = h('div', { class: 'section-h' }, h('span', { class: 'ico', html: I.trophy }), h('h2', {}, 'Your Top Picks'));
   if (res.limits.words.length) head.append(h('span', { class: 'sub' }, 'Only films ' + res.limits.words.join(', ') + '.'));
@@ -260,4 +277,46 @@ function relaxButtons(res) {
   if (L.cert) b.push(h('button', { class: 'chip', type: 'button', onclick: () => { scrollTo({ top: 0, behavior: 'smooth' }); $('.pref[data-k="with"]')?.click(); } }, "Change who's watching"));
   if (L.never.length) b.push(h('a', { class: 'chip', href: '#/profile?tab=settings&sec=preferences' }, 'Edit never-recommend genres'));
   return b;
+}
+
+// ---------------------------------------------------------------- TV results (round 21)
+function tvCardRank(x, n, res) {
+  const best = n === 1, href = `#/show/${x.id}`;
+  const fol = h('button', { class: `btn ${best ? 'secondary' : 'ghost'} sm`, type: 'button' });
+  const paint = () => { fol.innerHTML = (x.following ? I.check : I.plus) + `<span>${x.following ? 'Following' : 'Follow'}</span>`; fol.setAttribute('aria-pressed', String(!!x.following)); };
+  paint();
+  fol.addEventListener('click', async () => { try { await post('/api/v8/tv/follow', { id: x.id, on: !x.following }); x.following = !x.following; paint(); toast(x.following ? `Following ${x.title}.` : `Stopped following ${x.title}.`); emit('cm:follow', { id: x.id, on: x.following }); } catch (e) { toast(e.message, null, true); } });
+  const reasons = x.reasons || [];
+  const why = best ? h('div', { class: 'whyx' }, h('div', { class: 'reasons', 'aria-label': 'Why this pick' }, reasons.map(r => h('span', { class: 'tag y' }, r))))
+    : h('details', { class: 'whyx' }, h('summary', {}, 'Why this pick', h('span', { html: I.chev })), h('div', { class: 'box' }, h('div', { class: 'reasons' }, reasons.map(r => h('span', { class: 'tag' }, r)))));
+  const mm = [x.rating ? `★ ${x.rating} ${x.rating_src}` : null, x.episode_runtime ? `${x.episode_runtime}-min episodes` : null, x.seasons ? `${x.seasons} season${x.seasons === 1 ? '' : 's'}` : null, x.cert, x.network].filter(Boolean);
+  return h('article', { class: `rk${best ? ' rk1' : ''}`, 'aria-label': `Rank ${n}: ${x.title}${best ? ', best match' : ''}` },
+    best ? h('span', { class: 'best', html: I.trophy + 'Best Match' }) : null, h('span', { class: 'num', 'aria-hidden': 'true' }, String(n)),
+    h('a', { class: 'pp', href, tabindex: '-1', 'aria-hidden': 'true' }, posterImg(x, 'poster_lg', best ? 200 : 96)),
+    h('div', { class: 'in' }, h('a', { class: 'tt', href }, x.title, x.year ? h('span', { class: 'yr' }, ` (${x.year})`) : null, h('span', { class: 'tag tvk', style: 'margin-left:8px' }, 'TV')),
+      h('div', { class: 'mm' }, mm.map(t => h('span', {}, t))), x.overview ? h('p', { class: 'syn' }, x.overview) : null, why,
+      h('div', { class: 'acts' }, h('a', { class: `btn ${best ? 'primary' : 'outline'} sm`, href, html: I.play + 'Episodes and where to watch' }), fol,
+        h('a', { class: 'btn ghost sm', href: `#/ask?ask=${encodeURIComponent(`Tell me more about the TV series ${x.title}: why is it a good pick for tonight?`)}`, html: I.bubble + 'Ask about it' }))));
+}
+function drawTv(out, res) {
+  out.innerHTML = '';
+  const head = h('div', { class: 'section-h' }, h('span', { class: 'ico', html: I.trophy }), h('h2', {}, 'Your Top Shows'));
+  if (res.limits.words.length) head.append(h('span', { class: 'sub' }, 'Only shows ' + res.limits.words.join(', ') + '.'));
+  out.append(head);
+  if (res.pending) { out.append(h('p', { class: 'pick-wait' }, h('span', { class: 'status' }, h('span', { class: 'dot' })), 'Ranking shows…')); return; }
+  if (res.error) { out.append(h('div', { class: 'notice warn' }, res.error, ' ', h('button', { class: 'btn secondary sm', type: 'button', onclick: () => pagePick.run() }, 'Try again'))); return; }
+  const left = Object.entries(res.removed || {}).sort((a, b) => b[1] - a[1]).map(([w, n]) => `${n} ${w}`).join('; ');
+  if (!res.picks.length) { out.append(empty('No show fits every limit', `${left ? `Left out: ${left}. ` : ''}Loosen one limit and try again; nothing changes until you choose.`, 'reel', relaxButtons(res))); return; }
+  out.append(h('div', { class: 'ranks' }, res.picks.map((x, i) => tvCardRank(x, i + 1, res))));
+  if (res.picks.length < 3) out.append(h('div', { class: 'notice pick-limits' }, h('b', {}, `Only ${res.picks.length} show${res.picks.length === 1 ? '' : 's'} fit every limit`), left ? ` (left out: ${left})` : '', '. Loosen one?', h('div', { class: 'chips' }, relaxButtons(res))));
+  out.append(h('div', { class: 'pick-sum' }, h('span', { html: I.sparkle }), h('div', {}, h('h3', {}, 'How these were picked'),
+    h('p', { class: 'muted small' }, `Ranked in code from ${Number(res.considered || 0).toLocaleString()} shows you have not followed or watched: IMDb rating weighted by votes${res.sel.novelty === 'different' ? ', among less-voted shows (something different)' : ', with a little weight on popularity'}. ${left ? `Left out by your limits: ${left}.` : ''} Episode length, US TV rating and services are hard limits; a show whose fact is unknown is left out.`))));
+  out.append(h('div', { class: 'pick-actions' },
+    h('button', { class: 'btn secondary', type: 'button', html: I.sparkle + 'Try different shows', onclick: () => {
+      const seen = [...new Set([...(res.exclude || []), ...res.picks.map(p => p.id)])];
+      const more = (res.candidates || []).filter(x => !seen.includes(x.id));
+      if (more.length >= 3) { const next = Object.assign({}, res, { picks: more.slice(0, 3), candidates: more.slice(3), exclude: seen }); S.pickResult = next; drawTv(out, next); }
+      else pagePick.run(seen);
+    } }),
+    h('button', { class: 'btn secondary', type: 'button', html: I.sliders + 'Refine preferences', onclick: () => { scrollTo({ top: 0, behavior: 'smooth' }); $('.pref')?.focus(); } })));
 }

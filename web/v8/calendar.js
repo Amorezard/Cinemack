@@ -8,8 +8,8 @@
 import { $, $$, S, h, I, api, post, view, store, toast, iso, dayOf, fmtDate, rt, wantButton, showtimesSheet, showSheet, emit, empty, firstGenre, shortGenre, setChoice, isWant, posterImg } from './core.js';
 
 const KIND = { theatrical: ['In theaters', 'th'], theatrical_rerelease: ['Back in theaters', 're'], theatrical_or_unknown: ['US release, type not confirmed', 'un'],
-  digital: ['Streaming', 'st'], tv_season: ['TV season premiere', 'tv'] };
-const GROUPS = [['theaters', 'In Theaters', 'th', (e) => e.kind.startsWith('theatrical'), I.ticket], ['streaming', 'Streaming', 'st', (e) => e.kind === 'digital', I.play], ['tv', 'TV Seasons', 'tv', (e) => e.kind === 'tv_season', I.tv]];
+  digital: ['Streaming', 'st'], tv_season: ['TV season premiere', 'tv'], tv_episode: ['New episode', 'tv'] };
+const GROUPS = [['theaters', 'In Theaters', 'th', (e) => e.kind.startsWith('theatrical'), I.ticket], ['streaming', 'Streaming', 'st', (e) => e.kind === 'digital', I.play], ['tv', 'TV', 'tv', (e) => e.kind === 'tv_season' || e.kind === 'tv_episode', I.tv]];
 const FILTER = [['all', 'All Releases', null], ['theaters', 'In Theaters', I.ticket], ['streaming', 'Streaming', I.play], ['tv', 'TV', I.tv], ['mine', 'My Watchlist', I.bookmark]];
 const cache = new Map();
 document.addEventListener('cm:choice', () => cache.clear());     // watchlist flags on events change when a film is saved
@@ -35,7 +35,7 @@ export async function pageCalendar(params) {
   const wrap = h('div', { class: 'cal-wrap' });
   const note = h('p', { class: 'cal-note' });
   view.append(h('div', { class: 'page-h' }, h('span', { class: 'ic', html: I.cal }),
-    h('div', { class: 'tx' }, h('h1', {}, 'Release Calendar'), h('p', {}, 'New movies, streaming releases and TV season premieres, all in one place.')), seg),
+    h('div', { class: 'tx' }, h('h1', {}, 'Release Calendar'), h('p', {}, 'New movies, streaming releases and TV episodes, all in one place.')), seg),
     h('div', { class: 'cal-bar' }, chips, nav), sub, wrap, note);
   FILTER.forEach(([k, l, ic]) => chips.append(h('button', { class: 'chip', type: 'button', 'data-k': k, 'aria-pressed': 'false', html: (ic || '') + `<span>${l}</span>`, onclick: () => { st.f = k; st.p = ''; draw(); } })));
 
@@ -62,7 +62,7 @@ export async function pageCalendar(params) {
     if (st.f === 'mine') return e.on_watchlist || e.following;
     if (st.f === 'theaters') return e.kind.startsWith('theatrical');
     if (st.f === 'streaming') return e.kind === 'digital' && (!st.p || (e.providers || []).includes(st.p) || (st.p === '?' && !(e.providers || []).length));
-    if (st.f === 'tv') return e.kind === 'tv_season';
+    if (st.f === 'tv') return e.kind === 'tv_season' || e.kind === 'tv_episode';
     return true;
   };
   let seq = 0, data = null;
@@ -99,7 +99,7 @@ export async function pageCalendar(params) {
     if (st.view === 'week') drawWeek(a, by); else drawMonth(a, z, by);
     wrap.append(dayPanel(by[st.sel] || []));
     const total = Object.values(by).reduce((n, x) => n + x.length, 0);
-    note.textContent = `${total} release${total === 1 ? '' : 's'} in this ${st.view}${st.f !== 'all' ? ' with this filter' : ''}. Dates are US dates from TMDB${j.as_of ? `, lists updated ${j.as_of}` : ''}. TV rows are season premieres; individual episode dates are not in the database. Cinemack has no showtimes of its own: Showtimes opens a web search.`;
+    note.textContent = `${total} release${total === 1 ? '' : 's'} in this ${st.view}${st.f !== 'all' ? ' with this filter' : ''}. Dates are US dates from TMDB${j.as_of ? `, lists updated ${j.as_of}` : ''}. TV: season premieres, season finales of well-known shows, and every episode of the shows you follow. Cinemack has no showtimes of its own: Showtimes opens a web search.`;
   }
   const kinds = (es) => [...new Set(es.map(e => (KIND[e.kind] || ['', 'un'])[1]))];
   const thumb = (e) => { const it = e.film || e.show; return h('span', { class: 'pp' }, it.poster ? h('img', { src: it.poster, alt: '', loading: 'lazy', width: 54, height: 81 }) : h('span', { class: 'ph' })); };
@@ -109,11 +109,11 @@ export async function pageCalendar(params) {
     if (e.kind === 'digital' && (e.providers || []).length) return e.providers.slice(0, 2).join(', ');
     return [g, f.runtime ? rt(f.runtime) : null].filter(Boolean).join(' · ') || (e.kind === 'theatrical_rerelease' ? 'Re-release' : '');
   };
-  const openShow = (e) => showSheet({ id: e.show.id, title: e.show.title, poster: e.show.poster, network: e.network, following: e.following });
+  const epLabel = (e) => e.kind === 'tv_episode' ? `S${e.show.season} E${e.show.episode}${e.finale ? ' · finale' : ''}` : `S${e.show.season} premiere`;
   // one release inside a week column: a wide tile (film with a backdrop, quiet group) or a compact row
   function weekItem(e, tile) {
-    if (e.show) return h('button', { type: 'button', class: 'wr', onclick: () => openShow(e), 'aria-label': `${e.show.title}, season ${e.show.season}: details and follow` },
-      h('span', { class: 'pp' }, posterImg(e.show, 'poster', 40)), h('span', { class: 'in' }, h('span', { class: 'tt' }, e.show.title), h('span', { class: 'mm' }, `Season ${e.show.season}`)));
+    if (e.show) return h('a', { class: 'wr', href: `#/show/${e.show.id}`, title: e.show.title },
+      h('span', { class: 'pp' }, posterImg(e.show, 'poster', 40)), h('span', { class: 'in' }, h('span', { class: 'tt' }, e.show.title), h('span', { class: 'mm' }, epLabel(e))));
     const f = e.film, href = `#/film/${f.id}`;
     if (tile && f.backdrop) {
       const img = h('img', { src: f.backdrop, alt: '', loading: 'lazy', width: 300, height: 169, class: 'ld' });
@@ -197,7 +197,7 @@ export async function pageCalendar(params) {
         h('div', { class: 'evs' }, g.map(evCard))));
     }
     // Add reminders: saves every film of the day that is not saved yet and follows every show not followed yet
-    const films = es.filter(e => e.film && !isWant(e.film.id)), shows = es.filter(e => e.show && !e.following);
+    const films = es.filter(e => e.film && !isWant(e.film.id)), shows = [...new Map(es.filter(e => e.show && !e.following).map(e => [e.show.id, e])).values()];
     if (st.sel >= today && (films.length || shows.length)) {
       const n = films.length + shows.length;
       const b = h('button', { class: 'btn outline block remind', type: 'button', html: I.bell + `<span>Add reminders${n > 1 ? ` (${n})` : ''}</span>` });
@@ -234,9 +234,10 @@ export async function pageCalendar(params) {
     paint();
     fol.addEventListener('click', async () => { try { await post('/api/v8/tv/follow', { id: show.id, on: !e.following }); e.following = !e.following; paint(); cache.clear();
       toast(e.following ? `Following ${show.title}. It is on your Watchlist, with season alerts on.` : `Stopped following ${show.title}.`); emit('cm:follow', { id: show.id, on: e.following }); } catch (er) { toast(er.message, null, true); } });
-    return h('article', { class: 'ev', 'data-kind': 'tv' }, h('span', { class: 'pp' }, posterImg(show, 'poster', 48)),
-      h('div', { class: 'in' }, h('button', { class: 'tt', type: 'button', onclick: () => openShow(e) }, show.title),
-        h('span', { class: 'mm' }, `Season ${show.season} premieres`), e.network ? h('span', { class: 'sv' }, e.network) : null),
+    return h('article', { class: 'ev', 'data-kind': 'tv' }, h('a', { class: 'pp', href: `#/show/${show.id}`, tabindex: '-1', 'aria-hidden': 'true' }, posterImg(show, 'poster', 48)),
+      h('div', { class: 'in' }, h('a', { class: 'tt', href: `#/show/${show.id}` }, show.title),
+        h('span', { class: 'mm' }, e.kind === 'tv_episode' ? `S${show.season} E${show.episode}${show.episode_title ? ` · ${show.episode_title}` : ''}${e.finale ? ' (season finale)' : ''}` : `Season ${show.season} premieres`),
+        e.network ? h('span', { class: 'sv' }, e.network) : null),
       h('div', { class: 'ea' }, fol));
   }
   draw();

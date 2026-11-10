@@ -20,7 +20,7 @@ export const S = {
   filters: { genres: [] },
 };
 export const hdrs = (extra = {}) => Object.assign({ 'Content-Type': 'application/json', 'X-Access-Code': S.code, 'X-MB-User': S.user,
-  'X-MB-Conv': S.chat.convId, 'X-MB-Private': '0' }, extra);
+  'X-MB-Conv': S.chat.convId, 'X-MB-Private': S.chat.private ? '1' : '0' }, extra);   // round 21: private chats are never saved
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const h = (tag, attrs = {}, ...kids) => {
   const el = document.createElement(tag);
@@ -281,7 +281,8 @@ export function posterImg(f, size = 'poster', w = 160) {
   img.addEventListener('error', () => img.replaceWith(posterPlaceholder(f)), { once: true });
   return img;
 }
-export const filmHref = (f) => (f.media === 'tv' || (f.id != null && f.id < 0)) ? null : `#/film/${f.id}`;
+export const filmHref = (f) => f.media === 'tv' ? `#/show/${Math.abs(f.id)}` : (f.id != null && f.id < 0) ? `#/show/${-f.id}` : `#/film/${f.id}`;
+export const showHref = (id) => `#/show/${Math.abs(id)}`;
 // Poster card: poster with the title over it, a watchlist toggle, one line of facts underneath.
 export function posterCard(f, opts = {}) {
   if (f.id != null && !(f.id in S.choices)) S.choices[f.id] = f.mine || '';
@@ -305,10 +306,10 @@ export function posterCard(f, opts = {}) {
 // follows or unfollows in place. Meta: TMDB rating, then the new season ("Season 3 · Nov 2") or the network.
 export function tvCard(x) {
   const name = `${x.title || 'Untitled'}${x.year ? ` (${x.year})` : ''}`;
-  const open = () => showSheet({ id: x.id, title: x.title, poster: x.poster, year: x.year, network: x.network, following: x.following });
+  const href = showHref(x.id);
   const c = h('div', { class: 'pc tvc' },
-    h('button', { class: 'pl', type: 'button', 'aria-label': `${name}: TV series, details and follow`, onclick: open }, posterImg(x, 'poster_lg', 220)),
-    h('button', { class: 'ti', type: 'button', tabindex: '-1', onclick: open }, x.title || 'Untitled'));
+    h('a', { class: 'pl', href, 'aria-label': `${name}: TV series, details and episodes` }, posterImg(x, 'poster_lg', 220)),
+    h('a', { class: 'ti', href, tabindex: '-1' }, x.title || 'Untitled'));
   const me = h('div', { class: 'me' });
   if (x.rating != null) me.append(h('span', { class: 'r' }, `★ ${Number(x.rating).toFixed(1)}`));
   if (x.season) {
@@ -375,7 +376,7 @@ S.filters = Object.assign({ genres: [] }, store.json('cm.filters', {}));
 if (!Array.isArray(S.filters.genres)) S.filters.genres = [];
 export const F = {
   save() { store.set('cm.filters', JSON.stringify(S.filters)); emit('cm:filters'); },
-  count() { const f = S.filters; return (F.allGenres() ? 0 : (f.genres || []).length) + ['era', 'max_runtime', 'max_cert', 'services_only'].filter(k => f[k]).length; },
+  count() { const f = S.filters; return (F.allGenres() ? 0 : (f.genres || []).length) + ['era', 'max_runtime', 'max_cert', 'services_only', 'min_year'].filter(k => f[k]).length + ((f.never_genres || []).length ? 1 : 0); },
   allGenres() { const g = new Set(S.filters.genres || []); return GENRES.length > 0 && GENRES.every(x => g.has(x)); },
   // Every genre selected means no genre restriction, on Home and in the chat. The chat matches ANY of the genres.
   forChat() { const f = Object.assign({}, S.filters); if (!(f.genres || []).length || F.allGenres()) delete f.genres; delete f.genre_mode; if (f.long) delete f.brief; else f.brief = true; delete f.long;
@@ -441,14 +442,14 @@ export function cwCard(it) {
   const last = it.last || {}, nx = it.next;
   const src = last.source === 'you' ? `Updated ${ago(last.at)}` : last.source ? `From your ${last.source[0].toUpperCase() + last.source.slice(1)} history, ${ago(last.at)}` : '';
   const acts = h('div', { class: 'acts' });
-  if (nx && nx.episode) acts.append(h('button', { class: 'btn primary sm', type: 'button', html: I.check + `<span>Watched ${esc(nx.label)}</span>`,
+  if (nx && nx.episode && !nx.upcoming) acts.append(h('button', { class: 'btn primary sm', type: 'button', html: I.check + `<span>Watched ${esc(nx.label)}</span>`,
     onclick: (e) => { e.currentTarget.classList.add('busy'); CW.save({ id: it.id, season: nx.season, episode: nx.episode }, `${it.title}: ${nx.label} watched.`); } }));
   acts.append(h('button', { class: 'btn secondary sm', type: 'button', onclick: () => progressSheet(it) }, last.source === 'you' ? 'Update' : 'Track progress'));
   return h('div', { class: 'cw', role: 'listitem' },
-    h('div', { class: 'pp' }, it.poster ? h('img', { src: it.poster, alt: '', loading: 'lazy', width: 76, height: 114 }) : h('span', { class: 'ph' }, it.title)),
-    h('div', { class: 'in' }, h('div', { class: 'tt', title: it.title }, it.title),
+    h('a', { class: 'pp', href: showHref(it.id), tabindex: '-1', 'aria-hidden': 'true' }, it.poster ? h('img', { src: it.poster, alt: '', loading: 'lazy', width: 76, height: 114 }) : h('span', { class: 'ph' }, it.title)),
+    h('div', { class: 'in' }, h('a', { class: 'tt', href: showHref(it.id), title: it.title }, it.title),
       h('div', { class: 'l1' }, 'Last watched: ', last.label || '—'),
-      nx ? h('div', { class: 'l2' }, nx.upcoming ? h('b', {}, nx.date ? `${nx.label} ${fmtDate(nx.date)}` : nx.label) : nx.caught_up ? h('span', { class: 'muted' }, nx.label) : ['Next: ', h('b', {}, nx.label)])
+      nx ? h('div', { class: 'l2' }, nx.upcoming ? h('b', {}, nx.episode || !nx.date ? nx.label : `${nx.label} ${fmtDate(nx.date)}`) : nx.caught_up ? h('span', { class: 'muted' }, nx.label) : ['Next: ', h('b', {}, nx.label), nx.title ? h('span', { class: 'muted' }, ` · ${nx.title}`) : null])
         : h('div', { class: 'l2 muted' }, 'Next episode unknown. Set your progress to track it.'),
       seasonsBar(it.seasons_bar), src ? h('div', { class: 'src' }, src) : null, acts));
 }
@@ -497,6 +498,7 @@ export function showSheet(s) {
 
 // ---------------------------------------------------------------- accounts
 export function authSheet(mode) {
+  if (mode === 'up') { location.hash = '#/join'; return; }       // round 21: sign-up is the full set-up flow
   sheet(mode === 'up' ? 'Create account' : 'Sign in', (b, d) => {
     const u = h('input', { class: 'input', id: 'au-u', autocomplete: 'username' });
     const pw = h('input', { class: 'input', id: 'au-p', type: 'password', autocomplete: mode === 'up' ? 'new-password' : 'current-password' });

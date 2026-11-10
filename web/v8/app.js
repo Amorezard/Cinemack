@@ -11,10 +11,13 @@ const PAGES = {
   profile: () => import('./profile.js').then(m => m.pageProfile),
   friend: () => import('./profile.js').then(m => m.pageFriend),
   film: () => import('./film.js').then(m => m.pageFilm),
+  show: () => import('./show.js').then(m => m.pageShow),          // round 21: TV show page with episodes
+  join: () => import('./join.js').then(m => m.pageJoin),          // round 21: create an account and set it up
 };
 const ROUTES = [[/^#?\/?$/, 'home', 'home'], [/^#\/(ask|discover)/, 'ask', 'ask'], [/^#\/pick/, 'pick', 'pick'], [/^#\/watchlist/, 'watchlist', 'watchlist'],
-  [/^#\/calendar/, 'calendar', 'calendar'], [/^#\/profile/, 'profile', 'profile'], [/^#\/film\/(\d+)/, 'film', null], [/^#\/friend\/([^?]+)/, 'friend', 'profile']];
-const TITLES = { home: 'Cinemack', ask: 'Ask Cinemack', pick: 'Pick Tonight', calendar: 'Release Calendar', watchlist: 'My Watchlist', profile: 'Profile', friend: 'Friend' };
+  [/^#\/calendar/, 'calendar', 'calendar'], [/^#\/profile/, 'profile', 'profile'], [/^#\/film\/(\d+)/, 'film', null], [/^#\/friend\/([^?]+)/, 'friend', 'profile'],
+  [/^#\/show\/(\d+)/, 'show', null], [/^#\/join/, 'join', null]];
+const TITLES = { home: 'Cinemack', ask: 'Ask Cinemack', pick: 'Pick Tonight', calendar: 'Release Calendar', watchlist: 'My Watchlist', profile: 'Profile', friend: 'Friend', show: 'TV show', join: 'Create your account' };
 
 async function route() {
   const hash = location.hash || '#/';
@@ -31,7 +34,7 @@ async function route() {
     try {
       const fn = await PAGES[key]();
       if (seq !== route.seq) return;
-      await fn(key === 'film' || key === 'friend' ? decodeURIComponent(m[1]) : params, params);
+      await fn(key === 'film' || key === 'friend' || key === 'show' ? decodeURIComponent(m[1]) : params, params);
     } catch (e) {
       if (seq === route.seq && e.status !== 401) { view.innerHTML = ''; view.append(h('div', { class: 'notice' }, e.message || 'Something went wrong.')); console.error(e); }
     }
@@ -53,7 +56,7 @@ function searchBox(input, pop, onPick) {
     add('Movies', r.films || [], (f) => h('a', { class: 'sr-item', role: 'option', href: `#/film/${f.id}`, onclick: () => { close(); onPick?.(); } },
       h('span', { class: 'pp' }, posterImg(f, 'poster', 36)), h('span', {}, h('span', { class: 't' }, f.title), h('span', { class: 'm', style: 'display:block' }, [f.year, (f.genres || '').split(',')[0]].filter(Boolean).join(' · '))),
       f.rating != null ? h('span', { class: 'm' }, `★ ${f.rating}`) : ''));
-    add('TV shows', r.shows || [], (s) => h('button', { type: 'button', class: 'sr-item', role: 'option', style: 'width:100%;border:0;background:none;text-align:left', onclick: () => { close(); onPick?.(); showSheet(s); } },
+    add('TV shows', r.shows || [], (s) => h('a', { class: 'sr-item', role: 'option', href: `#/show/${Math.abs(s.id)}`, onclick: () => { close(); onPick?.(); } },
       h('span', { class: 'pp' }, posterImg(s, 'poster', 36)), h('span', {}, h('span', { class: 't' }, s.title), h('span', { class: 'm', style: 'display:block' }, [s.year, s.network, 'TV'].filter(Boolean).join(' · '))),
       s.following ? h('span', { class: 'tag tvk' }, 'Following') : ''));
     pop.append(h('a', { class: 'sr-item', role: 'option', id: `sr-${items.length}`, href: `#/ask?ask=${encodeURIComponent(q)}`, style: 'grid-template-columns:36px 1fr', onclick: () => { close(); onPick?.(); } },
@@ -118,9 +121,14 @@ async function refreshMe() {
     S.me = await api('/api/me'); const n = displayName(S.me);
     const av = $('#avatar'); if (n) av.textContent = n[0].toUpperCase(); else av.innerHTML = I.user.replace('<svg', '<svg width="18" height="18"');
   } catch {}
+  // round 21: signed out -> "Sign in" and "Create account" in the header (the avatar menu keeps both too)
+  const out = !S.me?.account;
+  $('#hdr-auth').hidden = !out; document.body.classList.toggle('signed-out', out);
+  $('#me-btn').setAttribute('aria-label', out ? 'Guest menu: profile, settings, sign in' : 'Your profile and settings');
   try { const a = await api('/api/v8/alerts'); updateBell(a.unseen); } catch {}
 }
 document.addEventListener('cm:me', refreshMe);
+$('#hdr-signin').addEventListener('click', () => authSheet('in'));
 
 // On phones the tab bar steps aside while the keyboard is up, so the composer and inputs keep their room.
 document.addEventListener('focusin', (e) => { if (matchMedia('(max-width:1023px)').matches && e.target.matches('input:not([type=checkbox]):not([type=file]),textarea,select')) document.body.classList.add('kb'); });
