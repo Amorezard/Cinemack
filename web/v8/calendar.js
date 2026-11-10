@@ -1,13 +1,15 @@
 // Release Calendar (10 Nov 2026 redesign): Week and Month views that share one state (selected date, type filter,
-// streaming service), kept in the URL so switching views, reloading or sharing keeps it. Columns and cells have a
-// fixed size: a busy day shows a few posters and an exact "+N more", and the full list opens in the day panel.
+// streaming service), kept in the URL so switching views, reloading or sharing keeps it.
+// 10 Nov, round 18: the week columns list EVERY release of the day (no "+N more"): a group of one or two films gets wide backdrop
+// tiles, a busier group or day gets compact poster rows, TV is always rows; a busy week is simply taller. Month cells
+// are larger with up to three posters, and the day panel is a list of rows like the approved reference.
 // Dates are US release dates from TMDB; types are kept apart (theatrical, re-release, digital, unconfirmed type,
 // TV season premiere). Nothing is estimated: unknown services say so, and showtimes are web searches.
-import { $, $$, S, h, I, api, post, view, store, toast, iso, dayOf, fmtDate, rt, wantButton, showtimesSheet, showSheet, emit, empty, firstGenre, shortGenre } from './core.js';
+import { $, $$, S, h, I, api, post, view, store, toast, iso, dayOf, fmtDate, rt, wantButton, showtimesSheet, showSheet, emit, empty, firstGenre, shortGenre, setChoice, isWant, posterImg } from './core.js';
 
 const KIND = { theatrical: ['In theaters', 'th'], theatrical_rerelease: ['Back in theaters', 're'], theatrical_or_unknown: ['US release, type not confirmed', 'un'],
   digital: ['Streaming', 'st'], tv_season: ['TV season premiere', 'tv'] };
-const GROUPS = [['theaters', 'In Theaters', 'th', (e) => e.kind.startsWith('theatrical')], ['streaming', 'Streaming', 'st', (e) => e.kind === 'digital'], ['tv', 'TV / New Seasons', 'tv', (e) => e.kind === 'tv_season']];
+const GROUPS = [['theaters', 'In Theaters', 'th', (e) => e.kind.startsWith('theatrical'), I.ticket], ['streaming', 'Streaming', 'st', (e) => e.kind === 'digital', I.play], ['tv', 'TV Seasons', 'tv', (e) => e.kind === 'tv_season', I.tv]];
 const FILTER = [['all', 'All Releases', null], ['theaters', 'In Theaters', I.ticket], ['streaming', 'Streaming', I.play], ['tv', 'TV', I.tv], ['mine', 'My Watchlist', I.bookmark]];
 const cache = new Map();
 document.addEventListener('cm:choice', () => cache.clear());     // watchlist flags on events change when a film is saved
@@ -101,6 +103,28 @@ export async function pageCalendar(params) {
   }
   const kinds = (es) => [...new Set(es.map(e => (KIND[e.kind] || ['', 'un'])[1]))];
   const thumb = (e) => { const it = e.film || e.show; return h('span', { class: 'pp' }, it.poster ? h('img', { src: it.poster, alt: '', loading: 'lazy', width: 54, height: 81 }) : h('span', { class: 'ph' })); };
+  const ghead = (cls, icon, label, n) => h('span', { class: `kd ki ${cls}`, html: `${icon}<span>${label} (${n})</span>` });
+  const filmMeta = (e) => {
+    const f = e.film, g = firstGenre(f.genres).slice(0, 1).map(shortGenre)[0];
+    if (e.kind === 'digital' && (e.providers || []).length) return e.providers.slice(0, 2).join(', ');
+    return [g, f.runtime ? rt(f.runtime) : null].filter(Boolean).join(' · ') || (e.kind === 'theatrical_rerelease' ? 'Re-release' : '');
+  };
+  const openShow = (e) => showSheet({ id: e.show.id, title: e.show.title, poster: e.show.poster, network: e.network, following: e.following });
+  // one release inside a week column: a wide tile (film with a backdrop, quiet group) or a compact row
+  function weekItem(e, tile) {
+    if (e.show) return h('button', { type: 'button', class: 'wr', onclick: () => openShow(e), 'aria-label': `${e.show.title}, season ${e.show.season}: details and follow` },
+      h('span', { class: 'pp' }, posterImg(e.show, 'poster', 40)), h('span', { class: 'in' }, h('span', { class: 'tt' }, e.show.title), h('span', { class: 'mm' }, `Season ${e.show.season}`)));
+    const f = e.film, href = `#/film/${f.id}`;
+    if (tile && f.backdrop) {
+      const img = h('img', { src: f.backdrop, alt: '', loading: 'lazy', width: 300, height: 169, class: 'ld' });
+      img.addEventListener('load', () => img.classList.remove('ld'), { once: true });
+      img.addEventListener('error', () => img.replaceWith(h('span', { class: 'ph' })), { once: true });
+      return h('a', { class: 'wt', href, title: f.title }, img, h('span', { class: 'tt' }, f.title));
+    }
+    const m = filmMeta(e);
+    return h('a', { class: 'wr', href, title: f.title }, h('span', { class: 'pp' }, posterImg(f, 'poster', 40)),
+      h('span', { class: 'in' }, h('span', { class: 'tt' }, f.title), m ? h('span', { class: 'mm' }, m) : null));
+  }
   function select(dt) { st.sel = dt; draw().then(() => { if (!matchMedia('(min-width:1280px)').matches || st.view === 'week') $('.dpanel')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }); }
   function keyNav(e) {
     const step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[e.key];
@@ -110,27 +134,24 @@ export async function pageCalendar(params) {
   }
   function drawWeek(a, by) {
     const ds = Array.from({ length: 7 }, (_, i) => { const d = dayOf(a); d.setDate(d.getDate() + i); return iso(d); });
-    const grid = h('div', { class: 'week', role: 'tablist', 'aria-label': 'Days of the week' });
+    const grid = h('div', { class: 'week', role: 'group', 'aria-label': 'Days of the week' });
     const strip = h('div', { class: 'wstrip', role: 'tablist', 'aria-label': 'Days of the week' });
     for (const dt of ds) {
       const es = by[dt] || [], n = es.length, d = dayOf(dt);
       const label = `${d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}: ${n} release${n === 1 ? '' : 's'}`;
-      const col = h('button', { class: `wday${dt === today ? ' today' : ''}${dt < today ? ' past' : ''}`, type: 'button', role: 'tab', 'aria-selected': String(dt === st.sel), 'aria-label': label,
-        tabindex: dt === st.sel ? '0' : '-1', 'data-d': dt, onclick: () => select(dt), onkeydown: keyNav },
-        h('span', { class: 'dh' }, h('span', { class: 'wd', style: 'display:block' }, d.toLocaleDateString(undefined, { weekday: 'short' })),
-          h('span', { class: 'dn', style: 'display:block' }, d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })), dt === today ? h('span', { class: 'now' }, 'Today') : null));
-      const body = h('span', { class: 'db' });
+      const col = h('div', { class: `wday${dt === today ? ' today' : ''}${dt < today ? ' past' : ''}${dt === st.sel ? ' sel' : ''}`, 'data-day': dt },
+        h('button', { class: 'dh', type: 'button', 'aria-pressed': String(dt === st.sel), 'aria-label': label,
+          tabindex: dt === st.sel ? '0' : '-1', 'data-d': dt, onclick: () => select(dt), onkeydown: keyNav },
+          h('span', { class: 'wd' }, d.toLocaleDateString(undefined, { weekday: 'short' })),
+          h('span', { class: 'dn' }, d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })), dt === today ? h('span', { class: 'now' }, 'Today') : null));
+      const body = h('div', { class: 'db' });
+      body.addEventListener('click', (ev) => { if (!ev.target.closest('a,button')) select(dt); });
       if (!n) body.append(h('span', { class: 'none' }, 'No dated releases'));
-      else {
-        let shown = 0; const MAX = 4;
-        for (const [, gl, cls, test] of GROUPS) {
-          const g = es.filter(test); if (!g.length) continue;
-          const take = Math.min(g.length, Math.max(0, MAX - shown), 2);
-          const grp = h('span', { class: 'grp' }, h('span', { class: `kd ${cls}` }, `${gl.split(' /')[0]} (${g.length})`));
-          if (take) { grp.append(h('span', { class: 'thumbs' }, g.slice(0, take).map(thumb))); shown += take; }
-          body.append(grp);
-        }
-        if (n > shown) body.append(h('span', { class: 'more' }, `+${n - shown} more`));
+      else for (const [, gl, cls, test, icon] of GROUPS) {
+        const g = es.filter(test); if (!g.length) continue;
+        const tiles = cls !== 'tv' && g.length <= 2 && n <= 6;          // quiet day: wide tiles; busy: compact rows
+        body.append(h('div', { class: `grp${tiles ? ' tiles' : ''}` }, h('div', { class: 'gh' }, ghead(cls, icon, cls === 'tv' ? 'TV' : gl, g.length)),
+          h('div', { class: 'items' }, g.map(e => weekItem(e, tiles)))));
       }
       col.append(body); grid.append(col);
       strip.append(h('button', { type: 'button', role: 'tab', class: dt === today ? 'today' : '', 'aria-selected': String(dt === st.sel), 'aria-label': label, tabindex: dt === st.sel ? '0' : '-1',
@@ -170,38 +191,53 @@ export async function pageCalendar(params) {
       h('p', { class: 'sub' }, es.length ? `${es.length} release${es.length === 1 ? '' : 's'}${st.sel === today ? ' today' : ''}` : 'Nothing dated for this day.'));
     if (!es.length) { p.append(empty(null, st.f === 'mine' ? 'Nothing from your watchlist or followed shows on this day.' : 'Try another day, or switch to Month to see where the releases are.', null, [], true)); return p; }
     const groups = h('div', { class: 'dgroups' }); p.append(groups);
-    for (const [key, gl, cls, test] of GROUPS) {
+    for (const [key, gl, cls, test, icon] of GROUPS) {
       const g = es.filter(test); if (!g.length) continue;
-      groups.append(h('div', { class: 'dgroup', 'data-g': key }, h('div', { class: 'gh' }, h('span', { class: `kd ${cls}` }, gl), h('span', { class: 'n' }, `(${g.length})`)),
+      groups.append(h('div', { class: 'dgroup', 'data-g': key }, h('div', { class: 'gh' }, ghead(cls, icon, gl, g.length)),
         h('div', { class: 'evs' }, g.map(evCard))));
     }
-    p.append(h('p', { class: 'hint', style: 'margin-top:14px' }, 'Saving a film turns on its alerts: you hear in Cinemack (the bell) when it comes out or starts streaming. Following a show alerts you when a new season gets a date.'));
+    // Add reminders: saves every film of the day that is not saved yet and follows every show not followed yet
+    const films = es.filter(e => e.film && !isWant(e.film.id)), shows = es.filter(e => e.show && !e.following);
+    if (st.sel >= today && (films.length || shows.length)) {
+      const n = films.length + shows.length;
+      const b = h('button', { class: 'btn outline block remind', type: 'button', html: I.bell + `<span>Add reminders${n > 1 ? ` (${n})` : ''}</span>` });
+      b.addEventListener('click', async () => {
+        b.disabled = true;
+        await Promise.all(films.map(e => setChoice(e.film, 'want', true)));
+        let ok = 0;
+        for (const e of shows) { try { await post('/api/v8/tv/follow', { id: e.show.id, on: true }); e.following = true; ok++; emit('cm:follow', { id: e.show.id, on: true }); } catch {} }
+        cache.clear();
+        toast([films.length ? `Saved ${films.length} film${films.length === 1 ? '' : 's'}` : '', ok ? `followed ${ok} show${ok === 1 ? '' : 's'}` : ''].filter(Boolean).join(' and ') + '. The bell tells you when they come out.');
+        draw();
+      });
+      p.append(b);
+    }
+    p.append(h('p', { class: 'hint', style: 'margin-top:12px' }, 'Saving a film turns on its alerts: you hear in Cinemack (the bell) when it comes out or starts streaming. Following a show alerts you when a new season gets a date.'));
     return p;
   }
   function evCard(e) {
     const film = e.film, show = e.show, [lab, cls] = KIND[e.kind] || [e.label, 'un'];
     if (film) {
-      const gs = firstGenre(film.genres).slice(0, 1).map(shortGenre);
-      const facts = [gs[0], film.runtime ? rt(film.runtime) : null].filter(Boolean).join(' · ');
-      const acts = h('div', { class: 'acts' });
-      if (e.kind.startsWith('theatrical') && film.in_theatres) acts.append(h('button', { class: 'btn primary sm', type: 'button', html: I.ticket + 'Showtimes', onclick: () => showtimesSheet(film) }));
-      if (e.kind === 'digital') acts.append(h('a', { class: 'btn outline sm', href: `#/film/${film.id}?go=watch`, html: I.play + 'Where to watch' }));
-      acts.append(wantButton(film, 'text'));
-      return h('article', { class: 'ev' }, h('a', { class: 'pp', href: `#/film/${film.id}`, tabindex: '-1', 'aria-hidden': 'true' }, film.poster ? h('img', { src: film.poster, alt: '', loading: 'lazy', width: 56, height: 84 }) : h('span', { class: 'ph' })),
-        h('div', { class: 'in' }, h('span', { class: `kd ${cls}` }, lab), h('a', { class: 'tt', href: `#/film/${film.id}` }, film.title),
-          facts ? h('span', { class: 'mm' }, facts) : null,
-          e.kind === 'digital' ? ((e.providers || []).length ? h('span', { class: 'mm' }, 'On ' + e.providers.slice(0, 3).join(', ')) : h('span', { class: 'unk' }, 'Streaming service not announced yet')) : null,
-          e.kind === 'theatrical_or_unknown' ? h('span', { class: 'unk' }, 'TMDB lists this US date without saying if it is theatrical or digital') : null,
-          acts));
+      const href = `#/film/${film.id}`, m = [firstGenre(film.genres).slice(0, 1).map(shortGenre)[0], film.runtime ? rt(film.runtime) : null].filter(Boolean).join(' · ');
+      const acts = h('div', { class: 'ea' });
+      if (e.kind.startsWith('theatrical') && film.in_theatres) acts.append(h('button', { class: 'iconbtn', type: 'button', html: I.ticket, 'aria-label': `Showtimes: ${film.title}`, title: 'Showtimes', onclick: () => showtimesSheet(film) }));
+      if (e.kind === 'digital') acts.append(h('a', { class: 'iconbtn', href: `${href}?go=watch`, html: I.play, 'aria-label': `Where to watch ${film.title}`, title: 'Where to watch' }));
+      acts.append(wantButton(film));
+      const note = e.kind === 'digital' ? ((e.providers || []).length ? h('span', { class: 'sv' }, 'On ' + e.providers.slice(0, 3).join(', ')) : h('span', { class: 'unk' }, 'Service not announced yet'))
+        : e.kind === 'theatrical_or_unknown' ? h('span', { class: 'unk' }, 'US date; TMDB does not say theatrical or digital')
+        : e.kind === 'theatrical_rerelease' ? h('span', { class: 'sv' }, 'Back in theaters') : null;
+      return h('article', { class: 'ev', 'data-kind': cls }, h('a', { class: 'pp', href, tabindex: '-1', 'aria-hidden': 'true' }, posterImg(film, 'poster', 48)),
+        h('div', { class: 'in' }, h('a', { class: 'tt', href }, film.title), m ? h('span', { class: 'mm' }, m) : null, note), acts);
     }
-    const fol = h('button', { class: `btn ${e.following ? 'secondary' : 'outline'} sm`, type: 'button', 'aria-pressed': String(!!e.following) });
-    const paint = () => { fol.innerHTML = (e.following ? I.bellOn : I.bell) + `<span>${e.following ? 'Following' : 'Follow'}</span>`; fol.setAttribute('aria-pressed', String(!!e.following)); };
+    const fol = h('button', { class: 'iconbtn bm', type: 'button', 'aria-pressed': String(!!e.following), 'aria-label': `Follow ${show.title}` });
+    const paint = () => { fol.innerHTML = e.following ? I.bellOn : I.bell; fol.setAttribute('aria-pressed', String(!!e.following)); fol.title = e.following ? 'Following' : 'Follow'; };
     paint();
     fol.addEventListener('click', async () => { try { await post('/api/v8/tv/follow', { id: show.id, on: !e.following }); e.following = !e.following; paint(); cache.clear();
       toast(e.following ? `Following ${show.title}. It is on your Watchlist, with season alerts on.` : `Stopped following ${show.title}.`); emit('cm:follow', { id: show.id, on: e.following }); } catch (er) { toast(er.message, null, true); } });
-    return h('article', { class: 'ev' }, h('span', { class: 'pp' }, show.poster ? h('img', { src: show.poster, alt: '', loading: 'lazy', width: 56, height: 84 }) : h('span', { class: 'ph' })),
-      h('div', { class: 'in' }, h('span', { class: `kd ${cls}` }, 'New season'), h('span', { class: 'tt' }, show.title), h('span', { class: 'mm' }, `Season ${show.season} premieres${e.network ? ` · ${e.network}` : ''}`),
-        h('div', { class: 'acts' }, fol, h('button', { class: 'btn ghost sm', type: 'button', onclick: () => showSheet({ id: show.id, title: show.title, poster: show.poster, following: e.following }) }, 'Details'))));
+    return h('article', { class: 'ev', 'data-kind': 'tv' }, h('span', { class: 'pp' }, posterImg(show, 'poster', 48)),
+      h('div', { class: 'in' }, h('button', { class: 'tt', type: 'button', onclick: () => openShow(e) }, show.title),
+        h('span', { class: 'mm' }, `Season ${show.season} premieres`), e.network ? h('span', { class: 'sv' }, e.network) : null),
+      h('div', { class: 'ea' }, fol));
   }
   draw();
 }

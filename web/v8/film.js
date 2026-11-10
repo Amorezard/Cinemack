@@ -1,7 +1,6 @@
 // Film page (carried over from v8, restyled): facts, scores, where to watch, showtimes, rate, similar films.
-import { S, h, I, api, post, view, toast, sheet, setChoice, isWant, zip, showtimesSheet, section, shelf, posterCard, skelShelf, emit } from './core.js';
+import { S, h, I, rt, api, post, view, toast, sheet, setChoice, isWant, zip, showtimesSheet, section, shelf, posterCard, skelShelf, emit } from './core.js';
 
-const runtime = (m) => m ? `${Math.floor(m / 60)} h ${m % 60} min` : '';
 
 export async function pageFilm(id, params) {
   view.innerHTML = '';
@@ -11,7 +10,7 @@ export async function pageFilm(id, params) {
   document.title = `${d.title} · Cinemack`;
   S.choices[d.id] = S.choices[d.id] ?? d.mine ?? '';
   view.innerHTML = '';
-  const facts = [d.year, d.runtime ? runtime(d.runtime) : null, d.cert, (d.genres || []).slice(0, 3).join(', ')].filter(Boolean);
+  const facts = [d.year, d.runtime ? rt(d.runtime) : null, d.runtime > 0 && d.runtime <= 40 ? 'Short film' : null, d.cert, (d.genres || []).slice(0, 3).join(', ')].filter(Boolean);
   const head = h('div', { class: 'detail-head' },
     h('div', { class: 'pl' }, d.poster ? h('img', { src: d.poster, alt: `Poster for ${d.title}`, width: 200, height: 300 }) : h('span', { class: 'ph' })),
     h('div', {}, h('h1', {}, d.title), h('div', { class: 'facts' }, facts.map(x => h('span', {}, x))),

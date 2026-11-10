@@ -97,7 +97,8 @@ export const ART = {
 };
 
 // ---------------------------------------------------------------- formatting
-export const rt = (m) => m ? `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m` : '';
+// 10 Nov, round 18: "7 min" under an hour (was "0h 07m"), "2h" on the hour, otherwise "1h 58m".
+export const rt = (m) => { m = Math.round(Number(m) || 0); if (m <= 0) return ''; if (m < 60) return `${m} min`; return m % 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m / 60}h`; };
 export const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 export const dayOf = (s) => new Date(s + 'T12:00:00');
 export const fmtDate = (s, o = { month: 'short', day: 'numeric', year: 'numeric' }) => s ? dayOf(String(s).slice(0, 10)).toLocaleDateString(undefined, o) : '';
@@ -298,6 +299,33 @@ export function posterCard(f, opts = {}) {
   if (opts.why) c.append(h('div', { class: 'why' }, opts.why));
   if (opts.extra) c.append(opts.extra);
   if (f.id != null && f.media !== 'tv' && f.id > 0 && opts.save !== false) c.append(wantButton(f));
+  return c;
+}
+// 10 Nov, round 18: a TV show card for Home's TV rows. The poster opens the show sheet (follow, alerts, progress); the bell
+// follows or unfollows in place. Meta: TMDB rating, then the new season ("Season 3 · Nov 2") or the network.
+export function tvCard(x) {
+  const name = `${x.title || 'Untitled'}${x.year ? ` (${x.year})` : ''}`;
+  const open = () => showSheet({ id: x.id, title: x.title, poster: x.poster, year: x.year, network: x.network, following: x.following });
+  const c = h('div', { class: 'pc tvc' },
+    h('button', { class: 'pl', type: 'button', 'aria-label': `${name}: TV series, details and follow`, onclick: open }, posterImg(x, 'poster_lg', 220)),
+    h('button', { class: 'ti', type: 'button', tabindex: '-1', onclick: open }, x.title || 'Untitled'));
+  const me = h('div', { class: 'me' });
+  if (x.rating != null) me.append(h('span', { class: 'r' }, `★ ${Number(x.rating).toFixed(1)}`));
+  if (x.season) {
+    const d = new Date(x.season.date + 'T12:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    me.append(h('span', {}, `${x.season.number === 1 ? 'New series' : `Season ${x.season.number}`} · ${d}`));
+  } else if (x.network) me.append(h('span', {}, x.network.split(',')[0]));
+  else if (x.year) me.append(h('span', {}, String(x.year)));
+  c.append(me);
+  const b = h('button', { class: 'iconbtn bm', type: 'button', 'aria-pressed': String(!!x.following), 'aria-label': `Follow ${name}` });
+  const paint = () => { b.innerHTML = x.following ? I.bellOn : I.bell; b.setAttribute('aria-pressed', String(!!x.following)); };
+  paint();
+  b.addEventListener('click', async () => {
+    try { await post('/api/v8/tv/follow', { id: x.id, on: !x.following }); x.following = !x.following; paint();
+      toast(x.following ? `Following ${x.title}. It is on your Watchlist, with season alerts on.` : `Stopped following ${x.title}.`); emit('cm:follow', { id: x.id, on: x.following }); }
+    catch (e) { toast(e.message, null, true); }
+  });
+  c.append(b);
   return c;
 }
 // A horizontal shelf with arrows that page it; touch, trackpad and keyboard still scroll it.

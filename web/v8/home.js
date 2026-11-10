@@ -2,17 +2,20 @@
 // each answer one question with its own ranking rule (server: discovery.home):
 //   In Theaters Now (TMDB now-playing order) · Recommended for You (MovieLens, only with real likes) · Top Rated
 //   (weighted rating) · Trending Now (popularity, last 120 days, not repeating the theatre row) · Opening Soon (by date)
-//   · Your List (saved films) · Back on the Big Screen (re-releases).
+//   · New Seasons and Top Rated Shows (TV, 10 Nov (round 18)) · Your List (saved films) · Back on the Big Screen (re-releases).
+// Short films (40 minutes or less) are left out of the film rows on the server.
 // Genre chips filter every shelf (Match Any by default, Match All optional); every genre selected = no filter. The page
 // never re-sorts what the server ranked. Only the hero moves on its own.
 import { $, $$, S, h, I, api, view, F, GENRES, setGenres, shortGenre, firstGenre, section, shelf, posterCard, empty, rt, fmtDate,
-  showtimesSheet, CW, continueRow, wantButton, posterImg, ratingEl, on } from './core.js';
+  showtimesSheet, CW, continueRow, wantButton, posterImg, ratingEl, on, tvCard } from './core.js';
 
 const PRIMARY = 9;          // chips shown before "More"
 const SHELF = {
   now_playing: ['In Theaters Now', "What's playing in theaters", '#/calendar?f=theaters', 'Calendar'],
   top_rated: ['Top Rated', 'The best-rated films, weighted so a handful of votes cannot win'],
   trending: ['Trending Now', 'Most popular new releases of the last four months'],
+  new_seasons: ['New Seasons', 'TV seasons that premiered in the last 30 days, most popular first', '#/calendar?f=tv', 'Calendar'],
+  top_shows: ['Top Rated Shows', 'The best-rated TV series, weighted so a handful of votes cannot win'],
   coming_soon: ['Opening Soon', 'Upcoming releases, earliest first', '#/calendar', 'Calendar'],
   watchlist: ['Your List', 'Films you saved', '#/watchlist', 'Open watchlist'],
   back_in_theatres: ['Back on the Big Screen', 'Classics and anniversaries in theaters again'],
@@ -111,6 +114,7 @@ function drawRails(holder, d, cwItems = []) {
     const r = by[key]; if (!r) return;
     const [title, base, link, linkLabel] = SHELF[key];
     if (!r.items.length) {
+      if (r.media === 'tv' && !r.as_of) return;        // no TV data fetched on this server yet: no row, no false "none match"
       if (filtered && key !== 'back_in_theatres') out.push(section(title, { sub: base }, emptyNote(what)));
       return;
     }
@@ -129,6 +133,8 @@ function drawRails(holder, d, cwItems = []) {
     h('div', { class: 'rp-acts' }, h('a', { class: 'btn secondary sm', href: '#/pick' }, 'Try Pick Tonight'), h('a', { class: 'btn ghost sm', href: '#/profile?tab=settings&sec=imports' }, 'Import history')))));
   add('top_rated', (x) => posterCard(x, { meta: [x.year] }), 'top-rated films');           // the TMDB rating it is ranked by
   add('trending', (x) => posterCard(x), 'trending films');
+  add('new_seasons', tvCard, 'shows with a new season');
+  add('top_shows', tvCard, 'top-rated shows');
   add('coming_soon', (x) => posterCard(x, { noRating: true, meta: x.release ? [h('span', { class: `kd ${x.release.kind === 'digital' ? 'st' : x.release.kind === 'theatrical' ? 'th' : 'un'}` }, KIND[x.release.kind]), fmtDate(x.release.date, { month: 'short', day: 'numeric' })] : [] }), 'upcoming films');
   // Your List: the saved films; one or two get a compact row instead of a near-empty carousel
   const wl = by.watchlist;
@@ -146,7 +152,7 @@ function drawRails(holder, d, cwItems = []) {
   holder.innerHTML = '';
   if (cwItems.length) holder.append(section('Continue Watching', { sub: 'From the progress you record or import', more: ['#/watchlist?tab=tv', 'All shows'] }, continueRow(cwItems)));
   if (filtered && !any) {
-    holder.append(empty('No films match these genres', `Nothing in any row is ${label}. Clear the filter${mode === 'all' ? ', or match any of these genres instead of all of them' : ''}. Cinemack never fills a row with films outside your filter.`, 'reel',
+    holder.append(empty('Nothing matches these genres', `Nothing in any row is ${label}. Clear the filter${mode === 'all' ? ', or match any of these genres instead of all of them' : ''}. Cinemack never fills a row with titles outside your filter.`, 'reel',
       [h('button', { class: 'btn primary', type: 'button', onclick: () => $('.gx .btn.ghost')?.click() }, 'Clear filters'),
         mode === 'all' ? h('button', { class: 'btn secondary', type: 'button', onclick: () => $('.gx .seg button')?.click() }, 'Match any') : null].filter(Boolean)));
     return;
