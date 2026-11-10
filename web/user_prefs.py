@@ -31,6 +31,8 @@ import hashlib
 import json
 import os
 import sqlite3
+
+import dbsafe   # 10 Nov: shared connection, one call at a time (see dbsafe.py)
 import threading
 import time
 from pathlib import Path
@@ -84,7 +86,7 @@ except ImportError:  # noqa: BLE001
 def _users():
     if "u" not in _C:
         USERS.parent.mkdir(parents=True, exist_ok=True)
-        c = sqlite3.connect(str(USERS), check_same_thread=False, timeout=30)
+        c = dbsafe.wrap(sqlite3.connect(str(USERS), check_same_thread=False, timeout=30))
         c.execute("pragma journal_mode=WAL")      # v7 D4: readers never block the writer
         c.executescript("""
             create table if not exists profiles(user_key text primary key, display_name text, settings_json text,
@@ -97,7 +99,7 @@ def _users():
 
 def _facts():
     if "f" not in _C:
-        _C["f"] = sqlite3.connect(f"file:{FACTS}?mode=ro", uri=True, check_same_thread=False) if os.path.exists(FACTS) else None
+        _C["f"] = dbsafe.wrap(sqlite3.connect(f"file:{FACTS}?mode=ro", uri=True, check_same_thread=False)) if os.path.exists(FACTS) else None
     return _C["f"]
 
 
@@ -185,7 +187,7 @@ def clean_chat(raw):
     if raw.get("genre") in GENRES:
         out["genre"] = raw["genre"]
     if isinstance(raw.get("genres"), list):        # 9 Nov: Home's genre chips (any of these), shared with the chat
-        gs = [g for g in raw["genres"] if g in GENRES][:6]
+        gs = list(dict.fromkeys(g for g in raw["genres"] if g in GENRES))     # 10 Nov: no [:6] cut (Home sends up to 18)
         if gs:
             out["genres"] = gs
     if raw.get("brief") is True:                   # 9 Nov: the v8 chat asks for short answers unless told otherwise

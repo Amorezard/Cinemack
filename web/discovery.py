@@ -17,6 +17,8 @@ import datetime
 import json
 import os
 import sqlite3
+
+import dbsafe   # 10 Nov: shared connection, one call at a time (see dbsafe.py)
 import threading
 import time
 import urllib.parse
@@ -75,28 +77,71 @@ def _genres_of(ids):
     return out
 
 
-def _keep_genres(ids, genres):
-    """ids whose film has at least one of `genres`, films matching more of them first; unknown genres are dropped."""
-    if not genres:
-        return ids
-    want = set(genres)
-    g = _genres_of(ids)
-    hit = [i for i in ids if g.get(i, set()) & want]
-    return sorted(hit, key=lambda i: -len(g[i] & want))
+# ------------------------------------------------------------------ genre filter (10 Nov: Home redesign)
+# One list of genres for the server and the page (the page draws its chips from GENRE_OPTIONS in /api/v8/home).
+# Rules: none selected = no restriction; "any" = at least one selected genre; "all" = every selected genre;
+# every genre selected = no restriction (same rails, same order as none). The filter is applied to each shelf's whole
+# candidate list BEFORE it is cut to 20, and it never reorders a shelf: each shelf keeps its own ranking rule.
+GENRE_OPTIONS = ["Action", "Adventure", "Animation", "Comedy", "Crime", "Documentary", "Drama", "Family", "Fantasy",
+                 "History", "Horror", "Music", "Mystery", "Romance", "Science Fiction", "Thriller", "War", "Western"]
 
 
-def top_by_genre(genres, user="", limit=20, min_votes=800, since=None):
-    """Well-rated films with any of these genres (all of them first), from facts.db; never films the person rated."""
-    if not genres:
-        return []
-    like = " or ".join("genres_json like ?" for _ in genres)
-    args = [f'%"{g}"%' for g in genres] + [min_votes]
-    sql = f"select tmdb_id from films where ({like}) and vote_count >= ?"
-    if since:
-        sql += " and year >= ?"; args.append(since)
-    ids = [r[0] for r in _q(sql + " order by vote_average desc limit 400", tuple(args))]
-    seen = _seen_or_rated(user)
-    return _keep_genres([i for i in ids if i not in seen], genres)[:limit]
+def genre_filter(genres, mode="any"):
+    """(selected genres in canonical order, mode, every_genre_selected). Unknown names are ignored, never truncated."""
+    want = set(genres or [])
+    sel = [g for g in GENRE_OPTIONS if g in want]
+    mode = "all" if mode == "all" and len(sel) > 1 else "any"
+    every = len(sel) == len(GENRE_OPTIONS)
+    return ([] if every else sel), mode, every
+
+
+def match_genres(ids, sel, mode="any"):
+    """The ids (same order) whose film has any / all of `sel`. A film with no genre data matches no genre filter."""
+    if not sel:
+        return list(ids)
+    want, g = set(sel), _genres_of(ids)
+    ok = (lambda gs: want <= gs) if mode == "all" else (lambda gs: bool(gs & want))
+    return [i for i in ids if ok(g.get(i, set()))]
+
+
+def _genre_sql(sel, mode):
+    if not sel:
+        return "", []
+    j = " and " if mode == "all" else " or "
+    return " and (" + j.join("genres_json like ?" for _ in sel) + ")", [f'%"{g}"%' for g in sel]
+
+
+TOP_MIN_VOTES, TOP_PRIOR_VOTES = 500, 1500
+
+
+def top_rated(sel=(), mode="any", limit=20):
+    """Weighted rating (the IMDb Top 250 formula): WR = v/(v+m)*R + m/(v+m)*C with m = 1500 votes and C the mean
+    rating of films with 500+ votes, so a 9.0 from 600 votes does not beat an 8.6 from 20,000. Ties: tmdb_id."""
+    r = _q("select avg(vote_average) from films where vote_count >= ?", (TOP_MIN_VOTES,))
+    c = r[0][0] if r and r[0][0] else 6.5
+    gsql, gargs = _genre_sql(list(sel), mode)
+    m = TOP_PRIOR_VOTES
+    rows = _q(f"select tmdb_id, (vote_count * 1.0 / (vote_count + ?)) * vote_average + (? * 1.0 / (vote_count + ?)) * ? as wr "
+              f"from films where vote_count >= ? and vote_average is not null{gsql} order by wr desc, tmdb_id asc",
+              tuple([m, m, m, c, TOP_MIN_VOTES] + gargs))
+    return [x[0] for x in rows][:limit], len(rows)
+
+
+def _release_of(ids):
+    """Next confirmed US date per film: earliest future theatrical (2, 3) or digital (4) date from TMDB; otherwise the
+    film's US release date marked as type not given."""
+    if not ids:
+        return {}
+    q, today = ",".join(str(int(i)) for i in ids), _today()
+    out = {}
+    for fid, typ, d in _q(f"select tmdb_id, release_type, substr(release_date, 1, 10) from certifications where region = 'US' "
+                          f"and release_type in (2, 3, 4) and substr(release_date, 1, 10) >= ? and tmdb_id in ({q}) "
+                          f"order by substr(release_date, 1, 10), release_type", (today,)):
+        out.setdefault(fid, {"date": d, "kind": "digital" if typ == 4 else "theatrical"})
+    for fid, d in _q(f"select tmdb_id, substr(coalesce(us_release_date, release_date), 1, 10) from films where tmdb_id in ({q})"):
+        if fid not in out and d:
+            out[fid] = {"date": d, "kind": "us_release"}
+    return out
 
 
 def theatres(fid, zip_code=""):
@@ -129,7 +174,7 @@ def _list(name, limit=20):
     if not at:
         return [], None
     ids = [x[0] for x in _q("select tmdb_id from lists where list_name = ? and region = 'US' and fetched_at = ? "
-                             "order by rank limit ?", (name, at, limit * 2))]
+                             "order by rank, tmdb_id limit ?", (name, at, limit * 2))]
     return ids, at[:10]
 
 
@@ -188,7 +233,9 @@ def _split_rereleases(ids, days=120):
     return [i for i in ids if not old(i)], [i for i in ids if old(i)]
 
 
-def because_you_liked(user, rails=2, per=12):
+def because_you_liked(user, rails=2, per=12, keep=None):
+    """MovieLens neighbours of films the person liked. `keep` (the genre filter) runs on all 40 neighbours before the
+    cut to `per`, so a filtered rail is not just the leftovers of an unfiltered one."""
     try:
         import personal
         likes, _dis, _st = personal.load(user)
@@ -198,19 +245,21 @@ def because_you_liked(user, rails=2, per=12):
         return []
     with film_info._lock:
         order = [r[0] for r in film_info._users().execute(
-            "select tmdb_id from film_prefs where user_id = ? and signal > 0 order by created_at desc", (user,))]
+            "select tmdb_id from film_prefs where user_id = ? and signal > 0 order by created_at desc, tmdb_id", (user,))]
     skip, out = _seen_or_rated(user), []
     m = sqlite3.connect(f"file:{MOVIES}?mode=ro", uri=True)
     try:
         for fid in order[:6]:
-            nb = [r[0] for r in m.execute("select neighbour_id from ml_neighbours where tmdb_id = ? order by rank limit 40",
+            nb = [r[0] for r in m.execute("select neighbour_id from ml_neighbours where tmdb_id = ? order by rank, neighbour_id limit 40",
                                           (fid,)) if r[0] not in skip]
+            if keep:
+                nb = keep(nb)
             if len(nb) < 4:
                 continue
             t = _q("select title from films where tmdb_id = ?", (fid,))
             out.append({"key": f"because_{fid}", "title": f"Because you liked {t[0][0] if t else 'a film you liked'}",
                         "why": "Films that people who rated it highly also rated highly (MovieLens).",
-                        "items": cards(nb[:per], user)})
+                        "seed": t[0][0] if t else None, "items": cards(nb[:per], user), "total": len(nb)})
             skip |= set(nb[:per])
             if len(out) >= rails:
                 break
@@ -221,44 +270,58 @@ def because_you_liked(user, rails=2, per=12):
     return out
 
 
-def home(user="", genres=None):
-    """Home rows. With `genres` (Home's genre chips) every row keeps only films with at least one of them, and two
-    genre rows are added from the whole catalogue. `hero` is always the unfiltered new films in theatres."""
-    genres = [g for g in (genres or []) if isinstance(g, str)][:6]
-    keep = (lambda ids: _keep_genres(ids, genres)) if genres else (lambda ids: ids)
+def home(user="", genres=None, mode="any", per=20):
+    """Home shelves. Each has its own eligibility and ranking rule (in `rule`), and the genre filter only removes films
+    from it (see genre_filter). `total` is how many eligible films matched before the cut to `per`. The hero carousel
+    is the unfiltered list of new films in theatres."""
+    sel, mode, every = genre_filter(genres, mode)
+    keep = (lambda ids: match_genres(ids, sel, mode)) if sel else (lambda ids: list(ids))
     rails = []
-    wl = film_info.watchlist(user, limit=60) if user else []
-    rails.append({"key": "watchlist", "title": "Your watchlist", "items": cards(keep([w["id"] for w in wl])[:20], user),
-                  "empty": "Tap Want to watch on any film and it lands here."})
-    if not genres:
-        rails += because_you_liked(user) if user else []
-    ids, at = _list("now_playing", 60)
-    new_ids, rerel = _split_rereleases(ids)
-    hero = cards((new_ids + rerel)[:8], user)          # new films first; re-releases are in theatres too
-    rails.append({"key": "now_playing", "title": "In theatres now", "items": cards(keep(new_ids)[:20], user),
-                  "source": "TMDB now playing (US), new releases", "as_of": at})
-    if genres:
-        label = " and ".join(genres) if len(genres) <= 2 else ", ".join(genres[:-1]) + " and " + genres[-1]
-        rails.append({"key": "genre_top", "title": f"Top-rated {label}", "items": cards(top_by_genre(genres, user), user),
-                      "source": "TMDB ratings, 800+ votes"})
-        rails.append({"key": "genre_recent", "title": f"Recent {label}",
-                      "items": cards(top_by_genre(genres, user, min_votes=150, since=datetime.date.today().year - 3), user),
-                      "source": "TMDB ratings, released in the last three years"})
-    ids, at2 = _list("upcoming", 60)
-    dates = dict(_q("select tmdb_id, coalesce(us_release_date, release_date) from films where tmdb_id in (" +
-                    ",".join(str(int(i)) for i in ids or [0]) + ")"))
-    soon = [i for i in ids if dates.get(i) and dates[i] >= _today()]          # keep TMDB's list order
-    rails.append({"key": "coming_soon", "title": "Coming soon", "items": cards(keep(soon)[:20], user),
-                  "source": "TMDB upcoming (US)", "as_of": at2})
+    np_ids, at = _list("now_playing", 200)
+    new_ids, rerel = _split_rereleases(np_ids)
+    hero_ids = (new_ids + rerel)[:8]
+    hero = cards(hero_ids, user)
+    extra = {r[0]: r[1:] for r in film_info._many(_f(), "select f.tmdb_id, f.overview, i.backdrop_path from films f left join "
+                                                        "film_images i on i.tmdb_id = f.tmdb_id where f.tmdb_id in", hero_ids)} if hero_ids else {}
+    for c in hero:                                    # one request for the whole carousel, not one per slide
+        ov, bd = extra.get(c["id"], (None, None))
+        c["overview"] = ov or ""
+        c["backdrop"] = film_info.img(bd, "w1280") if bd else None
+    th = keep(new_ids)
+    rails.append({"key": "now_playing", "title": "In Theaters Now", "items": cards(th[:per], user), "total": len(th),
+                  "rule": "TMDB's US now-playing list, in TMDB's order (new releases; re-releases have their own row)",
+                  "source": "TMDB now playing (US)", "as_of": at})
+    if user:
+        rails += because_you_liked(user, keep=keep if sel else None)
+    top, n_top = top_rated(sel, mode, per)
+    rails.append({"key": "top_rated", "title": "Top Rated", "items": cards(top, user), "total": n_top,
+                  "rule": f"Weighted TMDB rating, films with {TOP_MIN_VOTES}+ votes", "source": "TMDB ratings"})
     since = (datetime.date.today() - datetime.timedelta(days=120)).isoformat()
     pop = [r[0] for r in _q("select tmdb_id from films where coalesce(us_release_date, release_date) between ? and ? "
-                            "and coalesce(vote_count, 0) >= 20 order by popularity desc limit 80", (since, _today()))]
-    rails.append({"key": "new_popular", "title": "Popular new releases", "items": cards(keep(pop)[:20], user),
-                  "source": "TMDB popularity, released in the last 120 days"})
-    if rerel:
-        rails.append({"key": "back_in_theatres", "title": "Back in theatres", "items": cards(keep(rerel)[:20], user),
-                      "source": "Re-releases on TMDB's now-playing list (US)", "as_of": at})
-    return {"rails": rails, "hero": hero, "genres": genres, "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S")}
+                            "and coalesce(vote_count, 0) >= 20 order by popularity desc, tmdb_id asc", (since, _today()))]
+    shown_th = {c["id"] for c in rails[0]["items"]}
+    trend = [i for i in keep(pop) if i not in shown_th]            # already on the In Theaters row: not repeated here
+    rails.append({"key": "trending", "title": "Trending Now", "items": cards(trend[:per], user), "total": len(trend),
+                  "rule": "TMDB popularity, released in the last 120 days; films already in the In Theaters row are left out",
+                  "source": "TMDB popularity"})
+    up_ids, at2 = _list("upcoming", 200)
+    rel = _release_of(up_ids)
+    soon = sorted([i for i in up_ids if rel.get(i) and rel[i]["date"] >= _today()], key=lambda i: (rel[i]["date"], i))
+    soon = keep(soon)
+    sc = cards(soon[:per], user)
+    for c in sc:
+        c["release"] = rel[c["id"]]
+    rails.append({"key": "coming_soon", "title": "Opening Soon", "items": sc, "total": len(soon),
+                  "rule": "TMDB's US upcoming list, by confirmed date, earliest first", "source": "TMDB upcoming (US)", "as_of": at2})
+    wl = film_info.watchlist(user, limit=200) if user else []
+    mine = keep([w["id"] for w in wl])
+    rails.append({"key": "watchlist", "title": "Your List", "items": cards(mine[:per], user), "total": len(mine), "saved": len(wl),
+                  "rule": "Films you saved, newest first"})
+    rr = keep(rerel)
+    rails.append({"key": "back_in_theatres", "title": "Back on the Big Screen", "items": cards(rr[:per], user), "total": len(rr),
+                  "rule": "Re-releases on TMDB's US now-playing list", "source": "TMDB now playing (US)", "as_of": at})
+    return {"rails": rails, "hero": hero, "genres": sel, "mode": mode, "all_selected": every, "genre_options": GENRE_OPTIONS,
+            "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S")}
 
 
 # ------------------------------------------------------------------ TV shows the person follows (9 Nov evening)
@@ -430,6 +493,7 @@ def calendar(user="", days=60, start=None):
         if (first.get(fid) and first[fid] < year_ago) or (years.get(fid) and years[fid] < int(d[:4]) - 1):
             rows[(fid, "theatrical_rerelease")] = rows.pop((fid, kind))
     film_cards = {c["id"]: c for c in cards(list({f for f, _k in rows}), user)}
+    provs = _providers([f for f, k in rows if k == "digital"])        # 10 Nov: who streams a digital release, if known
     on_wl = {w["id"] for w in film_info.watchlist(user, 500)} if user else set()
     out = []
     for (fid, kind), d in rows.items():
@@ -439,6 +503,9 @@ def calendar(user="", days=60, start=None):
         e = {"date": d, "kind": kind, "media": "movie", "film": c, "on_watchlist": fid in on_wl,
              "label": {"theatrical": "In theatres", "theatrical_rerelease": "Back in theatres (re-release)",
                        "digital": "Streaming / digital", "theatrical_or_unknown": "US release (type not given)"}[kind]}
+        e["confirmed"] = kind != "theatrical_or_unknown"     # TMDB gave a dated US release of this type
+        if kind == "digital":
+            e["providers"] = sorted(provs.get(fid, []))           # empty: service not known yet (shown as such)
         if kind in ("theatrical", "theatrical_rerelease"):
             e["showtimes"] = {"label": "Find showtimes (Google search)",
                               "url": "https://www.google.com/search?" + urllib.parse.urlencode({"q": f"{c['title']} showtimes"})}
@@ -453,7 +520,7 @@ def calendar(user="", days=60, start=None):
         except (ValueError, TypeError):
             net = ""
         out.append({"date": d, "kind": "tv_season", "media": "tv", "label": f"Season {sn} premieres" + (f" on {net}" if net else ""),
-                    "following": sid in following,
+                    "following": sid in following, "confirmed": True, "network": net,
                     "show": {"id": sid, "title": name, "season": sn, "poster": film_info.img(poster, "w185") if poster else None}})
     out.sort(key=lambda e: (e["date"], e["kind"]))
     at = _q("select max(fetched_at) from lists")
@@ -465,7 +532,7 @@ def calendar(user="", days=60, start=None):
 def _adb():
     if ALERTS_DB not in _C:
         os.makedirs(os.path.dirname(ALERTS_DB), exist_ok=True)
-        c = sqlite3.connect(ALERTS_DB, check_same_thread=False, timeout=30)
+        c = dbsafe.wrap(sqlite3.connect(ALERTS_DB, check_same_thread=False, timeout=30))
         c.executescript("""
             create table if not exists snapshot(user_key text, tmdb_id integer, providers text, released integer,
               taken_at text, primary key (user_key, tmdb_id));
@@ -504,9 +571,15 @@ def refresh_alerts(user):
         snap = {r[0]: (set(json.loads(r[1] or "[]")), r[2]) for r in c.execute(
             "select tmdb_id, providers, released from snapshot where user_key = ?", (user,))}
         now = time.strftime("%Y-%m-%dT%H:%M:%S")
+        try:                                                  # 10 Nov: films the person muted get no new alerts
+            c.execute("create table if not exists alert_mute(user_key text, tmdb_id integer, created_at text, "
+                      "primary key (user_key, tmdb_id))")
+            muted = {r[0] for r in c.execute("select tmdb_id from alert_mute where user_key = ?", (user,))}
+        except sqlite3.Error:
+            muted = set()
         for fid in ids:
             cur_p, cur_r = prov.get(fid, set()), int(rel.get(fid, False))
-            if fid in snap:                                   # first sight of a film only takes a snapshot
+            if fid in snap and fid not in muted:              # first sight of a film only takes a snapshot
                 old_p, old_r = snap[fid]
                 for p in sorted(cur_p - old_p):
                     new += c.execute("insert or ignore into alerts values (?,?,?,?,?,0)",

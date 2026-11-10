@@ -54,6 +54,12 @@ def _wrap_accounts():
                 moved["watch_events"] = True
             except Exception as e:  # noqa: BLE001
                 print(f"[cinemack] v8 history move failed: {e!r}", flush=True)
+            try:                                       # 10 Nov: TV progress and alert opt-outs move with the person
+                import v8extra
+                v8extra.move_user(old_key, new_key)
+                moved["tv_progress"] = True
+            except Exception as e:  # noqa: BLE001
+                print(f"[cinemack] v8 progress move failed: {e!r}", flush=True)
         return moved
 
     def delete_data(key):
@@ -70,6 +76,12 @@ def _wrap_accounts():
             gone["trakt"] = True
         except Exception:  # noqa: BLE001
             pass
+        try:
+            import v8extra
+            v8extra.delete_user(key)
+            gone["tv_progress"] = True
+        except Exception as e:  # noqa: BLE001
+            print(f"[cinemack] v8 delete progress failed: {e!r}", flush=True)
         return gone
     move_data._v8 = delete_data._v8 = True
     accounts.move_data, accounts.delete_data = move_data, delete_data
@@ -134,12 +146,11 @@ def install(app, user_of, account_of, gate):
         return FileResponse(p, media_type=ASSET_TYPES[p.suffix], headers={"Cache-Control": "no-cache"})
 
     @app.get("/api/v8/home")
-    async def v8_home(request: Request, genres: str = ""):
+    async def v8_home(request: Request, genres: str = "", mode: str = "any"):
         if (g := gate(request)):
             return g
-        import user_prefs
-        gs = [x for x in (genres or "").split(",") if x in user_prefs.GENRES][:6]
-        return JSONResponse(await _run(discovery.home, user_of(request), gs))
+        gs = [x for x in (genres or "").split(",") if x in discovery.GENRE_OPTIONS]   # 10 Nov: no [:6] cut
+        return JSONResponse(await _run(discovery.home, user_of(request), gs, "all" if mode == "all" else "any"))
 
     @app.get("/api/v8/theatres/{fid}")
     async def v8_theatres(fid: int, request: Request, zip: str = ""):
@@ -308,7 +319,9 @@ def install(app, user_of, account_of, gate):
                 rv = social.visible_items(other, key, "ratings", rv) if social.can_view(other, key, "ratings") else []
                 if not social.can_view(other, key, "reviews"):
                     rv = [dict(r, text="") for r in rv]
-                out["ratings"] = rv
+                cs = {c["id"]: c for c in discovery.cards([r["id"] for r in rv], key)}     # 10 Nov: titles + posters
+                out["ratings"] = [dict(r, title=cs.get(r["id"], {}).get("title"), year=cs.get(r["id"], {}).get("year"),
+                                       poster=cs.get(r["id"], {}).get("poster")) for r in rv]
             return out
         return JSONResponse(await _run(build))
 
@@ -380,6 +393,12 @@ def install(app, user_of, account_of, gate):
             return RedirectResponse("/v8#/profile?trakt=connected")
         except trakt_sync.TraktError:
             return RedirectResponse("/v8#/profile?trakt=failed")
+
+    try:                                   # 10 Nov redesign: continue watching, upcoming, search, profile summary
+        import v8extra
+        v8extra.install(app, user_of, gate)
+    except Exception as e:  # noqa: BLE001 - the rest of v8 keeps working without these routes
+        print(f"[cinemack] v8extra routes not installed: {e!r}", flush=True)
 
     @app.post("/api/v8/trakt/{action}")
     async def trakt_action(action: str, request: Request):

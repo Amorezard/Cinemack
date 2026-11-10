@@ -199,7 +199,7 @@ class Evening9Nov(unittest.TestCase):
         titles = {c["title"] for r in h["rails"] for c in r["items"]}
         self.assertIn("Tense One", titles); self.assertNotIn("Laugh One", titles); self.assertNotIn("No Genre", titles)
         self.assertIn("Laugh One", {c["title"] for c in h["hero"]})        # the carousel is not filtered
-        self.assertTrue(any(r["key"] == "genre_top" and r["items"] for r in h["rails"]))
+        self.assertTrue(any(r["key"] == "top_rated" for r in h["rails"]))      # 10 Nov: Top Rated replaces genre_top
 
     def test_showtimes_only_for_films_in_theatres(self):
         t = discovery.theatres(60, "01845")
