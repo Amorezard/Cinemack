@@ -19,7 +19,17 @@ const ROUTES = [[/^#?\/?$/, 'home', 'home'], [/^#\/(ask|discover)/, 'ask', 'ask'
   [/^#\/show\/(\d+)/, 'show', null], [/^#\/join/, 'join', null]];
 const TITLES = { home: 'Cinemack', ask: 'Ask Cinemack', pick: 'Pick Tonight', calendar: 'Release Calendar', watchlist: 'My Watchlist', profile: 'Profile', friend: 'Friend', show: 'TV show', join: 'Create your account' };
 
+// round 22: after a deploy, an open page would load new page code with its old stylesheet. On navigation, compare
+// the server's build fingerprint with the one this page started with and reload once when it changed.
+let BUILD = null, buildAt = 0;
+fetch('/api/v8/build', { cache: 'no-store' }).then(r => r.json()).then(j => { BUILD = j.build; buildAt = Date.now(); }).catch(() => {});
+async function staleBuild() {
+  if (!BUILD || Date.now() - buildAt < 20000 || S.chat?.busy) return false;
+  buildAt = Date.now();
+  try { const j = await (await fetch('/api/v8/build', { cache: 'no-store' })).json(); return j.build && j.build !== BUILD; } catch { return false; }
+}
 async function route() {
+  if (await staleBuild()) { location.reload(); return; }
   const hash = location.hash || '#/';
   const [path, qs] = hash.split('?');
   const params = new URLSearchParams(qs || '');

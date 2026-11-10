@@ -138,6 +138,17 @@ def install(app, user_of, account_of, gate):
     def v8_page():
         return FileResponse(V8 / "index.html", headers={"Cache-Control": "no-store"})
 
+    @app.get("/api/v8/build")
+    async def v8_build():
+        """round 22: a fingerprint of the page's files; an open page reloads itself when it changes (after a deploy)."""
+        import hashlib
+        h = hashlib.sha1()
+        for p in sorted(V8.glob("*")):
+            if p.suffix in ASSET_TYPES or p.suffix == ".html":
+                st = p.stat()
+                h.update(f"{p.name}:{st.st_size}:{st.st_mtime_ns}".encode())
+        return JSONResponse({"build": h.hexdigest()[:12]}, headers={"Cache-Control": "no-store"})
+
     @app.get("/v8/{name}")
     def v8_asset(name: str):
         p = (V8 / name).resolve()

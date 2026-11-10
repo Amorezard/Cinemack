@@ -7,9 +7,16 @@ PASS = the answer names at least one of the films it was given (its "sources"), 
 limit (runtime, US age rating, genres to avoid, earliest year, services); a fact that is unknown fails the limit.
 
     python tools/long_eval.py --set sets/tune_v8_long.json --base http://localhost:49160 --tag tune_long_on
-Item format: {"id", "turns": [{"user", "assistant"?}, ...], "limit": {...}} - turns with an "assistant" text are
-replayed as history; a turn without one (other than the last) is answered by the server first. The last turn is the
-question that is scored. `limit` uses the chat-filter fields: max_runtime, max_cert, never_genres, min_year, services.
+Item formats (both are read):
+  tuning (tune_v8_long):  {"id", "turns": [{"user", "assistant"?}, ...], "limit": {...}} - the last turn is the scored
+                          question; `limit` uses the chat-filter fields (max_runtime, max_cert, never_genres, min_year,
+                          services) and is checked from facts.db as above.
+  sealed (sealed_v8_long, written 8 Nov): {"id", "turns": [...], "question", "expect_films", "category", ...} - every
+                          turn is history (a turn without an "assistant" text is answered by the server first) and
+                          `question` is scored: PASS = the answer names at least one of `expect_films` (title match,
+                          punctuation and case ignored). Decided 10 Nov ~16:00 from the set's structure only, before
+                          any sealed run; the answer text is saved for the judge / a human to read.
+Turn entries may be {"user": ..., "assistant": ...} or {"role", "content"} pairs or plain strings.
 Writes results/long_<tag>.json and prints "long <tag>: N/M pass".
 """
 import argparse
@@ -74,6 +81,41 @@ def named(films, answer):
     return [f for _i, f in sorted(pos, key=lambda x: x[0])]
 
 
+def _norm(s):
+    return " " + re.sub(r"[^a-z0-9]+", " ", str(s or "").lower()).strip() + " "
+
+
+def expect_titles(ex):
+    out = []
+    for x in ex if isinstance(ex, list) else [ex]:
+        if isinstance(x, dict):
+            x = x.get("title") or x.get("name")
+        if x:
+            out.append(str(x))
+    return out
+
+
+def turn_pairs(turns):
+    """-> [(user text, assistant text or None)] from any of the turn formats."""
+    out, pend = [], None
+    for t in turns:
+        if isinstance(t, str):
+            out.append((t, None))
+        elif "role" in t:
+            if t["role"] == "user":
+                if pend is not None:
+                    out.append((pend, None))
+                pend = t.get("content", "")
+            elif pend is not None:
+                out.append((pend, t.get("content", "")))
+                pend = None
+        else:
+            out.append((t.get("user") or t.get("q") or t.get("question") or "", t.get("assistant", t.get("a"))))
+    if pend is not None:
+        out.append((pend, None))
+    return out
+
+
 def check(fid, lim):
     import user_prefs
     gs, year, rt = user_prefs._film_facts([fid]).get(fid, (set(), None, None))
@@ -108,11 +150,13 @@ def main():
     for q in d["questions"]:
         t0 = time.time()
         user = f"long-eval-{a.tag}-{q['id']}"
-        turns = q["turns"]
+        pairs = turn_pairs(q["turns"])
+        if q.get("question"):
+            hist_pairs, last = pairs, q["question"]
+        else:
+            hist_pairs, last = pairs[:-1], pairs[-1][0]
         history, state = [], C.new()
-        for t in turns[:-1]:
-            u = t["user"] if isinstance(t, dict) else t
-            ans = t.get("assistant") if isinstance(t, dict) else None
+        for u, ans in hist_pairs:
             if ans is None:
                 _f, ans, state, err = chat(a.base, user, u, history, state)
                 if err:
@@ -120,14 +164,19 @@ def main():
             else:
                 state = C.update(state, u, [], None, ans)
             history += [{"role": "user", "content": u}, {"role": "assistant", "content": ans or ""}]
-        last = turns[-1]["user"] if isinstance(turns[-1], dict) else turns[-1]
         films, answer, _c, err = chat(a.base, user, last, history, state)
         lim = q.get("limit") or {}
         nm = named(films, answer)
-        fails = {f["title"]: check(f["id"], lim) for f in nm[:3]}
-        ok = bool(nm) and not any(fails.values()) and not err
+        if lim:
+            fails = {f["title"]: check(f["id"], lim) for f in nm[:3]}
+            ok = bool(nm) and not any(fails.values()) and not err
+        else:
+            exp = expect_titles(q.get("expect_films"))
+            hit = [t for t in exp if _norm(t) in _norm(answer)]
+            fails = {} if hit else {"expected one of": exp}
+            ok = bool(hit) and not err
         n_pass += ok
-        out.append({"id": q["id"], "pass": ok, "limit": lim, "named": [f["title"] for f in nm[:3]], "fails": fails,
+        out.append({"id": q["id"], "pass": ok, "limit": lim, "category": q.get("category"), "mode": "limit" if lim else "expect_films", "named": [f["title"] for f in nm[:3]], "fails": fails,
                     "sources": [f.get("title") for f in films], "answer": answer, "error": err, "history_chars": sum(len(m["content"]) for m in history),
                     "seconds": round(time.time() - t0, 1)})
         print(f"  {q['id']} {'PASS' if ok else 'FAIL'}  named {[f['title'] for f in nm[:3]]}  {'' if ok else fails or 'no source film named'}  ({out[-1]['seconds']}s)", flush=True)

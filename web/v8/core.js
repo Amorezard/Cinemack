@@ -34,7 +34,8 @@ export const h = (tag, attrs = {}, ...kids) => {
   for (const k of kids.flat(Infinity)) if (k != null && k !== false) el.append(k.nodeType ? k : document.createTextNode(k));
   return el;
 };
-const sv = (d, extra = '') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"${extra}>${d}</svg>`;
+// round 22: a default size (CSS still sets the real one) so an icon can never fill the page if styles are missing or stale
+const sv = (d, extra = '') => `<svg viewBox="0 0 24 24" width="1.25em" height="1.25em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"${extra}>${d}</svg>`;
 export const I = {
   bookmark: sv('<path d="M6 3h12v18l-6-4-6 4z"/>'),
   bookmarkOn: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4z"/></svg>',

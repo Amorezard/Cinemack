@@ -122,7 +122,7 @@ if has summary; then
     echo "## same-name routing"; tail -3 results/final_v8_sn_routing.txt 2>/dev/null
     echo "## scores without the judge"; cat results/final_v8_scores.txt 2>/dev/null
     echo "## judge audit (flags = checker likely wrong; read these rows before deciding)"; cat results/final_v8_audit.txt 2>/dev/null
-    echo "## long chats (tools/long_eval.py: every named film meets the turn-1 limit; rule >= 5/6 with LONG_SUMMARY)"
+    echo "## long chats (tools/long_eval.py: the answer names one of expect_films; rule >= 5/6 with LONG_SUMMARY)"
     for f in results/long_sealed8_long_*.json; do [ -f "$f" ] && python -c "import json,sys; d=json.load(open(sys.argv[1])); print(f\"  {d['tag']}: {d['pass']}/{d['n']}\")" "$f"; done; } > "$SUM"
   echo "=== summary -> $SUM"
 fi
