@@ -33,7 +33,7 @@ REP=results/nightly_$DAY.txt
 mkdir -p results logs
 exec > >(tee -a "$REP") 2>&1
 echo "=== nightly $DAY $(date +%H:%M)  dry=$DRY"
-if [ "$DRY" = 0 ] && pgrep -f "run_v7_night.sh|stage_scores|eval_v3" >/dev/null; then
+if [ "$DRY" = 0 ] && pgrep -f "run_v7_night.sh|run_final_v8|stage_scores|eval_v3" >/dev/null; then
   echo "an evaluation or night run is going: nightly update skipped tonight"; exit 0
 fi
 run() {                        # run "label" cmd... : time it, keep its last lines, never stop the night
@@ -51,6 +51,8 @@ YEAR=$(date +%Y)
 [ -n "${TMDB_API_KEY:-}" ] && run "tmdb stale"    python fetch_tmdb.py refresh
 [ -n "${TMDB_API_KEY:-}" ] && run "tmdb new films" python fetch_tmdb.py extra --year-from $((YEAR - 1)) --min-votes 20 --pages 5
 [ -n "${TMDB_API_KEY:-}" ] && run "tmdb home extras (TV rows, artwork; logs/tmdb_extra.db)" python tools/fetch_home_extra.py --pages 10   # 10 Nov, round 18
+[ -n "${TMDB_API_KEY:-}" ] && run "tmdb episodes (recent + upcoming seasons)" python tools/fetch_episodes.py recent   # round 19
+[ -n "${TMDB_API_KEY:-}" ] && run "tmdb film artwork, logos, US services (calendar window)" python tools/fetch_film_data.py window   # round 19
 [ -n "${OMDB_API_KEY:-}" ] && run "omdb"          python fetch_free_data.py omdb
 [ -n "${GUARDIAN_API_KEY:-}" ] && run "guardian"  python fetch_free_data.py guardian
 [ -n "${NYT_API_KEY:-}" ] && run "nyt"            python fetch_free_data.py nyt --limit 60
