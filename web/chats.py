@@ -16,6 +16,8 @@ request can only read or delete chats stored under its own id.
 import json
 import os
 import sqlite3
+
+import dbsafe   # 10 Nov: shared connection, one call at a time (see dbsafe.py)
 import sys
 import threading
 import time
@@ -31,7 +33,7 @@ _conn = {"c": None}
 def conn():
     if _conn["c"] is None:
         DB.parent.mkdir(parents=True, exist_ok=True)
-        c = sqlite3.connect(str(DB), check_same_thread=False, timeout=30)
+        c = dbsafe.wrap(sqlite3.connect(str(DB), check_same_thread=False, timeout=30))
         c.execute("pragma journal_mode=WAL")      # v7 D4: readers never block the writer
         c.executescript("""
             create table if not exists chats(conv_id text primary key, user_id text, title text,

@@ -24,6 +24,8 @@ first cards (up to 4 for recommendations and rankings).
 import os
 import re
 import sqlite3
+
+import dbsafe   # 10 Nov: shared read connection, one call at a time
 import urllib.parse
 from pathlib import Path
 
@@ -51,7 +53,7 @@ LABEL = {"watch": "Where to watch", "reviews": "Reviews", "success": "Box office
 
 def _ro(path):
     if path not in _C:
-        _C[path] = (sqlite3.connect(f"file:{path}?mode=ro", uri=True, check_same_thread=False)
+        _C[path] = (dbsafe.wrap(sqlite3.connect(f"file:{path}?mode=ro", uri=True, check_same_thread=False))
                     if os.path.exists(path) else None)
     return _C[path]
 

@@ -16,6 +16,8 @@ Tables in logs/social.db (separate from users.db, so deleting an account clears 
 import os
 import secrets
 import sqlite3
+
+import dbsafe   # 10 Nov: shared connection, one call at a time (see dbsafe.py)
 import threading
 import time
 from pathlib import Path
@@ -36,7 +38,7 @@ class SocialError(Exception):
 def conn():
     if DB not in _C:
         os.makedirs(os.path.dirname(DB), exist_ok=True)
-        c = sqlite3.connect(DB, check_same_thread=False, timeout=30)
+        c = dbsafe.wrap(sqlite3.connect(DB, check_same_thread=False, timeout=30))
         c.execute("pragma journal_mode=WAL")
         c.executescript("""
             create table if not exists privacy(user_key text, kind text, level text, primary key (user_key, kind));

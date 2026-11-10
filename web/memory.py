@@ -27,6 +27,8 @@ import json
 import os
 import re
 import sqlite3
+
+import dbsafe   # 10 Nov: shared connection, one call at a time (see dbsafe.py)
 import threading
 import time
 from pathlib import Path
@@ -47,7 +49,7 @@ _C = {"c": None}
 def conn():
     if _C["c"] is None:
         DB.parent.mkdir(parents=True, exist_ok=True)
-        c = sqlite3.connect(str(DB), check_same_thread=False, timeout=30)
+        c = dbsafe.wrap(sqlite3.connect(str(DB), check_same_thread=False, timeout=30))
         c.execute("pragma journal_mode=WAL")      # v7 D4: readers never block the writer
         c.executescript("""
             create table if not exists notes(id integer primary key autoincrement, user_key text, text text,

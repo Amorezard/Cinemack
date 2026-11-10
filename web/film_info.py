@@ -19,6 +19,8 @@ is optional: a missing one just leaves that field out, so the page works before
 import json
 import os
 import sqlite3
+
+import dbsafe   # 10 Nov: shared connection, one call at a time (see dbsafe.py)
 import threading
 import time
 from pathlib import Path
@@ -34,17 +36,28 @@ _lock = threading.Lock()
 _C = {}
 
 
+_TL = threading.local()
+
+
 def _ro(path):
-    if path not in _C:
-        _C[path] = (sqlite3.connect(f"file:{path}?mode=ro", uri=True, check_same_thread=False)
-                    if os.path.exists(path) else None)
-    return _C[path]
+    """A read-only connection for THIS thread. 10 Nov: one connection shared by every executor thread raised
+    "SystemError: ... returned NULL" when pages fetched several films at once (Pick Tonight, Watchlist). sqlite3
+    connections must not be used by two threads at the same moment; read-only ones are cheap, so each thread gets its
+    own (the executor's pool is bounded, so the number of connections is too)."""
+    if not os.path.exists(path):
+        return None
+    d = getattr(_TL, "c", None)
+    if d is None:
+        d = _TL.c = {}
+    if path not in d:
+        d[path] = sqlite3.connect(f"file:{path}?mode=ro", uri=True, check_same_thread=False)
+    return d[path]
 
 
 def _users():
     if "users" not in _C:
         os.makedirs(os.path.dirname(USERS), exist_ok=True)
-        c = sqlite3.connect(USERS, check_same_thread=False, timeout=30)
+        c = dbsafe.wrap(sqlite3.connect(USERS, check_same_thread=False, timeout=30))
         c.execute("pragma journal_mode=WAL")      # v7 D4: readers never block the writer
         c.executescript("""
             create table if not exists film_prefs(user_id text, tmdb_id integer, title text, signal integer,

@@ -25,6 +25,8 @@ import json
 import os
 import re
 import sqlite3
+
+import dbsafe   # 10 Nov: shared connection, one call at a time (see dbsafe.py)
 import threading
 import time
 import unicodedata
@@ -44,7 +46,7 @@ EPISODE = re.compile(r"^(?P<show>.+?): (?P<rest>(?:(?:Season|Series|Part|Volume|
 def conn():
     if DB not in _C:
         os.makedirs(os.path.dirname(DB), exist_ok=True)
-        c = sqlite3.connect(DB, check_same_thread=False, timeout=30)
+        c = dbsafe.wrap(sqlite3.connect(DB, check_same_thread=False, timeout=30))
         c.execute("pragma journal_mode=WAL")
         c.executescript("""
             create table if not exists watch_events(user_key text, media_type text, tmdb_id integer, season integer,

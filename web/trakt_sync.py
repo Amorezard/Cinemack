@@ -16,6 +16,8 @@ import json
 import os
 import secrets
 import sqlite3
+
+import dbsafe   # 10 Nov: shared connection, one call at a time (see dbsafe.py)
 import threading
 import time
 import urllib.error
@@ -48,7 +50,7 @@ def enabled():
 def conn():
     if DB not in _C:
         os.makedirs(os.path.dirname(DB), exist_ok=True)
-        c = sqlite3.connect(DB, check_same_thread=False, timeout=30)
+        c = dbsafe.wrap(sqlite3.connect(DB, check_same_thread=False, timeout=30))
         c.execute("create table if not exists tokens(user_key text primary key, access text, refresh text, "
                   "expires_at real, created_at text, last_sync text)")
         _C[DB] = c
