@@ -150,7 +150,7 @@ const run = (k) => !ONLY.length || ONLY.includes(k);
     ok('t3', 'every release of each day is listed', acc, days.map(d => d.n).join(' '));
     ok('t3', 'no "+N more", nothing clipped, no image overflow', days.every(d => !d.more && !d.clipped && !d.imgs), days.map(d => `${d.more}/${d.clipped}/${d.imgs}`).join(' '));
     ok('t3', 'busy day (14 releases) fully shown', days.some(d => d.n >= 14), String(Math.max(...days.map(d => d.n))));
-    ok('t3', 'quiet groups get wide tiles, TV gets rows', (await page.locator('.wday .grp.tiles .wt').count()) > 0 && (await page.locator('.wday .grp .wr .mm:has-text("Season")').count()) > 0);
+    ok('t3', 'quiet groups get wide tiles, TV gets rows', (await page.locator('.wday .grp.tiles .wt').count()) > 0 && (await page.locator('.wday .grp .wr .mm').filter({ hasText: /premiere|S\d+ E\d+/ }).count()) > 0);
     const busy = days.findIndex(d => !/: 0 release/.test(d.label));
     await page.locator('.wday .dh').nth(busy).click(); await page.waitForTimeout(300);
     const groups = await page.$$eval('.dpanel .dgroup', els => els.map(e => e.dataset.g));
@@ -428,7 +428,7 @@ const run = (k) => !ONLY.length || ONLY.includes(k);
   // ------------------------------------------------------------ Test 11: responsive sweep + accessibility
   if (run('t11')) {
     const widths = (process.env.WIDTHS || '320,375,390,430,768,1024,1440,1920').split(',').map(Number);
-    const routes = (process.env.ROUTES || '#/,#/ask,#/pick,#/calendar,#/calendar?view=month,#/watchlist,#/watchlist?tab=tv,#/profile,#/profile?tab=settings,#/film/496243').split(',');
+    const routes = (process.env.ROUTES || '#/,#/ask,#/pick,#/calendar,#/calendar?view=month,#/watchlist,#/watchlist?tab=tv,#/profile,#/profile?tab=settings,#/film/496243,#/show/6000002,#/join').split(',');
     let bad = 0;
     for (const w of widths) {
       const { ctx, page } = await newPage(b, W, { width: w, height: w < 768 ? 800 : 900 });
@@ -493,9 +493,9 @@ const run = (k) => !ONLY.length || ONLY.includes(k);
     const today = new Date(); const cut = new Date(today); cut.setDate(cut.getDate() - 30);
     ok('t14', 'every new season premiered in the last 30 days', ns.items.every(x => x.season && new Date(x.season.date + 'T12:00') >= cut && new Date(x.season.date + 'T00:00') <= today));
     ok('t14', 'Top Rated Shows carry a rating', ts.items.length > 0 && ts.items.every(x => x.rating != null));
-    await page.locator('section[aria-label="Top Rated Shows"] .pc button.pl').first().click(); await page.waitForTimeout(500);
-    ok('t14', 'show poster opens the show sheet with Follow', await page.locator('dialog[open] button:has-text("Follow show"), dialog[open] button:has-text("Following")').count() > 0);
-    await page.keyboard.press('Escape'); await page.waitForTimeout(200);
+    await page.locator('section[aria-label="Top Rated Shows"] .pc a.pl').first().click(); await page.waitForTimeout(900);
+    ok('t14', 'show poster opens the show page with Follow (round 21)', /#\/show\/\d+/.test(page.url()) && await page.locator('.sh-hero button:has-text("Follow show"), .sh-hero button:has-text("Following")').count() > 0, page.url());
+    await go(page, '#/');
     const bell = page.locator('section[aria-label="New Seasons"] .pc .bm').first();
     await bell.click(); await page.waitForTimeout(500);
     const followed = await bell.getAttribute('aria-pressed');
@@ -515,6 +515,67 @@ const run = (k) => !ONLY.length || ONLY.includes(k);
     const facts = await page.locator('.detail-head .facts').first().innerText();
     ok('t14', 'film page: "7 min" and "Short film" (was "0 h 7 min")', /\b7 min\b/.test(facts) && /Short film/.test(facts) && !/0 h/.test(facts), facts.replace(/\s+/g, ' '));
     ok('t14', 'no page errors', !page.errors.length, page.errors.join(' | '));
+    await ctx.close();
+  }
+
+  // ------------------------------------------------------------ Test 15 (10 Nov, round 21): private chat, chips, sign-up, TV picks, show page
+  if (run('t15')) {
+    const G = 'r21-acc-' + Date.now();
+    const { ctx, page } = await newPage(b, G);
+    await go(page, '#/'); await page.waitForTimeout(600);
+    ok('t15', 'signed out: header offers Sign in + Create account', await page.isVisible('#hdr-signin') && await page.isVisible('#hdr-join'));
+    ok('t15', 'signed out: Home invites to create an account', await page.locator('.acct:has-text("Make Cinemack yours")').count() === 1);
+    // private chat: request carries X-MB-Private: 1 and the chat is not listed afterwards
+    await go(page, '#/ask');
+    let privHeader = null;
+    page.on('request', r => { if (r.url().endsWith('/api/chat')) privHeader = r.headers()['x-mb-private']; });
+    await page.click('.cside-top [aria-label="New private chat"]');
+    ok('t15', 'private chat banner', await page.isVisible('.pbar'));
+    await page.fill('#chat-q', 'keep it under 90 minutes and no horror please'); await page.keyboard.press('Enter');
+    await page.waitForSelector('.offer .chip', { timeout: 8000 }).catch(() => {});
+    ok('t15', 'private chat request marked private', privHeader === '1', String(privHeader));
+    const chipLabels = await page.$$eval('.offer .chip', els => els.map(e => e.textContent.trim()));
+    ok('t15', '3c: limits in the message offered as chips', chipLabels.includes('Under 90 min') && chipLabels.includes('No horror'), chipLabels.join(' | '));
+    await page.click('.offer .chip:has-text("Under 90 min")'); await page.waitForTimeout(300);
+    ok('t15', '3c: accepted chip joins the filter bar', await page.locator('.cfilters .chip.on:has-text("1½")').count() + await page.locator('.cfilters .chip.on:has-text("90")').count() > 0);
+    await page.waitForFunction(() => !document.querySelector('.msg.bot .status:not([hidden])'), null, { timeout: 30000 }).catch(() => {});
+    const chats = await apiJ(G, '/api/chats');
+    ok('t15', 'private chat not saved to the list', !(chats.chats || []).length, `${(chats.chats || []).length} saved`);
+    // sign-up flow
+    await go(page, '#/join');
+    const u = 'acc' + Date.now().toString(36);
+    await page.fill('#j-u', u); await page.fill('#j-p', 'a-long-pass-21'); await page.fill('#j-p2', 'a-long-pass-21x');
+    await page.click('.join-nav .btn.primary'); await page.waitForTimeout(400);
+    ok('t15', 'sign-up: mismatched passwords stopped', /different/.test(await page.locator('.join-body .err').innerText()));
+    await page.fill('#j-p2', 'a-long-pass-21'); await page.fill('#j-n', 'Sam'); await page.click('.join-nav .btn.primary'); await page.waitForTimeout(1200);
+    ok('t15', 'sign-up: account made, step 2', /step=taste/.test(page.url()) && await page.isVisible('#me-btn'));
+    await page.click('.tg .chip:has-text("Love it") >> nth=0'); await page.click('.join-nav .btn.primary'); await page.waitForTimeout(600);
+    await page.click('.join-body .chips button >> nth=0');                       // first service
+    await page.selectOption('#j-cert', 'PG-13'); await page.click('.join-nav .btn.primary'); await page.waitForTimeout(600);
+    await page.click('.join-nav .btn.ghost:has-text("Skip")'); await page.waitForTimeout(400);
+    await page.selectOption('#j-pv-watchlist', 'friends'); await page.click('.join-nav .btn.primary:has-text("Finish")'); await page.waitForTimeout(1200);
+    const me = await page.evaluate(async () => (await fetch('/api/me', { headers: { 'X-Access-Code': 'movies', 'X-MB-User': localStorage.getItem('mb.user') } })).json());
+    ok('t15', 'sign-up: settings, taste and onboarding saved', me.account?.username === u && me.onboarded && me.settings.max_cert === 'PG-13' && me.settings.services.length === 1 && me.groups.length === 1 && me.name === 'Sam',
+      JSON.stringify({ u: me.account?.username, ob: me.onboarded, cert: me.settings?.max_cert, svc: me.settings?.services, g: me.groups, n: me.name }));
+    const prof = await page.evaluate(async () => (await fetch('/api/v8/profile', { headers: { 'X-Access-Code': 'movies', 'X-MB-User': localStorage.getItem('mb.user') } })).json());
+    ok('t15', 'sign-up: privacy choice saved', prof.privacy?.watchlist === 'friends', JSON.stringify(prof.privacy));
+    await go(page, '#/'); await page.waitForTimeout(500);
+    ok('t15', 'signed in + set up: no invitation, no header buttons', !(await page.locator('.acct').count()) && !(await page.isVisible('#hdr-auth')));
+    // Pick Tonight: TV
+    await go(page, '#/pick'); await page.click('.pref[data-k="kind"]'); await page.click('text=A TV show'); await page.click('.go'); await page.waitForTimeout(1500);
+    const tvp = await page.$$eval('.rk .tt', els => els.map(e => e.textContent));
+    ok('t15', 'Pick Tonight: TV shows ranked', tvp.length >= 1 && (await page.locator('.rk .tag.tvk').count()) === tvp.length, tvp.join(' | '));
+    const certs = await page.$$eval('.rk .mm', els => els.map(e => e.textContent));
+    // show page: season switch loads episodes with ratings
+    await go(page, '#/show/6000002'); await page.waitForTimeout(800);
+    const n1 = await page.locator('.ep').count();
+    await page.click('.sh-seasons button[data-n="1"]'); await page.waitForTimeout(600);
+    ok('t15', 'show page: episodes per season with IMDb ratings', n1 > 0 && await page.locator('.ep .ep-r:has-text("IMDb")').count() > 0 && /Season 1/.test(await page.locator('.eps-h').innerText()));
+    await page.click('.ep .btn:has-text("Watched up to here") >> nth=2'); await page.waitForTimeout(600);
+    const cw = await page.evaluate(async () => (await fetch('/api/v8/continue', { headers: { 'X-Access-Code': 'movies', 'X-MB-User': localStorage.getItem('mb.user') } })).json());
+    const it = (cw.items || []).find(x => x.id === 6000002);
+    ok('t15', 'show page: "Watched up to here" records progress; next episode named', it && it.last.label === 'S1 E3' && it.next?.label?.startsWith('S1 E4'), JSON.stringify(it?.next));
+    ok('t15', 'no page errors', !page.errors.length, page.errors.join(' | '));
     await ctx.close();
   }
 
