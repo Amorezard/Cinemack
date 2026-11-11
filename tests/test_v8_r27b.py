@@ -58,12 +58,12 @@ class MemoryCards(unittest.TestCase):
         self.M.update_card("u1", "c1", mock=True)
         self.M.update_card("u1", "c2", mock=True)
         r = self.M.recall("u1", "what was the Inside Man film you suggested?", "new")
-        self.assertTrue(r and r[0]["conv"] == "c1" and r[0]["card"])
-        self.assertIn("a chat about", self.M.recall_block("u1", "what was the Inside Man film you suggested?", "new")[0])
+        self.assertTrue(r and r[0]["conv"] == "c1")                     # the raw exchange decides (round 30)
+        c = self.M.card_recall("u1", "what was the Inside Man film you suggested?", "new", strong=True)
+        self.assertEqual([x["conv"] for x in c], ["c1"])                 # a card adds a chat only on a strong sign
+        self.assertEqual(self.M.card_recall("u1", "anything about heists?", "new", strong=True), [])
         self.assertEqual(self.M.recall("u2", "what was the Inside Man film you suggested?", "new"), [])
-        self.assertEqual(self.M.recall("u1", "what was the Inside Man film you suggested?", "c1")[:1] and
-                         [x["conv"] for x in self.M.recall("u1", "what was the Inside Man film you suggested?", "c1")
-                          if x.get("card")], [])                           # the current chat is never recalled
+        self.assertNotIn("c1", [x["conv"] for x in self.M.recall("u1", "what was the Inside Man film you suggested?", "c1")])
 
     def test_delete_forget_clear(self):
         self.M.update_card("u1", "c1", mock=True)

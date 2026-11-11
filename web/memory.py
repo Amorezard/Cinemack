@@ -273,13 +273,16 @@ def _turn_vectors(key, rows):
 def recall(key, question, conv_id=""):
     """Up to RECALL_N earlier exchanges (other chats) related to the question: [{date, question, answer, films}].
     MEM_CARDS=1 (round 27): the chats' memory cards are searched first; raw exchanges fill the rest."""
-    if MEM_CARDS:
-        got = card_recall(key, question, conv_id)
-        if len(got) >= RECALL_N:
-            return got[:RECALL_N]
-        rest = [r for r in _recall_turns(key, question, conv_id) if r["conv"] not in {g["conv"] for g in got}]
-        return (got + rest)[:RECALL_N]
-    return _recall_turns(key, question, conv_id)
+    turns = _recall_turns(key, question, conv_id)
+    if not MEM_CARDS:
+        return turns
+    # round 30 (11 Nov): cards no longer come first. Cards-first lost refer-backs on the tuning set (30 -> 26 of 30;
+    # harder set 32 -> 24): a short card of a look-alike chat beat the right chat's own words. Now the raw exchanges
+    # decide as before; a card can only ADD a chat they missed, and only on a strong sign (a film the card lists is
+    # named in the question, or the card is clearly closer than the cut-off), and only in a free slot.
+    have = {r["conv"] for r in turns}
+    extra = [c for c in card_recall(key, question, conv_id, strong=True) if c["conv"] not in have]
+    return (turns + extra)[:RECALL_N]
 
 
 def _recall_turns(key, question, conv_id=""):
@@ -524,8 +527,13 @@ def _card_vectors(key, cds):
     return out
 
 
-def card_recall(key, question, conv_id=""):
-    """Cards of the person's OTHER chats that match the question, best first (same rules as _recall_turns)."""
+CARD_MARGIN = float(os.environ.get("CARD_MARGIN", "0.05"))
+
+
+def card_recall(key, question, conv_id="", strong=False):
+    """Cards of the person's OTHER chats that match the question, best first (same rules as _recall_turns).
+    strong=True (round 30): only a card whose film is named in the question, or whose meaning score clears the
+    cut-off by CARD_MARGIN."""
     import math
     cds = [cd for cd in cards(key) if cd["conv"] != conv_id]
     if not cds:
@@ -553,10 +561,14 @@ def card_recall(key, question, conv_id=""):
     scored = []
     for cd, ws in docs:
         sc = sum(math.log(1 + n / df[w]) for w in qw & ws)
-        if any(t and len(t) > 3 and t.casefold() in ql for t in cd["films"]):
+        named = any(t and len(t) > 3 and t.casefold() in ql for t in cd["films"])
+        if named:
             sc += 3.0
         cs = cos.get(cd["conv"], 0.0)
-        if refer and cos:
+        if strong:
+            cut = (back_cos if refer and back_cos is not None else MEM_MIN_COS) + CARD_MARGIN
+            ok = named or (bool(cos) and cs >= cut)
+        elif refer and cos:
             ok = cs >= back_cos or sc >= RECALL_MIN
         elif MEM_EMBED and cos:
             ok = cs >= MEM_MIN_COS or sc >= RECALL_MIN + 1.5
