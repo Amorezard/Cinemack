@@ -121,3 +121,29 @@ class Prompt(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Refill(unittest.TestCase):
+    """Round 28: REFILL tops up a recommendation whose films the limits removed, with catalogue films that meet them."""
+    def test_refill_meets_limits(self):
+        movies = os.path.join(TMP, "movies.db")
+        m = sqlite3.connect(movies)
+        m.execute("create table if not exists movies(id integer primary key, title text, release_year text, genres text, "
+                  "director text, top_cast text, embed_text text, vote_count integer)")
+        for fid, t, y, g, _rt in FILMS:
+            m.execute("insert or replace into movies values (?,?,?,?,?,?,?,?)", (fid, t, str(y or ""), ", ".join(g), "", "", t, 1000 - fid))
+        m.commit()
+        m.close()
+        import retrieve as R
+        old = R._VEC.get("db")
+        R._VEC["db"] = movies
+        try:
+            s = U.merge_chat(dict(U.DEFAULTS), {"services": ["netflix"], "services_only": True})
+            add = U.refill(s, [{"id": 1}, {"id": 4}], [])
+            self.assertEqual([h["title"] for h in add], ["Groundhog Day"])          # the only film on Netflix (flatrate)
+            s = U.merge_chat(dict(U.DEFAULTS), {"max_cert": "PG"})
+            add = U.refill(s, [{"id": 1}], [{"id": 9}])
+            self.assertEqual({h["title"] for h in add}, {"Groundhog Day", "Paddington 2"})
+            self.assertTrue(all(h["_refill"] for h in add))
+        finally:
+            R._VEC["db"] = old

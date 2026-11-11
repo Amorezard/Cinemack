@@ -548,6 +548,38 @@ def prefer_decades_languages(settings, hits):
     return [h for _r, h in order]
 
 
+# round 28 (11 Nov): REFILL=1 - when the person's hard limits remove (nearly) every film the search found, add the
+# most-voted catalogue films that DO meet them, instead of leaving the answer model with no film it may name. Seen in
+# the 3b tuning: "One recommendation for tonight, please." with "only on Netflix" -> nothing left -> "I don't have
+# Netflix titles". Only for recommendations, only when something was removed, at most REFILL_MIN films in total.
+REFILL = os.environ.get("REFILL", "0") == "1"
+REFILL_MIN = 3
+
+
+def refill(settings, hits, kept):
+    """Films meeting every limit in settings, most-voted first, none already in hits: up to REFILL_MIN - len(kept)."""
+    need = REFILL_MIN - len(kept)
+    if need <= 0:
+        return []
+    import retrieve as _R
+    s = settings or DEFAULTS
+    f = {}
+    if s.get("min_year") or s.get("max_year"):
+        f["year_min"], f["year_max"] = s.get("min_year") or 0, s.get("max_year") or 9999
+    if len(s.get("only_genres") or []) == 1:
+        f["genres"] = list(s["only_genres"])
+    try:
+        c = sqlite3.connect(f"file:{_R._VEC.get('db') or 'movies.db'}?mode=ro", uri=True)
+        cands = _R.backfill(c, f, 120, {h.get("id") for h in hits})
+        c.close()
+    except Exception as e:  # noqa: BLE001
+        print(f"[cinemack] refill failed: {e!r}", flush=True)
+        return []
+    gone = excluded(dict(s, strict=True), cands)        # added films must be KNOWN to meet the limits
+    out = [dict(h, _refill=True) for h in cands if h.get("id") not in gone][:need]
+    return out
+
+
 def filter_hits(settings, hits):
     gone = excluded(settings, hits)
     return [h for h in hits if h.get("id") not in gone] if gone else hits
@@ -575,6 +607,14 @@ def install(chat_module):
                     blocks.append((kind, text))
                 tool["blocks"] = blocks
                 tool["filtered_by_settings"] = len(gone)
+                if REFILL and len(kept) < REFILL_MIN:   # round 28: top up with films that meet the limits
+                    add = refill(s, hits, kept)
+                    if add:
+                        kept = kept + add
+                        tool["blocks"] = tool["blocks"] + [("refill", "The search found too few films that meet this "
+                            "person's limits, so these well-known films that do meet them were added: "
+                            + ", ".join(f"{h['title']} ({h.get('release_year')})" for h in add) + ".")]
+                        tool["refilled"] = len(add)
                 hits = kept
         if s and hits and s.get("services"):
             try:
