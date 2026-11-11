@@ -229,6 +229,8 @@ def stream_answer(messages, think, cancel):
         yield from _mock_stream(messages, think, cancel)
         return
 
+    import persona                                   # round 27: PERSONA=cinemack (default off = unchanged)
+    messages = persona.with_system(messages, MODEL)
     stream = ollama.chat(model=MODEL, messages=messages, stream=True,
                          think=think, keep_alive=KEEP_ALIVE, options=_opts())
     try:

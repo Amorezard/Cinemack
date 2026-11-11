@@ -8,7 +8,7 @@ import { reviewSheet } from './film.js';
 
 const TABS = [['overview', 'Overview'], ['ratings', 'Ratings'], ['reviews', 'Reviews'], ['history', 'Watch History'], ['friends', 'Friends']];
 const SETS = [['profile', 'Profile and appearance', I.user], ['services', 'Streaming services', I.monitor], ['preferences', 'Movie and TV preferences', I.sliders],
-  ['notifications', 'Notifications', I.bell], ['privacy', 'Privacy', I.lock], ['imports', 'Imports and connections', I.upload], ['account', 'Account and security', I.shield]];
+  ['chat', 'Chat and memory', I.bubble], ['notifications', 'Notifications', I.bell], ['privacy', 'Privacy', I.lock], ['imports', 'Imports and connections', I.upload], ['account', 'Account and security', I.shield]];
 const SRC = { netflix: 'Netflix', letterboxd: 'Letterboxd', trakt: 'Trakt', cinemack: 'Cinemack', you: 'You' };
 
 export async function pageProfile(params) {
@@ -99,6 +99,33 @@ function bannerField(d) {
       onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inp.click(); } } }, 'Upload an image'), inp,
       h('button', { class: 'btn ghost sm', type: 'button', onclick: async () => { try { await api('/api/v8/banner', { method: 'DELETE' }); toast('Back to the film backdrop.'); d.close(); location.reload(); } catch (e) { msg.textContent = e.message; } } }, 'Use a film backdrop')),
     msg);
+}
+
+// round 27: email digest of alerts - verified by a 6-digit code, one email a day at most, unsubscribe in every email
+function emailCard(account) {
+  const card = h('div', { class: 'set-card', 'aria-live': 'polite' });
+  if (!account) { card.append(h('h3', {}, 'Email digest'), h('p', { class: 'muted', style: 'margin-bottom:12px' }, 'Email alerts need an account.'), h('button', { class: 'btn primary sm', type: 'button', onclick: () => authSheet('up') }, 'Create account')); return card; }
+  const draw = async () => {
+    let st; try { st = await api('/api/v8/email'); } catch (e) { card.innerHTML = ''; card.append(h('p', { class: 'err' }, e.message)); return; }
+    card.innerHTML = '';
+    card.append(h('h3', {}, 'Email digest'), h('p', { class: 'sub' }, 'One email a day at most, only when there is something new, with a link to stop them.' + (st.sandbox ? ' (Test mode: emails are saved on the server, not sent.)' : '')));
+    const msg = h('p', { class: 'hint', 'aria-live': 'polite' });
+    if (st.email && st.verified) {
+      const box = h('input', { type: 'checkbox', checked: st.digest });
+      box.addEventListener('change', async () => { try { await post('/api/v8/email/digest', { on: box.checked }); toast(box.checked ? 'Email digest on.' : 'Email digest off.'); } catch (e) { box.checked = !box.checked; toast(e.message, null, true); } });
+      card.append(h('div', { class: 'pv-row' }, h('div', {}, h('b', {}, st.email), h('div', { class: 'small muted' }, 'Confirmed')), h('label', { class: 'switch' }, box, h('span', { class: 'sr' }, 'Email digest'))),
+        h('button', { class: 'btn ghost sm', type: 'button', onclick: async () => { await api('/api/v8/email', { method: 'DELETE' }); toast('Email address removed.'); draw(); } }, 'Remove address'));
+      return;
+    }
+    const em = h('input', { class: 'input', id: 'em-addr', type: 'email', autocomplete: 'email', placeholder: 'you@example.com' });
+    const code = h('input', { class: 'input', id: 'em-code', inputmode: 'numeric', autocomplete: 'one-time-code', maxlength: '6', placeholder: '6-digit code' });
+    card.append(h('div', { class: 'field' }, h('label', { for: 'em-addr' }, st.email ? `Waiting for the code sent to ${st.email}, or use another address` : 'Email address'), em),
+      h('button', { class: 'btn secondary sm', type: 'button', onclick: async () => { try { const r = await post('/api/v8/email', { email: em.value }); msg.textContent = r.message; } catch (e) { msg.textContent = e.message; } } }, 'Send code'),
+      h('div', { class: 'field', style: 'margin-top:12px' }, h('label', { for: 'em-code' }, 'Code from the email'), code),
+      h('button', { class: 'btn primary sm', type: 'button', onclick: async () => { try { const r = await post('/api/v8/email/verify', { code: code.value }); toast(r.message); draw(); } catch (e) { msg.textContent = e.message; } } }, 'Confirm'), msg);
+  };
+  draw();
+  return card;
 }
 
 // ---------------------------------------------------------------- overview
@@ -289,10 +316,50 @@ const SET = {
         multi(s, 'languages', [['en', 'English'], ['fr', 'French'], ['es', 'Spanish'], ['ko', 'Korean'], ['ja', 'Japanese'], ['hi', 'Hindi'], ['it', 'Italian'], ['de', 'German'], ['zh', 'Chinese']])),
       h('div', { class: 'set-card' }, h('h3', {}, 'Never recommend'), h('p', { class: 'sub' }, 'A hard limit for every recommendation, including Pick Tonight.'), multi(s, 'never_genres', me.genres.map(g => [g, shortGenre(g)]))),
       h('div', { style: 'display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:16px' }, h('button', { class: 'btn primary', type: 'button', onclick: () => saveSettings(s, 'Preferences saved.') }, 'Save preferences'),
-        h('span', { class: 'hint' }, 'Answer length, spoilers and memory are on the ', h('a', { href: '/' }, 'classic page'), ' for now.')));
+        h('span', { class: 'hint' }, 'Answer length, spoilers and memory: ', h('button', { class: 'btn ghost sm', type: 'button', onclick: () => go('settings', 'chat') }, 'Chat and memory'))));
   },
-  async notifications(pane) {
-    head(pane, 'Notifications', 'Alerts appear in Cinemack under the bell. Cinemack does not send email or push notifications.');
+  // round 27: answer settings and memory (notes + chat cards) in the v8 site; the classic page no longer needed for these
+  async chat(pane, { me }) {
+    head(pane, 'Chat and memory', 'How Ask Cinemack answers you, and what it remembers between chats. Private chats never use or add to memory.');
+    const s = Object.assign({}, me.settings);
+    const seg = (key, label, opts) => { const g = h('div', { class: 'seg', role: 'group', 'aria-label': label });
+      opts.forEach(([v, l]) => g.append(h('button', { type: 'button', 'aria-pressed': String(s[key] === v), onclick: (e) => { s[key] = v; $$('button', g).forEach(b => b.setAttribute('aria-pressed', String(b === e.currentTarget))); } }, l)));
+      return h('div', { class: 'field' }, h('span', { class: 'lab' }, label), g); };
+    const sw = (key, label, hint) => { const box = h('input', { type: 'checkbox', checked: s[key] !== false }); box.addEventListener('change', () => { s[key] = box.checked; });
+      return h('div', { class: 'field' }, h('label', { class: 'switch' }, box, label), hint ? h('span', { class: 'hint' }, hint) : null); };
+    pane.append(h('div', { class: 'set-card' },
+      seg('length', 'Answer length', [['short', 'Short'], ['normal', 'Normal'], ['detailed', 'Detailed']]),
+      seg('spoilers', 'Spoilers', [['site', 'Only if I ask'], ['never', 'Never'], ['warn', 'Warn first'], ['allow', 'Allow']]),
+      seg('voice', 'Voice', [['persona', 'Cinemack'], ['plain', 'Plain']]),
+      sw('memory', 'Remember what I tell Cinemack about myself', 'Short notes from your own messages ("watches with two kids"); you can delete any of them below.'),
+      sw('recall', 'Use my earlier chats when they relate to a new question'),
+      sw('sources', 'Show sources under answers'),
+      h('button', { class: 'btn primary', type: 'button', onclick: () => saveSettings(s, 'Chat settings saved.') }, 'Save chat settings')));
+    const mem = h('div', { class: 'set-card', 'aria-live': 'polite' }, h('p', { class: 'muted small' }, 'Loading memory…'));
+    pane.append(mem);
+    const draw = async () => {
+      let m; try { m = await api('/api/memory'); } catch (e) { mem.innerHTML = ''; mem.append(h('p', { class: 'err' }, e.message)); return; }
+      mem.innerHTML = '';
+      mem.append(h('h3', {}, 'What Cinemack remembers'), h('p', { class: 'sub' }, 'Notes come from what you said about yourself; chat cards sum up each saved chat (topic, films, limits you set). Deleting a chat deletes its card.'));
+      const row = (title, sub, del) => h('div', { class: 'pv-row' }, h('div', { style: 'min-width:0' }, h('b', {}, title), sub ? h('div', { class: 'small muted' }, sub) : null),
+        h('button', { class: 'iconbtn', type: 'button', html: I.trash, 'aria-label': `Delete: ${title}`, title: 'Delete', onclick: async () => { try { await del(); toast('Deleted.'); draw(); } catch (e) { toast(e.message, null, true); } } }));
+      mem.append(h('h4', { style: 'margin:14px 0 6px' }, `Notes (${m.notes.length})`));
+      if (!m.notes.length) mem.append(h('p', { class: 'muted small' }, 'No notes yet.'));
+      m.notes.forEach(n => mem.append(row(n.text, null, () => api(`/api/memory/${n.id}`, { method: 'DELETE' }))));
+      if (m.cards_on || (m.cards || []).length) {
+        mem.append(h('h4', { style: 'margin:14px 0 6px' }, `Chat cards (${(m.cards || []).length})`));
+        if (!(m.cards || []).length) mem.append(h('p', { class: 'muted small' }, 'Cards appear after your next saved chats.'));
+        (m.cards || []).forEach(c => mem.append(row(c.topic, [c.films.length ? c.films.slice(0, 4).join(', ') : null, (c.limits || []).length ? c.limits.join('; ') : null].filter(Boolean).join(' · ') || null,
+          () => api(`/api/memory/card/${encodeURIComponent(c.conv)}`, { method: 'DELETE' }))));
+      }
+      if (m.notes.length || (m.cards || []).length) mem.append(h('button', { class: 'btn ghost sm', type: 'button', style: 'margin-top:12px', html: I.trash + 'Forget everything',
+        onclick: async () => { try { await api('/api/memory', { method: 'DELETE' }); toast('Memory cleared.'); draw(); } catch (e) { toast(e.message, null, true); } } }));
+    };
+    draw();
+  },
+  async notifications(pane, { account }) {
+    head(pane, 'Notifications', 'Alerts appear in Cinemack under the bell, and (if you add an address) in one email digest a day. Push notifications need HTTPS, which this server does not have yet.');
+    pane.append(emailCard(account));
     const card = h('div', { class: 'set-card' }, h('p', { class: 'muted small' }, 'Loading…')); pane.append(card);
     try {
       const [u, o] = await Promise.all([api('/api/v8/watchlist/upcoming'), api('/api/v8/watchlist/overview')]);

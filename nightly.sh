@@ -62,6 +62,8 @@ YEAR=$(date +%Y)
 # round 27: TVmaze schedule (one call) and the shows TVmaze changed in the last day (logs/tvmaze.db, website only)
 [ -f logs/tvmaze.db ] && ! tmux has-session -t tvmaze 2>/dev/null && run "tvmaze schedule" python tools/fetch_tvmaze.py schedule
 [ -f logs/tvmaze.db ] && ! tmux has-session -t tvmaze 2>/dev/null && run "tvmaze updates" python tools/fetch_tvmaze.py updates
+# round 27: email digests of new alerts (verified, opted-in addresses only; sandbox unless EMAIL_SANDBOX=0 + SMTP_*)
+[ -f logs/email.db ] && run "email digests" python tools/send_digests.py
 [ -n "${NYT_API_KEY:-}" ] && run "nyt"            python fetch_free_data.py nyt --limit 60
 run "wikipedia reception (changed pages)"         python v7_data.py reception --again
 if [ -n "${YOUTUBE_API_KEY:-}" ]; then

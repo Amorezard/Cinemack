@@ -208,6 +208,8 @@ def _tables():
         (DB, "watch", "user_id"),
         (DB, "profiles", "user_key"),
         (Path(os.environ.get("MEMORY_DB", logs / "memory.db")), "notes", "user_key"),
+        (Path(os.environ.get("MEMORY_DB", logs / "memory.db")), "memory_cards", "user_key"),   # round 27 (3a)
+        (Path(os.environ.get("MEMORY_DB", logs / "memory.db")), "turn_vec", "user_key"),
     ]
 
 

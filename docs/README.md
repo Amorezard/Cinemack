@@ -61,7 +61,13 @@ Set in the environment (lock files), never silently in code. Default = the earli
 | ANSWER_PLOT_OK | `site.env` | moderation: a film answer flagged only as violent / non-violent crime (S1/S2) and not toxic is kept | round 27, website |
 | GENRE_AGREE | `site.env` | genre rankings need TMDB's tag and IMDb's (when IMDb has genres) | round 27, website |
 | V8_HOME | `site.env` (default 1) | `/` serves the v8 site, `/classic` the old one | round 27 |
-| NEWS | `config.yaml` | news at release in answers | ON since 15 Oct although its rule failed (I-006: decide) |
+| NEWS | `config.yaml` | news at release in answers | OFF from 11 Nov (its rule never passed; I-006 closed) |
+| MEM_CARDS | env (off) | 3a: one card per saved chat (topic, films, limits); recall searches cards first | built 11 Nov; rule run pending |
+| CLAIM_REWRITE | env (off) | 4c: reception / analysis answers - unsupported sentences rewritten or dropped (NLI check, <= 3 s) | built 11 Nov; rule run pending |
+| PERSONA=cinemack | env (off) | prompts and the model's system text say Cinemack instead of Movie Buff | built 11 Nov; rule run pending |
+| CTX_BUILDER=1 CTX_BUILDER_V=3 | env (off) | context builder v3: per-source budgets, facts and source lines never cut | built 11 Nov; rule run pending |
+| GUARD2 | env (off) | prompt-injection guard v2 (docs/threat_model.md) | built 11 Nov; sealed attack set run pending |
+| EMAIL_SANDBOX | env (default 1) | email digests written to logs/email_outbox/ instead of sent; 0 + SMTP_* to send | built 11 Nov |
 | PERF | `config.yaml` / v7 lock | box-office model block in answers | off (pf4 / pf5 rules not passed) |
 
 ## 5. How features are judged
@@ -87,13 +93,20 @@ genres from round 27, private chat, 3c chips, saved chats), Pick Tonight (films 
 Calendar (week / month; theatrical, digital, TV seasons, episodes of followed shows, finales; TVmaze air times in the
 viewer's time zone from round 27), film and show pages (show page: TVmaze schedule line "Sundays at 9:00 pm ET on
 AMC", episode summaries from TVmaze where TMDB has none), Watchlist (films + TV progress, alerts in the bell),
-Profile (stats, imports from Netflix / Letterboxd / Trakt, friends, privacy, custom banner upload from round 27),
-create-account flow `#/join`.
+Profile (stats, imports from Netflix / Letterboxd / Trakt, friends, privacy, custom banner upload from round 27,
+"Chat and memory" settings with notes and chat cards, email digest of alerts), create-account flow `#/join`.
 
-Not done, and why: HTTPS (ports 80/443 belong to another service on the server); real showtimes (no authorised
-theatre API: links are labelled searches); "leaving streaming" dates (no source); email / push alerts (in-app only).
+Not done, and why: HTTPS (ports 80/443 belong to another service on the server); push notifications (the browser
+Push API needs HTTPS); real showtimes (no authorised theatre API: links are labelled searches); "leaving streaming"
+dates (no source). Email alerts run in a sandbox until SMTP details are added to keys.env (EMAIL_SANDBOX=0).
+
+## 7b. Search embedder fine-tuning (shadow only)
+`tools/embed_ft.py`: training queries are the generated tip-of-the-tongue descriptions (wiki.db gen_questions), films
+named in any question set are left out, hard negatives come from the base model; only the top 8 layers train. It is
+measured on a shadow index (numpy) against the same base model; the live search still uses Ollama's mxbai until the
+fine-tuned model passes its gate and is converted for Ollama.
 
 ## 8. Open items (11 Nov)
-See `docs/issue_log.md`. Main ones: judge hand-check grading (user), the sealed v8 run, NEWS decision (I-006),
-4c claim-check rewrite (I-003), 3a memory cards, persona rename switch, prompt-injection guard v2 (I-008),
-pf5 B once the Guardian fetch finishes, chat latency while another job holds the GPU.
+See `docs/issue_log.md`. Main ones: judge hand-check grading (user), the sealed v8 run, tonight's rule runs for
+3a / 3d / 4c / persona / guard v2 / embedder (`tools/run_r27_night.sh`, results in `results/r27_night.txt`), pf5 B once
+the Guardian fetch finishes, adapter retraining (needs a rented GPU), chat latency while another job holds the GPU.

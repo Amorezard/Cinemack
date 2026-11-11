@@ -129,9 +129,11 @@ def clear(key):
 
 
 def forget_conv(key, conv_id):
-    """'Forget this chat': also the facts drawn from it."""
+    """'Forget this chat': also the facts drawn from it (and, round 27, its memory card)."""
     with _lock:
         n = conn().execute("delete from notes where user_key = ? and source_conv = ?", (key, conv_id)).rowcount
+        _cards_table(conn())
+        conn().execute("delete from memory_cards where user_key = ? and conv_id = ?", (key, conv_id))
         conn().commit()
     return n
 
@@ -269,7 +271,18 @@ def _turn_vectors(key, rows):
 
 
 def recall(key, question, conv_id=""):
-    """Up to RECALL_N earlier exchanges (other chats) related to the question: [{date, question, answer, films}]."""
+    """Up to RECALL_N earlier exchanges (other chats) related to the question: [{date, question, answer, films}].
+    MEM_CARDS=1 (round 27): the chats' memory cards are searched first; raw exchanges fill the rest."""
+    if MEM_CARDS:
+        got = card_recall(key, question, conv_id)
+        if len(got) >= RECALL_N:
+            return got[:RECALL_N]
+        rest = [r for r in _recall_turns(key, question, conv_id) if r["conv"] not in {g["conv"] for g in got}]
+        return (got + rest)[:RECALL_N]
+    return _recall_turns(key, question, conv_id)
+
+
+def _recall_turns(key, question, conv_id=""):
     rows = _chat_rows(key, conv_id)
     if not rows:
         return []
@@ -355,11 +368,206 @@ def recall_block(key, question, conv_id=""):
         out += ("\n\nEarlier exchanges with this person that may relate to this question (from their previous chats; "
                 "use them only if relevant, e.g. to avoid repeating a recommendation or to connect to what they asked "
                 "before; do not quote them back at length):\n" + "\n".join(
-                    f"- {r['date']}: they asked \"{r['question']}\"; Movie Buff answered: \"{r['answer']}\"" for r in rec))
+                    (f"- {r['date']}: a chat about {r['question']}" + (f"; films discussed: {', '.join(r['films'])}" if r['films'] else "")
+                     + (f"; limits they set: {r['limits']}" if r.get('limits') else "") if r.get("card") else
+                     f"- {r['date']}: they asked \"{r['question']}\"; Movie Buff answered: \"{r['answer']}\"") for r in rec))
     if summ:
         out += "\n\nTheir recent chats, for context: " + "; ".join(summ) + "."
     import hashlib
     return out, "r" + hashlib.sha1(out.encode()).hexdigest()[:8]
+
+
+# ------------------------------------------------------------------ 3a memory cards (round 27, 11 Nov)
+# MEM_CARDS=1: after each answer, one short card per chat: a one-line topic, the films discussed (only titles from the
+# chat's own film cards that the question or answer mentions), and the limits the person stated (3c phrase detector).
+# The topic is written by llama3.2 (temperature 0) from the person's questions; without the model (MOCK, or it fails)
+# it is the first question, clipped. Recall searches the cards first (same word / film / meaning rules as the raw
+# exchanges), then the raw exchanges. Private chats never get a card (the server never saves them); deleting a chat
+# deletes its card; the person sees and deletes cards in Profile > Chat and memory. Nothing but film taste is kept.
+# Rule (plan, 6 Nov): on the recall tuning set (memory_eval.py), refer-backs right not lower and false recalls not
+# higher than MEM_EMBED alone.
+MEM_CARDS = os.environ.get("MEM_CARDS", "0") == "1"
+CARD_SYSTEM = ("You label a conversation with a movie chatbot. Write ONE line of at most 12 words saying what the "
+               "person wanted (for example \"slow-burn horror without jump scares\" or \"why Blade Runner flopped\"). "
+               "Use only what the questions say. No names of people, no personal details. Reply with the line only.")
+
+
+def _cards_table(c):
+    c.execute("create table if not exists memory_cards(user_key text, conv_id text, topic text, films_json text, "
+              "limits_json text, emb blob, emb_text text, updated_at real, primary key (user_key, conv_id))")
+
+
+def _conv_turns(key, conv_id):
+    if not key or not conv_id or not CHATS_DB.exists():
+        return []
+    try:
+        c = sqlite3.connect(f"file:{CHATS_DB}?mode=ro", uri=True, timeout=10)
+        rows = c.execute("select t.question, t.answer, t.films_json from turns t join chats ch on ch.conv_id = t.conv_id "
+                         "where ch.user_id = ? and t.conv_id = ? order by t.seq", (key, conv_id)).fetchall()
+        c.close()
+        return rows
+    except sqlite3.Error:
+        return []
+
+
+def _topic(questions, mock=False):
+    first = " ".join((questions[0] if questions else "").split())
+    fallback = first if len(first) <= 90 else first[:90].rsplit(" ", 1)[0] + " ..."
+    if mock or not questions:
+        return fallback
+    try:
+        import ollama
+        r = ollama.chat(model=MODEL, messages=[{"role": "system", "content": CARD_SYSTEM},
+                                               {"role": "user", "content": "\n".join(f"- {q[:300]}" for q in questions[:8])}],
+                        options={"temperature": 0, "num_predict": 40}, keep_alive="30m")
+        t = " ".join((r["message"]["content"] or "").split()).strip(" .\"'")
+        return t[:120] if 3 <= len(t) else fallback
+    except Exception as e:  # noqa: BLE001 - a card must never break an answer
+        print(f"[cinemack] card topic failed: {e!r}", flush=True)
+        return fallback
+
+
+def update_card(key, conv_id, mock=False):
+    """Rebuild this chat's card from its saved turns. Returns the card dict (or None)."""
+    turns = _conv_turns(key, conv_id)
+    if not turns:
+        return None
+    qs = [q for q, _a, _f in turns if q]
+    text = " ".join(f"{q} {a}" for q, a, _f in turns).casefold()
+    films = []
+    for _q, _a, fj in turns:
+        for t in _films_of(fj):
+            if t and t not in films and t.casefold() in text:
+                films.append(t)
+    try:
+        import pref_phrases
+        lim = []
+        for q in qs:
+            d = pref_phrases.detect(q)
+            lim += [pref_phrases.LABELS[k](v) for k, v in d.items() if k in pref_phrases.LABELS]
+        limits = list(dict.fromkeys(lim))[:5]
+    except Exception:  # noqa: BLE001
+        limits = []
+    card = {"conv": conv_id, "topic": _topic(qs, mock), "films": films[:8], "limits": limits}
+    with _lock:
+        c = conn()
+        _cards_table(c)
+        c.execute("insert or replace into memory_cards(user_key, conv_id, topic, films_json, limits_json, emb, emb_text, "
+                  "updated_at) values (?,?,?,?,?,null,null,?)",
+                  (key, conv_id, card["topic"], json.dumps(card["films"]), json.dumps(card["limits"]), time.time()))
+        c.commit()
+    return card
+
+
+def cards(key):
+    if not key:
+        return []
+    with _lock:
+        c = conn()
+        _cards_table(c)
+        rows = c.execute("select conv_id, topic, films_json, limits_json, updated_at from memory_cards where user_key = ? "
+                         "order by updated_at desc", (key,)).fetchall()
+    return [{"conv": cv, "topic": t, "films": json.loads(f or "[]"), "limits": json.loads(l or "[]"), "updated": u}
+            for cv, t, f, l, u in rows]
+
+
+def delete_card(key, conv_id):
+    with _lock:
+        c = conn()
+        _cards_table(c)
+        n = c.execute("delete from memory_cards where user_key = ? and conv_id = ?", (key, conv_id)).rowcount
+        c.commit()
+    return bool(n)
+
+
+def clear_cards(key):
+    with _lock:
+        c = conn()
+        _cards_table(c)
+        n = c.execute("delete from memory_cards where user_key = ?", (key,)).rowcount
+        c.commit()
+    return n
+
+
+def _card_text(cd):
+    return " ".join(x for x in (cd["topic"], ", ".join(cd["films"]), "; ".join(cd["limits"])) if x)
+
+
+def _card_vectors(key, cds):
+    import numpy as np
+    out = {}
+    todo = []
+    with _lock:
+        c = conn()
+        _cards_table(c)
+        have = {cv: (e, t) for cv, e, t in c.execute("select conv_id, emb, emb_text from memory_cards where user_key = ?", (key,))}
+    for cd in cds:
+        e, t = have.get(cd["conv"], (None, None))
+        if e is not None and t == _card_text(cd):
+            v = np.frombuffer(e, dtype=np.float32)
+            out[cd["conv"]] = v / (np.linalg.norm(v) + 1e-9)
+        else:
+            todo.append(cd)
+    if todo:
+        try:
+            vecs = _embed([_card_text(cd) for cd in todo])
+            with _lock:
+                c = conn()
+                for cd, v in zip(todo, vecs):
+                    a = np.asarray(v, dtype=np.float32)
+                    c.execute("update memory_cards set emb = ?, emb_text = ? where user_key = ? and conv_id = ?",
+                              (a.tobytes(), _card_text(cd), key, cd["conv"]))
+                    out[cd["conv"]] = a / (np.linalg.norm(a) + 1e-9)
+                c.commit()
+        except Exception as e:  # noqa: BLE001
+            print(f"[cinemack] card embedding failed: {e!r}", flush=True)
+    return out
+
+
+def card_recall(key, question, conv_id=""):
+    """Cards of the person's OTHER chats that match the question, best first (same rules as _recall_turns)."""
+    import math
+    cds = [cd for cd in cards(key) if cd["conv"] != conv_id]
+    if not cds:
+        return []
+    cos = {}
+    if MEM_EMBED:
+        try:
+            import numpy as np
+            vecs = _card_vectors(key, cds)
+            qv = np.asarray(_embed([QUERY_PREFIX + (question or "")])[0], dtype=np.float32)
+            qv /= np.linalg.norm(qv) + 1e-9
+            cos = {k: float(v @ qv) for k, v in vecs.items()}
+        except Exception as e:  # noqa: BLE001
+            print(f"[cinemack] card recall by meaning failed: {e!r}", flush=True)
+    qw = set(_rwords(question))
+    ql = (question or "").casefold()
+    docs = [(cd, set(_rwords(_card_text(cd)))) for cd in cds]
+    n = len(docs)
+    df = {}
+    for _cd, ws in docs:
+        for w in ws:
+            df[w] = df.get(w, 0) + 1
+    refer = MEM_EMBED and MEM_EMBED_V != "1" and bool(R_REFER.search(question or ""))
+    back_cos = _back_cos() if refer else None
+    scored = []
+    for cd, ws in docs:
+        sc = sum(math.log(1 + n / df[w]) for w in qw & ws)
+        if any(t and len(t) > 3 and t.casefold() in ql for t in cd["films"]):
+            sc += 3.0
+        cs = cos.get(cd["conv"], 0.0)
+        if refer and cos:
+            ok = cs >= back_cos or sc >= RECALL_MIN
+        elif MEM_EMBED and cos:
+            ok = cs >= MEM_MIN_COS or sc >= RECALL_MIN + 1.5
+        else:
+            ok = sc >= RECALL_MIN
+        if ok:
+            scored.append((cs * 10 + 0.2 * sc if cos else sc, cd))
+    scored.sort(key=lambda x: (-x[0], -x[1]["updated"]))
+    return [{"date": time.strftime("%d %b", time.localtime(cd["updated"])), "question": cd["topic"],
+             "answer": "", "films": cd["films"][:4], "limits": "; ".join(cd["limits"]), "score": round(sc, 2),
+             "conv": cd["conv"], "seq": None, "card": True} for sc, cd in scored[:RECALL_N]]
 
 
 # ------------------------------------------------------------------ extraction

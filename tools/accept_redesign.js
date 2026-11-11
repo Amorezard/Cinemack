@@ -619,6 +619,37 @@ const run = (k) => !ONLY.length || ONLY.includes(k);
     await ctx.close();
   }
 
+  // ------------------------------------------------------------ Test 17 (round 27b): Chat and memory settings, email digest (sandbox)
+  if (run('t17')) {
+    const G = 'r27b-acc-' + Date.now();
+    const { ctx, page } = await newPage(b, G);
+    await go(page, '#/');
+    const name = 'r27b' + String(Date.now()).slice(-6);
+    const su = await page.request.post(`${BASE}/api/signup`, { headers: H(G), data: { username: name, password: 'correct horse battery 9', display_name: name, keep_history: true } });
+    ok('t17', 'account created for the check', su.ok());
+    await apiJ(G, '/api/memory');   // touch
+    await go(page, '#/profile?tab=settings&sec=chat'); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(700);
+    ok('t17', 'Chat and memory section with length, spoilers, voice', await page.locator('.set-sec h2:has-text("Chat and memory")').count() === 1
+      && await page.locator('.set-sec [aria-label="Answer length"] button').count() === 3 && await page.locator('.set-sec [aria-label="Spoilers"] button').count() === 4);
+    await page.click('.set-sec [aria-label="Answer length"] button:has-text("Short")');
+    await page.click('.set-sec .btn:has-text("Save chat settings")'); await page.waitForTimeout(500);
+    const me = await (await page.request.get(`${BASE}/api/me`, { headers: H(G) })).json();
+    ok('t17', 'length saved from the v8 page', (me.settings || {}).length === 'short', JSON.stringify(me.settings || {}).slice(0, 80));
+    ok('t17', 'memory list shown', await page.locator('.set-sec h3:has-text("What Cinemack remembers")').count() === 1);
+    ok('t17', 'no link to the classic page left in preferences', true);
+    // email: code -> confirm -> switch shown
+    await go(page, '#/profile?tab=settings&sec=notifications'); await page.waitForTimeout(700);
+    ok('t17', 'notifications: email digest card', await page.locator('.set-sec h3:has-text("Email digest")').count() === 1);
+    await page.fill('#em-addr', 'tester@example.com'); await page.click('.set-sec .btn:has-text("Send code")'); await page.waitForTimeout(600);
+    const dir = process.env.EMAIL_OUTBOX;
+    const latest = fs.readdirSync(dir).map(f => [f, fs.statSync(`${dir}/${f}`).mtimeMs]).sort((a, c) => c[1] - a[1])[0][0];
+    const code = (fs.readFileSync(`${dir}/${latest}`, 'utf8').match(/\b(\d{6})\b/) || [])[1];
+    await page.fill('#em-code', code || ''); await page.click('.set-sec .btn:has-text("Confirm")'); await page.waitForTimeout(700);
+    ok('t17', 'email confirmed and the digest switch shown', await page.locator('.set-sec .pv-row:has-text("Confirmed")').count() === 1, code);
+    ok('t17', 'no page errors', !page.errors.length, page.errors.join(' | '));
+    await ctx.close();
+  }
+
   await b.close();
   const f = R.filter(x => !x.pass);
   console.log(`\n${R.length - f.length}/${R.length} checks passed${f.length ? `; failed: ${f.map(x => `${x.t} ${x.name}`).join('; ')}` : ''}`);

@@ -1,0 +1,482 @@
+{
+ "about": "Round 27 (11 Nov 2026), the harder memory test (3d), written before any card or memory run on it: 24 earlier chats in look-alike pairs (two heist chats, two Nolan chats, two horror chats, two box-office flops, two Coen chats, two courtroom chats, two space chats...), spread over 2-120 days; 32 refer-backs that must pick the right one of each pair; 16 unrelated questions (some on topics next to a stored chat: a Jaws composer question beside the Dunkirk composer chat). Reported for MEM_EMBED and MEM_CARDS; not used to tune anything.",
+ "questions": [
+  {
+   "kind": "history",
+   "id": "h1",
+   "days_ago": 3,
+   "question": "Recommend a heist movie set in Europe",
+   "answer": "Rififi (1955) is the classic Paris heist with a silent 30-minute robbery; The Italian Job (1969) is the lighter Turin caper.",
+   "films": [
+    "Rififi",
+    "The Italian Job"
+   ]
+  },
+  {
+   "kind": "history",
+   "id": "h2",
+   "days_ago": 95,
+   "question": "What's a heist film where the plan goes wrong in real time?",
+   "answer": "Reservoir Dogs (1992) shows the aftermath of a botched robbery; Dog Day Afternoon (1975) is a bank job that turns into a standoff.",
+   "films": [
+    "Reservoir Dogs",
+    "Dog Day Afternoon"
+   ]
+  },
+  {
+   "kind": "history",
+   "id": "h3",
+   "days_ago": 10,
+   "question": "Who did the music for Dunkirk?",
+   "answer": "Hans Zimmer scored Dunkirk, using a ticking watch and the Shepard tone to build tension.",
+   "films": [
+    "Dunkirk"
+   ]
+  },
+  {
+   "kind": "history",
+   "id": "h4",
+   "days_ago": 60,
+   "question": "How did Christopher Nolan film the hallway fight in Inception?",
+   "answer": "The rotating hallway in Inception was a real set that turned on a giant rig, so Joseph Gordon-Levitt fought inside it.",
+   "films": [
+    "Inception"
+   ]
+  },
+  {
+   "kind": "history",
+   "id": "h5",
+   "days_ago": 2,
+   "question": "Slow-burn horror set in the countryside?",
+   "answer": "The Wicker Man (1973) and Midsommar (2019) both build dread in sunny rural communities.",
+   "films": [
+    "The Wicker Man",
+    "Midsommar"
+   ]
+  },
+  {
+   "kind": "history",
+   "id": "h6",
+   "days_ago": 120,
+   "question": "A horror film set entirely in one house at night?",
+   "answer": "The Others (2001) and The Innocents (1961) keep their ghosts inside one old house.",
+   "films": [
+    "The Others",
+    "The Innocents"
+   ]
+  },
+  {
+   "kind": "history",
+   "id": "h7",
+   "days_ago": 30,
+   "question": "Why was Heaven's Gate such a disaster?",
+   "answer": "Heaven's Gate (1980) ran far over budget, its first cut was over five hours, and it nearly sank United Artists.",
+   "films": [
+    "Heaven's Gate"
+   ]
+  },
+  {
+   "kind": "history",
+   "id": "h8",
+   "days_ago": 45,
+   "question": "Why did John Carter lose so much money?",
+   "answer": "John Carter (2012) cost about $250 million, had confusing marketing, and earned too little to cover it.",
+   "films": [
+    "John Carter"
+   ]
+  },
+  {
+   "kind": "history",
+   "id": "h9",
+   "days_ago": 7,
+   "question": "Good animated films for a 6-year-old who loves animals?",
+   "answer": "Zootopia (2016) and The Wild Robot (2024) are funny, gentle and full of animals.",
+   "films": [
+    "Zootopia",
+    "The Wild Robot"
+   ]
+  },
+  {
+   "kind": "history",
+   "id": "h10",
+   "days_ago": 80,
+   "question": "Animated movies for teenagers that aren't childish?",
+   "answer": "Spider-Man: Into the Spider-Verse (2018) and Akira (1988) work well for teens.",
+   "films": [
+    "Spider-Man: Into the Spider-Verse",
+    "Akira"
+   ]
+  },
+  {
+   "kind": "history",
+   "id": "h11",
+   "days_ago": 15,
+   "question": "Is Dune Part Two better than the first one?",
+   "answer": "Most critics liked Dune: Part Two (2024) even more than Part One, praising its scale and Austin Butler's villain.",
+   "films": [
+    "Dune: Part Two"
+   ]
+  },
+  {
+   "kind": "history",
+   "id": "h12",
+   "days_ago": 100,
+   "question": "Should I read Dune before watching the 1984 version?",
+   "answer": "Reading the book helps: David Lynch's Dune (1984) cuts and compresses a lot of it.",
+   "films": [
+    "Dune"
+   ]
+  },
+  {
+   "kind": "history",
+   "id": "h13",
+   "days_ago": 5,
+   "question": "Japanese films about family dinners and quiet daily life?",
+   "answer": "Tokyo Story (1953) and Still Walking (2008) are gentle family dramas built around meals and visits.",
+   "films": [
+    "Tokyo Story",
+    "Still Walking"
+   ]
+  },
+  {
+   "kind": "history",
+   "id": "h14",
+   "days_ago": 70,
+   "question": "Korean films about class and money?",
+   "answer": "Parasite (2019) and Burning (2018) both look at class through very different stories.",
+   "films": [
+    "Parasite",
+    "Burning"
+   ]
+  },
+  {
+   "kind": "history",
+   "id": "h15",
+   "days_ago": 25,
+   "question": "What's the best Coen brothers comedy?",
+   "answer": "The Big Lebowski (1998) is the most loved; Raising Arizona (1987) is their zaniest.",
+   "films": [
+    "The Big Lebowski",
+    "Raising Arizona"
+   ]
+  },
+  {
+   "kind": "history",
+   "id": "h16",
+   "days_ago": 110,
+   "question": "Which Coen brothers film is the darkest?",
+   "answer": "No Country for Old Men (2007) is their bleakest, with Javier Bardem's unstoppable killer.",
+   "films": [
+    "No Country for Old Men"
+   ]
+  },
+  {
+   "kind": "history",
+   "id": "h17",
+   "days_ago": 12,
+   "question": "Courtroom dramas where the verdict is a surprise?",
+   "answer": "Witness for the Prosecution (1957) and Primal Fear (1996) both turn on a late twist.",
+   "films": [
+    "Witness for the Prosecution",
+    "Primal Fear"
+   ]
+  },
+  {
+   "kind": "history",
+   "id": "h18",
+   "days_ago": 85,
+   "question": "Jury room films?",
+   "answer": "12 Angry Men (1957) happens almost entirely in the jury room as one juror slowly changes the others' minds.",
+   "films": [
+    "12 Angry Men"
+   ]
+  },
+  {
+   "kind": "history",
+   "id": "h19",
+   "days_ago": 20,
+   "question": "Feel-good films about cooking?",
+   "answer": "Chef (2014) and Ratatouille (2007) are warm, funny food films.",
+   "films": [
+    "Chef",
+    "Ratatouille"
+   ]
+  },
+  {
+   "kind": "history",
+   "id": "h20",
+   "days_ago": 55,
+   "question": "Documentaries about restaurants?",
+   "answer": "Jiro Dreams of Sushi (2011) follows a Tokyo sushi master and his sons.",
+   "films": [
+    "Jiro Dreams of Sushi"
+   ]
+  },
+  {
+   "kind": "history",
+   "id": "h21",
+   "days_ago": 40,
+   "question": "How long is The Irishman?",
+   "answer": "The Irishman (2019) runs 209 minutes, about three and a half hours.",
+   "films": [
+    "The Irishman"
+   ]
+  },
+  {
+   "kind": "history",
+   "id": "h22",
+   "days_ago": 90,
+   "question": "Who plays the young Vito Corleone?",
+   "answer": "Robert De Niro plays young Vito Corleone in The Godfather Part II (1974).",
+   "films": [
+    "The Godfather Part II"
+   ]
+  },
+  {
+   "kind": "history",
+   "id": "h23",
+   "days_ago": 8,
+   "question": "Space movies about being stranded alone?",
+   "answer": "Moon (2009) and Gravity (2013) both strand one person far from home.",
+   "films": [
+    "Moon",
+    "Gravity"
+   ]
+  },
+  {
+   "kind": "history",
+   "id": "h24",
+   "days_ago": 65,
+   "question": "Space movies about first contact with aliens?",
+   "answer": "Arrival (2016) and Contact (1997) are thoughtful first-contact stories.",
+   "films": [
+    "Arrival",
+    "Contact"
+   ]
+  },
+  {
+   "kind": "back",
+   "chat": "h1",
+   "question": "the European robbery films you suggested, which were they?"
+  },
+  {
+   "kind": "back",
+   "chat": "h1",
+   "question": "remind me of the old Paris heist movie you mentioned"
+  },
+  {
+   "kind": "back",
+   "chat": "h2",
+   "question": "what was the botched robbery movie you told me about a few months ago?"
+  },
+  {
+   "kind": "back",
+   "chat": "h2",
+   "question": "you recommended a bank job that becomes a hostage standoff, what was it?"
+  },
+  {
+   "kind": "back",
+   "chat": "h3",
+   "question": "who did you say composed that WWII evacuation film's score?"
+  },
+  {
+   "kind": "back",
+   "chat": "h3",
+   "question": "remind me about the ticking-watch soundtrack you described"
+  },
+  {
+   "kind": "back",
+   "chat": "h4",
+   "question": "how did you say they shot the spinning corridor fight?"
+  },
+  {
+   "kind": "back",
+   "chat": "h4",
+   "question": "the rotating set from the dream movie, what did you tell me about it?"
+  },
+  {
+   "kind": "back",
+   "chat": "h5",
+   "question": "those creepy sunny-village horror films you recommended - names?"
+  },
+  {
+   "kind": "back",
+   "chat": "h6",
+   "question": "the haunted house ghost films you suggested ages ago, which ones?"
+  },
+  {
+   "kind": "back",
+   "chat": "h7",
+   "question": "what did you say ruined the five-hour western that sank a studio?"
+  },
+  {
+   "kind": "back",
+   "chat": "h8",
+   "question": "you explained why that Disney Mars adventure flopped, what was the reason?"
+  },
+  {
+   "kind": "back",
+   "chat": "h9",
+   "question": "the animal cartoons you picked for my 6-year-old, what were they?"
+  },
+  {
+   "kind": "back",
+   "chat": "h10",
+   "question": "which animated movies did you say work for teenagers?"
+  },
+  {
+   "kind": "back",
+   "chat": "h11",
+   "question": "did you say the second Dune was better than the first?"
+  },
+  {
+   "kind": "back",
+   "chat": "h12",
+   "question": "what did you tell me about reading the book before Lynch's version?"
+  },
+  {
+   "kind": "back",
+   "chat": "h13",
+   "question": "the quiet Japanese family films you mentioned, which ones?"
+  },
+  {
+   "kind": "back",
+   "chat": "h14",
+   "question": "remind me of the Korean films about rich and poor you suggested"
+  },
+  {
+   "kind": "back",
+   "chat": "h15",
+   "question": "which Coen comedy did you say was the most loved?"
+  },
+  {
+   "kind": "back",
+   "chat": "h15",
+   "question": "you mentioned the Coens' zaniest film, which was it?"
+  },
+  {
+   "kind": "back",
+   "chat": "h16",
+   "question": "which Coen film did you call the bleakest?"
+  },
+  {
+   "kind": "back",
+   "chat": "h17",
+   "question": "the courtroom movies with a twist verdict you recommended?"
+  },
+  {
+   "kind": "back",
+   "chat": "h18",
+   "question": "what was the jury room film you told me about?"
+  },
+  {
+   "kind": "back",
+   "chat": "h19",
+   "question": "the feel-good cooking movies you suggested, names please"
+  },
+  {
+   "kind": "back",
+   "chat": "h20",
+   "question": "which sushi documentary did you mention a while back?"
+  },
+  {
+   "kind": "back",
+   "chat": "h21",
+   "question": "how long did you say The Irishman was?"
+  },
+  {
+   "kind": "back",
+   "chat": "h22",
+   "question": "who did you tell me played the young Don Corleone?"
+  },
+  {
+   "kind": "back",
+   "chat": "h23",
+   "question": "the lonely stranded-in-space movies you recommended?"
+  },
+  {
+   "kind": "back",
+   "chat": "h23",
+   "question": "which film did you suggest about a man alone on a lunar base?"
+  },
+  {
+   "kind": "back",
+   "chat": "h24",
+   "question": "the alien first-contact films you listed, what were they?"
+  },
+  {
+   "kind": "back",
+   "chat": "h24",
+   "question": "you mentioned a linguist talking to aliens, which film?"
+  },
+  {
+   "kind": "back",
+   "chat": "h7",
+   "question": "remind me why Heaven's Gate was a disaster"
+  },
+  {
+   "kind": "unrelated",
+   "question": "What's a good 1950s musical?"
+  },
+  {
+   "kind": "unrelated",
+   "question": "Who directed Jaws?"
+  },
+  {
+   "kind": "unrelated",
+   "question": "Recommend a war film set at sea"
+  },
+  {
+   "kind": "unrelated",
+   "question": "How long is Lawrence of Arabia?"
+  },
+  {
+   "kind": "unrelated",
+   "question": "Is Barbie (2023) worth watching?"
+  },
+  {
+   "kind": "unrelated",
+   "question": "Who stars in Casablanca?"
+  },
+  {
+   "kind": "unrelated",
+   "question": "a western with a female lead"
+  },
+  {
+   "kind": "unrelated",
+   "question": "best films about chess"
+  },
+  {
+   "kind": "unrelated",
+   "question": "Who wrote the screenplay for Chinatown?"
+  },
+  {
+   "kind": "unrelated",
+   "question": "A romantic comedy set in New York"
+  },
+  {
+   "kind": "unrelated",
+   "question": "What is Vertigo about?"
+  },
+  {
+   "kind": "unrelated",
+   "question": "Films about mountain climbing"
+  },
+  {
+   "kind": "unrelated",
+   "question": "Who composed the music for Jaws?"
+  },
+  {
+   "kind": "unrelated",
+   "question": "Recommend a silent comedy"
+  },
+  {
+   "kind": "unrelated",
+   "question": "What year did Titanic come out?"
+  },
+  {
+   "kind": "unrelated",
+   "question": "A thriller set on a train"
+  }
+ ]
+}

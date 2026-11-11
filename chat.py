@@ -223,10 +223,13 @@ def _guard_rule():
 
 
 def _spot(text):
-    if not GUARD or not text:
+    if not text:
         return text
-    import safety
-    return safety.spotlight(text)
+    if GUARD:
+        import safety
+        return safety.spotlight(text)
+    import safety2                                   # round 27: guard v2 (GUARD2=1) cleans only what is an attack
+    return safety2.clean_data(text) if safety2.GUARD2 else text
 
 
 # v7 (27 Oct) D10: CTX_BUILDER=1 - one budget for everything the answer model reads (film cards + tool blocks,
@@ -288,6 +291,8 @@ def build_context(hits, tool):
     """(context text, blocks text) under one budget, best first, no repeated lines."""
     if CTX_BUILDER_V == "1":
         return _build_context_v1(hits, tool)
+    if CTX_BUILDER_V == "3":
+        return _build_context_v3(hits, tool)
     items = []                                       # (tier, order, kind, text)
     cards = [context_for(h) for h in hits]
     blocks = list(tool.get("blocks") or [])
@@ -318,6 +323,86 @@ def build_context(hits, tool):
             t = t[:room].rsplit("\n", 1)[0] + "\n..."
         out[(tier, order, kind)] = t
         used += len(t)
+    card_txt = [out[k] for k in sorted(out) if k[2] == "card"]
+    block_txt = [out[k] for k in sorted(out, key=lambda k: k[1]) if k[2] != "card"]
+    return "\n\n---\n\n".join(card_txt), "\n\n".join(block_txt)
+
+
+# round 27 (11 Nov, 3d): CTX_BUILDER_V=3 - v2 still lowered grounding (4.63 -> 4.57) because one budget filled best
+# first: a long primary block (reception passages) could use most of CTX_CHARS and the later cards and blocks were cut
+# off mid-way, losing their fact and source lines. v3: (1) only an exactly repeated passage-length line is dropped,
+# as in v2; (2) every source gets its own share of the budget (first card and primary blocks weight 3, other blocks 1,
+# other cards 1; at least CTX_MIN_SOURCE characters each), and room a source does not use goes to the others;
+# (3) a source over its share loses passage-length lines from the end first: its title line, short fact lines and
+# source-label lines ("[TMDB ...]") are never cut. Rule (written 11 Nov before any run): judge passes not lower on
+# analytic, reception and TV, mean grounding not lower than CTX_BUILDER=0, prompt not longer on average.
+CTX_MIN_SOURCE = int(_os.environ.get("CTX_MIN_SOURCE", "500"))
+
+
+def _is_fact_line(line):
+    import re as _re
+    t = line.strip()
+    return len(t) < CTX_DEDUP_MIN or bool(_re.match(r"^\[[^\]]{2,120}\]$", t)) or bool(_re.search(r"\[[A-Z][^\]]{2,80}\]\s*$", t))
+
+
+def _build_context_v3(hits, tool):
+    import re as _re
+    items = []                                       # (tier, order, kind, weight, lines)
+    cards = [context_for(h) for h in hits]
+    blocks = list(tool.get("blocks") or [])
+    if cards:
+        items.append((1, 0, "card", 3, cards[0]))
+    for i, (k, b) in enumerate(blocks):
+        items.append((1 if k in PRIMARY else 3, i + 1, k, 3 if k in PRIMARY else 1, b))
+    for i, c in enumerate(cards[1:]):
+        items.append((2, 100 + i, "card", 1, c))
+    items.sort(key=lambda x: (x[0], x[1]))
+    seen, prepared = set(), []
+    for tier, order, kind, w, text in items:     # (1) drop exact repeats of passage-length lines only
+        lines = text.split("\n")
+        keep = [lines[0]]
+        for l in lines[1:]:
+            body = " ".join(_re.sub(r"[^a-z0-9 ]+", " ", l.casefold()).split())
+            if len(body) >= CTX_DEDUP_MIN:
+                if body in seen:
+                    continue
+                seen.add(body)
+            keep.append(l)
+        prepared.append([tier, order, kind, w, keep])
+    if not prepared:
+        return "", ""
+
+    def size(ls):
+        return sum(len(x) + 1 for x in ls)
+    # (2) shares: weight-proportional, at least CTX_MIN_SOURCE; unused room handed on in order
+    total_w = sum(p[3] for p in prepared)
+    share = [max(CTX_MIN_SOURCE, CTX_CHARS * p[3] // total_w) for p in prepared]
+    need = [size(p[4]) for p in prepared]
+    spare = sum(max(0, sh - nd) for sh, nd in zip(share, need))
+    alloc = []
+    for sh, nd in zip(share, need):
+        a = min(nd, sh)
+        if nd > sh and spare > 0:
+            extra = min(spare, nd - sh)
+            a += extra
+            spare -= extra
+        alloc.append(a)
+    while sum(alloc) > CTX_CHARS and any(a > CTX_MIN_SOURCE for a in alloc):   # many sources: shave the largest
+        i = max(range(len(alloc)), key=lambda j: alloc[j])
+        alloc[i] = max(CTX_MIN_SOURCE, alloc[i] - (sum(alloc) - CTX_CHARS))
+    out = {}
+    for (tier, order, kind, _w, ls), a in zip(prepared, alloc):
+        ls = list(ls)
+        while size(ls) > a and len(ls) > 1:      # (3) passage lines go first, from the end; facts and labels stay
+            idx = next((j for j in range(len(ls) - 1, 0, -1) if not _is_fact_line(ls[j])), None)
+            if idx is None:
+                break
+            keep_n = len(ls[idx]) - (size(ls) - a) - 4
+            if keep_n >= CTX_DEDUP_MIN:          # shorten the passage at a word boundary rather than lose it
+                ls[idx] = ls[idx][:keep_n].rsplit(" ", 1)[0] + " ..."
+            else:
+                ls.pop(idx)
+        out[(tier, order, kind)] = "\n".join(ls)
     card_txt = [out[k] for k in sorted(out) if k[2] == "card"]
     block_txt = [out[k] for k in sorted(out, key=lambda k: k[1]) if k[2] != "card"]
     return "\n\n---\n\n".join(card_txt), "\n\n".join(block_txt)

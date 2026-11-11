@@ -589,7 +589,8 @@ async def import_letterboxd(body: LetterboxdImport, request: Request):
 async def memory_list(request: Request):
     if (g := _gate(request)):
         return g
-    return JSONResponse({"notes": memory.notes(user_of(request))})
+    u = user_of(request)
+    return JSONResponse({"notes": memory.notes(u), "cards": memory.cards(u), "cards_on": memory.MEM_CARDS})   # round 27: + cards
 
 
 class NoteEdit(BaseModel):
@@ -610,11 +611,19 @@ async def memory_delete(note_id: int, request: Request):
     return JSONResponse({"ok": memory.delete(user_of(request), note_id)})
 
 
+@app.delete("/api/memory/card/{conv_id}")
+async def memory_card_delete(conv_id: str, request: Request):
+    if (g := _gate(request)):
+        return g
+    return JSONResponse({"ok": memory.delete_card(user_of(request), conv_id[:40])})
+
+
 @app.delete("/api/memory")
 async def memory_clear(request: Request):
     if (g := _gate(request)):
         return g
-    return JSONResponse({"ok": True, "deleted": memory.clear(user_of(request))})
+    u = user_of(request)
+    return JSONResponse({"ok": True, "deleted": memory.clear(u), "cards_deleted": memory.clear_cards(u)})
 
 
 @app.get("/api/health")
@@ -708,6 +717,17 @@ async def chat(req: ChatRequest, request: Request):
         return StreamingResponse(replay(), media_type="text/event-stream",
                                  headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
+    import safety2
+    if safety2.GUARD2:                                  # round 27: guard v2, step 1 (the question)
+        q2, g2reply, g2note = safety2.check_question(question)
+        if g2reply:
+            log_line("safety", {"time": time.strftime("%Y-%m-%d %H:%M:%S"), "id": rid, "question": question,
+                                "blocked": "guard2: " + g2note})
+            return _plain_reply(g2reply, rid, question, req)
+        if q2 != question:
+            log_line("safety", {"time": time.strftime("%Y-%m-%d %H:%M:%S"), "id": rid, "question": question,
+                                "notes": ["guard2: " + g2note]})
+            question = q2
     if MODERATION and not getattr(pipeline, "MOCK", False):
         mres = await asyncio.get_running_loop().run_in_executor(None, _moderate, question)
         if mres and not mres["ok"]:
@@ -733,6 +753,7 @@ async def chat(req: ChatRequest, request: Request):
 
         def work():
             t0 = time.perf_counter()
+            safety2.reset()                            # round 27: guard v2 remembers what it removed, per request
             put(sse("status", stage="searching"))
             user_prefs.CURRENT["settings"] = prefs           # v6: the person's limits, for chat._personalize
             clear_ctx = _request_context(prefs, user, private)
@@ -742,6 +763,10 @@ async def chat(req: ChatRequest, request: Request):
                 user_prefs.CURRENT["settings"] = None
                 clear_ctx()
             trace = pipeline.last_trace()
+            try:
+                tool_style = pipeline.chat.LAST_TOOL.get("style")      # round 27: read in this thread (per-thread state)
+            except Exception:  # noqa: BLE001
+                tool_style = None
             retrieve_s = time.perf_counter() - t0
             intent = (((hits[0].get("_plan") or {}).get("intent") if hits else None)
                       or ((trace or {}).get("plan") or {}).get("intent"))
@@ -757,6 +782,8 @@ async def chat(req: ChatRequest, request: Request):
                 if GUARD and mb:                       # v7 D5: the person's notes and old answers are data too
                     import safety
                     mb = safety.sanitize(mb)
+                elif safety2.GUARD2 and mb:            # round 27: guard v2 on memory too
+                    mb = safety2.clean_data(mb)
                 prompt += mb
             src = dict(films=film_info.enrich([pipeline.card(h) for h in hits], user), steps=pipeline.steps(hits),
                        alternatives=pipeline.alternatives(hits), retrieve_s=round(retrieve_s, 2), intent=intent)
@@ -795,11 +822,25 @@ async def chat(req: ChatRequest, request: Request):
                 put(sse("token", text=tail))
 
             final = "".join(answer).strip()
-            if final and not cancel.is_set() and (GUARD or MODERATION):
+            rw = None
+            if final and not cancel.is_set():
+                try:                                   # round 27 (4c, CLAIM_REWRITE=1): unsupported sentences rewritten
+                    import claim_rewrite
+                    if claim_rewrite.applies(tool_style):
+                        ctx = prompt.split("\n\nQuestion:", 1)[0]
+                        final2, rw = claim_rewrite.rewrite(final, ctx)
+                        if final2 != final:
+                            final = final2
+                            put(sse("replace", text=final))
+                except Exception as e:  # noqa: BLE001 - the answer stands as written
+                    print(f"[cinemack] claim rewrite failed: {e!r}", flush=True)
+            if final and not cancel.is_set() and (GUARD or MODERATION or safety2.GUARD2):
                 notes = []
                 if GUARD:                              # v7 D5: leak check + link allow-list on the finished answer
                     import safety
                     final2, notes = safety.post_check(final)
+                elif safety2.GUARD2:                   # round 27: guard v2, step 3 (the answer)
+                    final2, notes = safety2.post_check(final)
                 else:
                     final2 = final
                 if MODERATION:                         # v7 D6: the answer itself
@@ -838,6 +879,7 @@ async def chat(req: ChatRequest, request: Request):
                         recent_titles=pipeline.next_recent_titles(hits, req.recent_titles),
                         conv=pipeline.next_conv(conv_in, question, hits, final) if not cancel.is_set() else conv_in,
                         stopped=cancel.is_set(), check=checked, cached=False,
+                        rewrite=rw,
                         timings={"retrieve_s": round(retrieve_s, 2),
                                  "first_text_s": round(first, 2) if first else None,
                                  "generate_s": round(time.perf_counter() - t1, 2),
@@ -850,6 +892,11 @@ async def chat(req: ChatRequest, request: Request):
             if final and not private:
                 chats.save_turn(user, conv_id, question, final, src["films"], done["recent_titles"],
                                 done["conv"], rid)
+                if mem_on and memory.MEM_CARDS and conv_id and not cancel.is_set():
+                    try:                               # round 27 (3a): this chat's memory card, after the answer
+                        memory.update_card(user, conv_id, mock=getattr(pipeline, "MOCK", False))
+                    except Exception as e:  # noqa: BLE001
+                        print(f"[cinemack] memory card failed: {e!r}", flush=True)
             if final and mem_on and not cancel.is_set():
                 try:                                       # v6: facts from what the person said (memory.py)
                     added = memory.remember(user, question, conv_id, mock=getattr(pipeline, "MOCK", False))

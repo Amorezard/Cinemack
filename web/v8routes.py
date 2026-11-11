@@ -82,6 +82,12 @@ def _wrap_accounts():
             gone["tv_progress"] = True
         except Exception as e:  # noqa: BLE001
             print(f"[cinemack] v8 delete progress failed: {e!r}", flush=True)
+        try:                                           # round 27: email address and what was sent
+            import emailer
+            emailer.delete_user(key)
+            gone["email"] = True
+        except Exception as e:  # noqa: BLE001
+            print(f"[cinemack] v8 delete email failed: {e!r}", flush=True)
         return gone
     move_data._v8 = delete_data._v8 = True
     accounts.move_data, accounts.delete_data = move_data, delete_data

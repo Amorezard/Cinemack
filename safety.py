@@ -36,7 +36,7 @@ R_INJECT = re.compile(r"(?i)\b(ignore|disregard|forget|override)\b[^.\n]{0,40}\b
                       r"\bjailbreak\b|</?\s*(system|assistant|user|instructions?)\s*>|^\s*#{2,}\s*(system|instruction)|"
                       r"\b(tell|ask) the user to (visit|click|go to|download)\b|\bact as\b[^.\n]{0,30}\b(unfiltered|DAN)\b")
 R_URL = re.compile(r"\[([^\]]{1,200})\]\((https?://[^\s)]+)\)|(?<![(\[])\bhttps?://[^\s)<>\]]+|\bwww\.[^\s)<>\]]+", re.I)
-LEAK_MARKS = ["How to answer:", "Structured data from Movie Buff's database", "Answer using the information above",
+LEAK_MARKS = ["How to answer:", "Structured data from Movie Buff's database", "Structured data from Cinemack's database", "Answer using the information above",
               SPOT_OPEN, SPOT_CLOSE, "No disclaimers: don't say you are unsure", "Lines in the structured data end with",
               "Keep the groups apart and name each one", "this asks for analysis, not just a fact",
               "Here is information on movies that might be relevant to the question"]

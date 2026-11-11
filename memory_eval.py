@@ -89,6 +89,9 @@ UNRELATED = ["Who directed Jaws?", "What's a good romantic comedy from the 90s?"
              "what's a good courtroom drama", "spy movies set in the cold war"]
 
 
+DAYS = {}          # round 27: history id -> days ago (the harder set spreads chats over months)
+
+
 def build_history(path, user="eval"):
     c = sqlite3.connect(path)
     c.executescript("""create table chats(conv_id text primary key, user_id text, title text, created_at real, updated_at real);
@@ -96,7 +99,7 @@ def build_history(path, user="eval"):
           recent_json text, conv_json text, created_at real, cached integer);""")
     t0 = time.time() - 86400 * 20
     for i, (cid, q, a, films) in enumerate(HISTORY):
-        t = t0 + i * 3600
+        t = time.time() - 86400 * DAYS[cid] if cid in DAYS else t0 + i * 3600
         c.execute("insert into chats values (?,?,?,?,?)", (cid, user, q[:40], t, t))
         c.execute("insert into turns values (?,?,?,?,?,?,?,?,?,?)", (cid, 0, f"m{i}", q, a,
                   json.dumps([{"title": f} for f in films]), "[]", "{}", t, 0))
@@ -223,7 +226,60 @@ def sealed(path, tag):
     print(f"sealed recall rule (hit@1 higher, false recall not higher): {'PASS' if ok else 'FAIL'}")
 
 
+def load_set(path):
+    """A set in the sealed format (history / back / unrelated items; history may carry days_ago)."""
+    global HISTORY, BACK, UNRELATED
+    items = json.load(open(path))["questions"]
+    HISTORY = [(q["id"], q["question"], q["answer"], q.get("films") or []) for q in items if q.get("kind") == "history"]
+    BACK = [(q["chat"], q["question"]) for q in items if q.get("kind") == "back"]
+    UNRELATED = [q["question"] for q in items if q.get("kind") == "unrelated"]
+    DAYS.clear()
+    DAYS.update({q["id"]: q["days_ago"] for q in items if q.get("kind") == "history" and q.get("days_ago")})
+
+
+def cards(path=None, tag="tune", mock=False):
+    """Round 27 (3a): memory cards. Both arms have MEM_EMBED=1 (the shipped v7 memory); the card arm adds MEM_CARDS=1
+    with a card built for every history chat (topic by llama3.2, or the first question with --mock-cards).
+    Rule (plan, 6 Nov; on the recall tuning set = the default set): refer-backs right not lower and false recalls not
+    higher than without cards. Any other set (--set) is reported only."""
+    if path:
+        load_set(path)
+    tmp = tempfile.mkdtemp()
+    os.environ["CHATS_DB"] = os.path.join(tmp, "chats.db")
+    os.environ["MEMORY_DB"] = os.path.join(tmp, "memory.db")
+    build_history(os.environ["CHATS_DB"])
+    os.environ["MEM_EMBED_V"] = "2"
+    os.makedirs(os.path.join(HERE, "results"), exist_ok=True)
+    os.environ["MEM_CARDS"] = "0"
+    off = run(True)
+    os.environ["MEM_CARDS"] = "1"
+    sys.path.insert(0, os.path.join(HERE, "web"))
+    import memory
+    importlib.reload(memory)
+    t0 = time.time()
+    built = [memory.update_card("eval", cid, mock=mock) for cid, *_ in HISTORY]
+    print(f"cards built: {sum(1 for b in built if b)} in {time.time() - t0:.0f} s; e.g. "
+          + " | ".join(f"{b['conv']}: {b['topic']} [{', '.join(b['films'][:2])}]" for b in built[:3] if b))
+    on = run(True)
+    os.environ["MEM_CARDS"] = "0"
+    for name, d in (("nocards", off), ("cards", on)):
+        d["cards"] = name == "cards"
+        json.dump(d, open(os.path.join(HERE, "results", f"recall_{tag}_{name}.json"), "w"), indent=1)
+        print(f"{tag} MEM_CARDS={int(name == 'cards')}: refer-backs right {d['hits']}/{len(BACK)}, unrelated recalled "
+              f"{d['false']}/{len(UNRELATED)}")
+    ok = on["hits"] >= off["hits"] and on["false"] <= off["false"]
+    print(f"{tag} cards rule (right not lower, false not higher): {'PASS' if ok else 'FAIL'}"
+          + ("" if not path else " (reported only: not the tuning set)"))
+    for r in on["rows"]:
+        if r["expect"] and r["got"] != r["expect"]:
+            print(f"  miss (cards): {r['q'][:80]}  expected {r['expect']}, got {r['got']}")
+
+
 if __name__ == "__main__":
+    if "--cards" in sys.argv:
+        cards(sys.argv[sys.argv.index("--set") + 1] if "--set" in sys.argv else None,
+              sys.argv[sys.argv.index("--tag") + 1] if "--tag" in sys.argv else "tune", "--mock-cards" in sys.argv)
+        sys.exit(0)
     if "--set" in sys.argv:
         sealed(sys.argv[sys.argv.index("--set") + 1],
                sys.argv[sys.argv.index("--tag") + 1] if "--tag" in sys.argv else "sealed7")

@@ -67,7 +67,7 @@ v3:
 
 v4:
   # 14 Oct, GPU free again. Each switch stays off until its run_v4.sh rule passes (rules at the top of run_v4.sh).
-  NEWS: 1                           # 15 Oct ON (user choice, rule not passed): news at release + corpus test (news.py) for news and "why" questions
+  NEWS: 0                           # 11 Nov OFF (round 27, decided by its rule: news at release never beat the model without it - pf4 -0.004 [-0.012, +0.004]; was ON since 15 Oct by choice). Set 1 to bring back news lines in news and "why" answers
   SUCCESS: 1                        # 15 Oct ON (user choice, rule not passed): fixed success measures vs films of the same genre and year (tools.success_block)
   ROUTE_FIX: 1                      # 15 Oct ON (user choice, rule not passed): comparison wording finds both films (sealed set: compare route 0/3)
   WIKI_CTX_KW: 0                    # keyword list over contextual chunks (chunk_context.py fts)

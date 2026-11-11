@@ -686,6 +686,57 @@ def install(app, user_of, gate):
         except LookupError as e:
             return JSONResponse({"error": str(e)}, status_code=404)
 
+    # round 27: email alerts (web/emailer.py; sandbox unless EMAIL_SANDBOX=0 and SMTP is set)
+    import emailer
+
+    class EmailIn(BaseModel):
+        email: str = ""
+        code: str = ""
+        on: bool = True
+
+    @app.get("/api/v8/email")
+    async def v8_email(request: Request):
+        if (g := gate(request)):
+            return g
+        return JSONResponse(await run(emailer.status, user_of(request)))
+
+    @app.post("/api/v8/email")
+    async def v8_email_set(b: EmailIn, request: Request):
+        if (g := gate(request)):
+            return g
+        ok, msg = await run(emailer.set_email, user_of(request), b.email)
+        return JSONResponse({"ok": ok, "message": msg} if ok else {"error": msg}, status_code=200 if ok else 400)
+
+    @app.post("/api/v8/email/verify")
+    async def v8_email_verify(b: EmailIn, request: Request):
+        if (g := gate(request)):
+            return g
+        ok, msg = await run(emailer.verify, user_of(request), b.code)
+        return JSONResponse({"ok": ok, "message": msg} if ok else {"error": msg}, status_code=200 if ok else 400)
+
+    @app.post("/api/v8/email/digest")
+    async def v8_email_digest(b: EmailIn, request: Request):
+        if (g := gate(request)):
+            return g
+        return JSONResponse({"ok": await run(emailer.set_digest, user_of(request), b.on)})
+
+    @app.delete("/api/v8/email")
+    async def v8_email_del(request: Request):
+        if (g := gate(request)):
+            return g
+        await run(emailer.delete_user, user_of(request))
+        return JSONResponse({"ok": True})
+
+    @app.get("/email/unsubscribe")
+    async def v8_unsub(t: str = ""):
+        """The link in every email (no access code: the long random token is the key)."""
+        from fastapi.responses import HTMLResponse
+        ok = await run(emailer.unsubscribe, t)
+        msg = "You won't get Cinemack emails any more." if ok else "That link isn't valid (maybe already used)."
+        return HTMLResponse(f"<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width'>"
+                            f"<title>Cinemack email</title><body style='font:16px system-ui;padding:24px'><p>{msg}</p>"
+                            f"<p><a href='/'>Back to Cinemack</a></p></body>", status_code=200 if ok else 400)
+
     class Banner(BaseModel):
         data: str = ""
 

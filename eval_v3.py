@@ -116,8 +116,9 @@ def run_one(q, answers):
     if answers:
         import ollama
         t1 = time.perf_counter()
+        import persona                               # round 27: PERSONA=cinemack (default off = unchanged)
         r = ollama.chat(model=chat.MODEL, think=False, keep_alive=chat.KEEP_ALIVE,
-                        options=R.llm_options(), messages=[{"role": "user", "content": prompt}])
+                        options=R.llm_options(), messages=persona.with_system([{"role": "user", "content": prompt}], chat.MODEL))
         res["answer"] = (r["message"]["content"] or "").strip()
         res["timing"]["answer_s"] = round(time.perf_counter() - t1, 2)
         res["answer_tokens"] = r.get("eval_count") if hasattr(r, "get") else getattr(r, "eval_count", None)
@@ -211,6 +212,12 @@ def main():
     if "--compare" in args:
         i = args.index("--compare")
         return compare(args[i + 1], args[i + 2])
+    if "--rejudge" in args:                      # round 27: judge a saved run again (e.g. after claim_rewrite.py)
+        path = args[args.index("--rejudge") + 1]
+        d = json.load(open(path))
+        judge_all(d["rows"])
+        json.dump(d, open(path, "w"), indent=1, default=str, ensure_ascii=False)
+        return summarize(d["rows"], d.get("tag", ""))
     tag = args[args.index("--tag") + 1] if "--tag" in args else ("v3" if chat.TOOLS else "v2")
     qfile = args[args.index("--questions") + 1] if "--questions" in args else "sets/analytic.json"
     answers = "--answers" in args
