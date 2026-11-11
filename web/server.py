@@ -206,8 +206,18 @@ def sse(event, **data):
     return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 
 
+V8_HOME = os.environ.get("V8_HOME", "1") == "1"   # round 27: / is the v8 site; the old page moved to /classic
+
+
 @app.get("/")
 def index():
+    if V8_HOME and (HERE / "v8" / "index.html").exists():
+        return FileResponse(HERE / "v8" / "index.html", headers={"Cache-Control": "no-store"})
+    return FileResponse(HERE / "index.html", headers={"Cache-Control": "no-store"})
+
+
+@app.get("/classic")
+def classic():
     return FileResponse(HERE / "index.html", headers={"Cache-Control": "no-store"})
 
 

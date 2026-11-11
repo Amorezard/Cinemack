@@ -379,8 +379,10 @@ export const F = {
   save() { store.set('cm.filters', JSON.stringify(S.filters)); emit('cm:filters'); },
   count() { const f = S.filters; return (F.allGenres() ? 0 : (f.genres || []).length) + ['era', 'max_runtime', 'max_cert', 'services_only', 'min_year'].filter(k => f[k]).length + ((f.never_genres || []).length ? 1 : 0); },
   allGenres() { const g = new Set(S.filters.genres || []); return GENRES.length > 0 && GENRES.every(x => g.has(x)); },
-  // Every genre selected means no genre restriction, on Home and in the chat. The chat matches ANY of the genres.
-  forChat() { const f = Object.assign({}, S.filters); if (!(f.genres || []).length || F.allGenres()) delete f.genres; delete f.genre_mode; if (f.long) delete f.brief; else f.brief = true; delete f.long;
+  // Every genre selected means no genre restriction, on Home and in the chat. Any / All is shared by Home and the chat.
+  // round 27: "All" (films in every selected genre) now reaches the chat too, as genres_mode
+  forChat() { const f = Object.assign({}, S.filters); if (!(f.genres || []).length || F.allGenres()) delete f.genres;
+    if (f.genres && f.genres.length > 1 && f.genre_mode === 'all') f.genres_mode = 'all'; delete f.genre_mode; if (f.long) delete f.brief; else f.brief = true; delete f.long;
     for (const k of Object.keys(f)) if (f[k] === '' || f[k] == null || f[k] === false) delete f[k]; return f; },
   toggleGenre(g) { const s = new Set(S.filters.genres || []); s.has(g) ? s.delete(g) : s.add(g); S.filters.genres = GENRES.filter(x => s.has(x)); F.save(); },
 };

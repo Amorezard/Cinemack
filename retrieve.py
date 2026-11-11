@@ -1378,6 +1378,22 @@ also maybe probably pretty get got know dont didnt cant think believe years year
 _FTS_OK = None
 
 
+STRIP_WHEN = _os_m.environ.get("STRIP_WHEN", "0") == "1"
+_R_WHEN = re.compile(
+    r"\b(?:(?:ok(?:ay)?|right|alright|so|great chat|thanks)[,.!]?\s+)?(?:(?:the\s+)?last|one more|another)\s+one\b[,.:!]?"
+    r"|\b(?:for|to watch|to put on|to see|on)?\s*(?:tonight|to-night|this (?:evening|afternoon|weekend)|"
+    r"right now|later (?:on|today|tonight)|after dinner|before bed)\b"
+    r"|\b(?:film|movie) night\b", re.I)
+
+
+def strip_when(text):
+    """Viewing-time words out of a recommendation search ("...to watch tonight", "OK, last one:").
+    Never returns an empty search: falls back to 'a good film'."""
+    out = _R_WHEN.sub(" ", str(text or ""))
+    out = re.sub(r"\s+([,.?!:;])", r"\1", re.sub(r"\s{2,}", " ", out)).strip(" ,.:;-")
+    return out if re.search(r"[A-Za-z]{3}", out) else "a good film"
+
+
 def _fts_query(text):
     """The question's content words as an FTS5 OR query ("" if none)."""
     words = []
@@ -2313,6 +2329,14 @@ def retrieve(question, k=3, db_path="movies.db", recent_titles=None, explain=Fal
             recommending = is_recommendation(question)
             describing = bool(DESCRIBES_A_FILM.search(question)
                               and not NAMES_A_FILM.search(question))
+        if STRIP_WHEN and recommending:
+            # round 27: "one more film for tonight" searched for films titled "...Night" (Late Night, Rough Night,
+            # Last Night) - the viewing time is not part of what the film is about.
+            st = strip_when(search_text)
+            if st != search_text:
+                if trace is not None:
+                    trace["when_stripped"] = [search_text, st]
+                search_text = st
         filters = parse_filters(question)
         discover = taste_mode(question) if DISCOVER else None
         if (DISCOVER and not recommending and not describing and not named

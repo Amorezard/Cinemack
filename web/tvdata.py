@@ -152,13 +152,29 @@ def episodes(sid, season):
     rows = _q("select episode_number, name, air_date, overview, runtime, still_path, vote_average, vote_count, episode_type "
               "from tv_episodes where tmdb_id = ? and season_number = ? order by episode_number", (sid, season)) if _has("tv_episodes") else []
     today = _today()
+    tx = _tvmaze("episode_extras", {}, sid, season)        # round 27: TVmaze summaries and air times (CC BY-SA)
     out = []
     for n, name, d, ov, rtm, still, va, vc, typ in rows:
         r = im.get((season, n))
-        out.append({"season": season, "episode": n, "title": name or (r[2] if r else None), "date": d, "aired": bool(d and d <= today),
-                    "overview": ov or "", "runtime": rtm, "still": IMG(still, "w300"), "type": typ,
-                    "imdb": {"rating": r[0], "votes": r[1]} if r and r[0] else None,
-                    "tmdb": {"rating": round(va, 1), "votes": vc} if va and (vc or 0) >= 5 else None})
+        t = tx.get((season, n)) or {}
+        e = {"season": season, "episode": n, "title": name or (r[2] if r else None) or t.get("name"), "date": d,
+             "aired": bool(d and d <= today), "overview": ov or "", "runtime": rtm or t.get("runtime"), "still": IMG(still, "w300"),
+             "type": typ, "imdb": {"rating": r[0], "votes": r[1]} if r and r[0] else None,
+             "tmdb": {"rating": round(va, 1), "votes": vc} if va and (vc or 0) >= 5 else None}
+        if not e["overview"] and t.get("summary"):
+            e["overview"], e["overview_src"] = t["summary"], "TVmaze"
+        if t.get("airstamp"):
+            e["airstamp"] = t["airstamp"]
+        out.append(e)
+    if not rows and tx:
+        for (s_, n), t in sorted(tx.items(), key=lambda x: x[0][1] or 0):
+            r = im.get((season, n))
+            d = t.get("airdate")
+            out.append({"season": season, "episode": n, "title": t.get("name") or (r[2] if r else None), "date": d,
+                        "aired": bool(d and d <= today), "overview": t.get("summary") or "", "overview_src": "TVmaze" if t.get("summary") else None,
+                        "runtime": t.get("runtime"), "still": t.get("image"), "type": None, "airstamp": t.get("airstamp"),
+                        "imdb": {"rating": r[0], "votes": r[1]} if r and r[0] else None, "tmdb": None, "src": "TVmaze"})
+        return out
     if not rows:
         for (s, n), (rt_, v, t) in sorted(im.items(), key=lambda x: (x[0][1] or 0)):
             if n is None:
@@ -263,6 +279,14 @@ def show(sid, user=""):
                "order by air_date, season_number, episode_number limit 1", (sid, _today()))
         if x:
             nxt = {"season": x[0][0], "episode": x[0][1], "title": x[0][2], "date": x[0][3]}
+    tm = _tvmaze("show_extra", {}, sid)                   # round 27: where and when it airs (TVmaze, CC BY-SA)
+    n2 = tm.get("next") if tm else None
+    if n2 and n2.get("date") and n2["date"] >= _today() and n2.get("season") and n2.get("episode"):
+        if nxt and (nxt["season"], nxt["episode"]) == (n2["season"], n2["episode"]):
+            nxt["airstamp"] = n2.get("airstamp")
+        elif not nxt or n2["date"] < (nxt["date"] or "9999"):
+            nxt = {"season": n2["season"], "episode": n2["episode"], "title": n2.get("name"), "date": n2["date"],
+                   "airstamp": n2.get("airstamp"), "src": "TVmaze"}
     following = False
     if user:
         try:
@@ -278,7 +302,20 @@ def show(sid, user=""):
                 seasons=seasons, latest_season=latest["number"] if latest else None, providers=provs, cast=cast,
                 trailer={"key": vids[0][0], "name": vids[0][1], "url": f"https://www.youtube.com/watch?v={vids[0][0]}"} if vids else None,
                 next_episode=nxt, best_episodes=best_episodes(sid), following=following,
-                has_episodes=_has("tv_episodes"))
+                has_episodes=_has("tv_episodes"),
+                tvmaze=({"airs": _tvmaze("airs_text", "", tm), "url": tm.get("url"), "credit": _tvmaze("credit", None)}
+                        if tm else None))
+
+
+def _tvmaze(fn, default, *a):
+    """Call web/tvmaze.py (round 27) and never fail the page: logs/tvmaze.db may be missing or still loading."""
+    try:
+        import tvmaze
+        if fn == "credit":
+            return tvmaze.CREDIT
+        return getattr(tvmaze, fn)(*a) or default
+    except Exception:  # noqa: BLE001
+        return default
 
 
 # ------------------------------------------------------------------ Pick Tonight for TV

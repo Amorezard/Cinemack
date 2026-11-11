@@ -475,7 +475,8 @@ const run = (k) => !ONLY.length || ONLY.includes(k);
     ok('t12', 'Netflix import (1 added, 1 unmatched listed)', imp.added === 1 && imp.issues.length === 1);
     const st = await apiJ('legacy-check', '/api/settings', { settings: { services: ['netflix'], never_genres: ['Horror'] } });
     ok('t12', 'settings save', st.settings?.services?.includes('netflix') && st.settings.never_genres.includes('Horror'));
-    const classic = await fetch(BASE + '/'); ok('t12', 'classic page still served', classic.status === 200);
+    const classic = await fetch(BASE + '/classic'); ok('t12', 'classic page still served at /classic', classic.status === 200 && (await classic.text()).includes('brand'));
+    const root = await (await fetch(BASE + '/')).text(); ok('t12', '/ serves the v8 site', root.includes('/v8/app.css'));
     await go(page, '#/discover'); ok('t12', 'old #/discover link opens Ask Cinemack', await page.isVisible('#chat-q'));
     ok('t12', 'no page errors', !page.errors.length, page.errors.join(' | '));
     await ctx.close();
@@ -576,6 +577,45 @@ const run = (k) => !ONLY.length || ONLY.includes(k);
     const it = (cw.items || []).find(x => x.id === 6000002);
     ok('t15', 'show page: "Watched up to here" records progress; next episode named', it && it.last.label === 'S1 E3' && it.next?.label?.startsWith('S1 E4'), JSON.stringify(it?.next));
     ok('t15', 'no page errors', !page.errors.length, page.errors.join(' | '));
+    await ctx.close();
+  }
+
+  // ------------------------------------------------------------ Test 16 (round 27): / is v8, TVmaze, chat Any/All, banner
+  if (run('t16')) {
+    const G = 'r27-acc-' + Date.now();
+    const { ctx, page } = await newPage(b, G);
+    await page.goto(`${BASE}/#/`, { waitUntil: 'networkidle' }); await page.waitForTimeout(500);
+    ok('t16', '/ opens the v8 site', await page.isVisible('header .logo') && await page.locator('footer a[href="/classic"]').count() === 1);
+    ok('t16', 'footer credits TVmaze', await page.locator('footer a[href="https://www.tvmaze.com"]').count() === 1);
+    // show page: where and when it airs, with the TVmaze credit (fixture show 4000002 airs on AMC)
+    await go(page, '#/show/4000002'); await page.waitForTimeout(700);
+    ok('t16', 'show page: schedule line from TVmaze', /Sundays at 9:00 pm ET on AMC/.test(await page.locator('.sh-airs').innerText().catch(() => '')));
+    ok('t16', 'show page: TVmaze credit + licence links', await page.locator('a[href*="tvmaze.com/shows/"]').count() >= 1 && await page.locator('a[href*="creativecommons.org/licenses/by-sa/4.0"]').count() >= 1);
+    // calendar: TVmaze credit in the note once a followed show has dated air times
+    await apiJ(G, '/api/v8/tv/follow', { id: 4000002, on: true });
+    await go(page, '#/calendar?view=month'); await page.waitForTimeout(700);
+    ok('t16', 'calendar: TVmaze credited when air times are shown', await page.locator('.cal-note a.tvm').count() >= 1, await page.locator('.cal-note').innerText());
+    // chat: "All" from the shared filters reaches the request as genres_mode
+    await page.evaluate(() => { localStorage.setItem('cm.filters', JSON.stringify({ genres: ['Comedy', 'Horror'], genre_mode: 'all' })); });
+    await go(page, '#/ask'); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(400);
+    ok('t16', 'chat: All shown on the filter chip', await page.locator('.cfilters .chip:has-text("All of:")').count() === 1);
+    let sent = null;
+    page.on('request', r => { if (r.url().endsWith('/api/chat')) { try { sent = JSON.parse(r.postData() || '{}').filters; } catch { /* */ } } });
+    await page.fill('#chat-q', 'something fun for tonight'); await page.keyboard.press('Enter'); await page.waitForTimeout(1200);
+    ok('t16', 'chat: genres_mode all sent', sent && sent.genres_mode === 'all' && sent.genres.length === 2, JSON.stringify(sent));
+    await page.click('.cfilters .fbtn'); await page.waitForTimeout(300);
+    ok('t16', 'filter sheet: Any / All switch', await page.locator('dialog [aria-label="Match genres"] button[aria-pressed="true"]:has-text("All of these")').count() === 1);
+    await page.keyboard.press('Escape');
+    // banner upload: a real image through the Edit profile sheet, then shown; "Use a film backdrop" removes it
+    await go(page, '#/profile'); await page.waitForTimeout(500);
+    await page.click('.pf-head .btn:has-text("Edit profile")'); await page.waitForTimeout(300);
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+    await Promise.all([page.waitForEvent('load').catch(() => {}), page.setInputFiles('#pf-banner', { name: 'b.png', mimeType: 'image/png', buffer: png })]);
+    await page.waitForTimeout(1200);
+    ok('t16', 'banner: uploaded image shown', /blob:/.test(await page.locator('.pf-banner').getAttribute('style') || ''));
+    const other = await apiJ('r27-someone-else', '/api/v8/me/summary');
+    ok('t16', 'banner: not shown to another person', !other.banner || !other.banner.custom);
+    ok('t16', 'no page errors', !page.errors.length, page.errors.join(' | '));
     await ctx.close();
   }
 

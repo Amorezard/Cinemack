@@ -3,7 +3,7 @@
 // own navigation. Every number comes from stored data (/api/v8/me/summary); a new person sees zeros and next steps.
 // The banner is a backdrop from the person's own top-rated or most recent film, or plain default artwork.
 import { $, $$, S, h, I, api, post, view, store, toast, sheet, emit, on, rt, ago, fmtDate, shortGenre, posterImg, posterCard, shelf, section, panel,
-  empty, CW, continueRow, displayName, authSheet, signOut, wantButton } from './core.js';
+  empty, CW, continueRow, displayName, authSheet, signOut, wantButton, hdrs } from './core.js';
 import { reviewSheet } from './film.js';
 
 const TABS = [['overview', 'Overview'], ['ratings', 'Ratings'], ['reviews', 'Reviews'], ['history', 'Watch History'], ['friends', 'Friends']];
@@ -45,7 +45,8 @@ export async function pageProfile(params) {
 function header({ me, p, sum, account }) {
   const name = displayName(me) || 'Guest';
   const s = sum.stats;
-  const banner = h('div', { class: `pf-banner${sum.banner ? '' : ' def'}`, style: sum.banner ? `background-image:url("${sum.banner.url}")` : null });
+  const banner = h('div', { class: `pf-banner${sum.banner ? '' : ' def'}`, style: sum.banner?.url ? `background-image:url("${sum.banner.url}")` : null });
+  if (sum.banner?.custom) loadBanner(banner);                  // round 27: an uploaded banner (fetched with the page's headers)
   const acts = h('div', { class: 'acts' }, h('button', { class: 'btn secondary sm', type: 'button', html: I.edit + 'Edit profile', onclick: () => editSheet(me) }));
   if (account && p.code) acts.append(h('button', { class: 'btn secondary sm', type: 'button', html: I.share + 'Share friend code', onclick: async () => {
     const text = `Add me on Cinemack: my friend code is ${p.code}`;
@@ -61,15 +62,43 @@ function header({ me, p, sum, account }) {
   return h('section', { class: 'pf-head', 'aria-label': 'Profile' }, banner,
     h('div', { class: 'pf-in' }, h('div', { class: 'pf-id' }, h('span', { class: 'pf-av', 'aria-hidden': 'true' }, name[0].toUpperCase()),
       h('div', { style: 'min-width:0' }, h('h1', {}, name), h('div', { class: 'u' }, sub, ' · ', line), acts)), h('span', {}), stats),
-    sum.banner ? h('span', { class: 'tiny', style: 'position:absolute;right:14px;top:10px;color:#C9D3E3;opacity:.8' }, `Backdrop: ${sum.banner.from}`) : null);
+    sum.banner && !sum.banner.custom ? h('span', { class: 'tiny', style: 'position:absolute;right:14px;top:10px;color:#C9D3E3;opacity:.8' }, `Backdrop: ${sum.banner.from}`) : null);
 }
+async function loadBanner(el) {
+  try { const r = await fetch('/api/v8/banner', { headers: hdrs(), cache: 'no-store' }); if (!r.ok) return;
+    el.style.backgroundImage = `url("${URL.createObjectURL(await r.blob())}")`; el.classList.remove('def'); } catch { /* keep the default artwork */ }
+}
+const readImage = (file) => new Promise((ok, bad) => {
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type)) return bad(new Error('Use a JPEG, PNG or WebP image.'));
+  const img = new Image(), url = URL.createObjectURL(file);
+  img.onload = () => {        // scale down to at most 1600 px wide in the browser, so uploads stay small
+    const w = Math.min(1600, img.naturalWidth), hgt = Math.round(img.naturalHeight * w / img.naturalWidth);
+    const c = document.createElement('canvas'); c.width = w; c.height = hgt; c.getContext('2d').drawImage(img, 0, 0, w, hgt);
+    URL.revokeObjectURL(url); ok(c.toDataURL('image/jpeg', 0.85)); };
+  img.onerror = () => { URL.revokeObjectURL(url); bad(new Error('That image could not be read.')); };
+  img.src = url; });
 function editSheet(me) {
   sheet('Edit profile', (b, d) => {
     const nm = h('input', { class: 'input', id: 'pf-name', value: displayName(me), maxlength: '40', autocomplete: 'nickname' });
     b.append(h('div', { class: 'field' }, h('label', { for: 'pf-name' }, 'Display name'), nm, h('span', { class: 'hint' }, 'Shown to friends you accept. Leave empty to use your username.')),
-      h('p', { class: 'hint', style: 'margin-bottom:14px' }, 'Your banner is a backdrop from your highest-rated or most recently watched film. Cinemack never adds a photo for you.'),
+      bannerField(d),
       h('button', { class: 'btn primary', type: 'button', onclick: async () => { try { await post('/api/settings', { settings: me.settings, name: nm.value.trim() }); d.close(); toast('Profile saved.'); emit('cm:me'); location.reload(); } catch (e) { toast(e.message, null, true); } } }, 'Save'));
   });
+}
+
+function bannerField(d) {
+  const inp = h('input', { type: 'file', id: 'pf-banner', accept: 'image/jpeg,image/png,image/webp', class: 'sr-only' });
+  const msg = h('span', { class: 'hint', 'aria-live': 'polite' }, 'Your own image, or (by default) a backdrop from your highest-rated or most recently watched film. JPEG, PNG or WebP; it is resized to 1600 px wide and only you see it.');
+  inp.addEventListener('change', async () => {
+    const f = inp.files?.[0]; if (!f) return;
+    try { msg.textContent = 'Uploading…'; await post('/api/v8/banner', { data: await readImage(f) }); toast('Banner saved.'); d.close(); location.reload(); }
+    catch (e) { msg.textContent = e.message; }
+  });
+  return h('div', { class: 'field' }, h('span', { class: 'lab' }, 'Banner'),
+    h('div', { class: 'chips' }, h('label', { class: 'btn secondary sm', for: 'pf-banner', tabindex: '0', role: 'button',
+      onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inp.click(); } } }, 'Upload an image'), inp,
+      h('button', { class: 'btn ghost sm', type: 'button', onclick: async () => { try { await api('/api/v8/banner', { method: 'DELETE' }); toast('Back to the film backdrop.'); d.close(); location.reload(); } catch (e) { msg.textContent = e.message; } } }, 'Use a film backdrop')),
+    msg);
 }
 
 // ---------------------------------------------------------------- overview

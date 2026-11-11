@@ -173,11 +173,14 @@ def parse_money(text):
     if not m:
         return None
     cur = CUR.get(m.group(1).lower(), m.group(1))
+    scale = (m.group(4) or "").lower() or None
+    num = m.group(2)
+    if scale and re.fullmatch(r"\d{1,3},\d{1,2}", num):
+        num = num.replace(",", ".")      # round 27: "$136,6 million" is 136.6 million (a decimal comma), not 1,366
     try:
-        v = float(m.group(2).replace(",", ""))
+        v = float(num.replace(",", ""))
     except ValueError:
         return None
-    scale = (m.group(4) or "").lower() or None
     v *= SCALE.get(scale, 1)
     if v < 1000:          # "$5" with no scale word is never a film budget
         return None

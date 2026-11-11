@@ -236,6 +236,11 @@ SOURCES = [
     ("netflix", "hours viewed and views per film per half-year", "netflix_views",
      "Netflix engagement reports (public); TidyTuesday CSV (CC0)", "Viewing figures: Netflix What We Watched.",
      "https://about.netflix.com/en/news/what-we-watched", 180),
+    ("tvmaze", "TV schedules: network or service, air days and times, upcoming episodes, episode summaries (website only; "
+     "never in answers or evaluations)", "logs/tvmaze.db",
+     "TVmaze API: free, no key, CC BY-SA 4.0 - credit with a link, and what we pass on carries the same licence",
+     "Schedule, air times and some episode summaries: TVmaze (CC BY-SA 4.0), linked on each show page and the calendar.",
+     "https://www.tvmaze.com/api", 1),
     ("letterboxd", "ratings, distributions, reviews (only if API access is approved)", "-",
      "API by request only; terms forbid scraping. connectors/letterboxd.py stays APPROVED = False until written "
      "approval arrives", "-", "https://letterboxd.com/api-beta/", None),

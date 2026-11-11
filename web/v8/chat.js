@@ -193,7 +193,9 @@ function drawFilters() {
   bar.append(h('button', { class: 'chip fbtn', type: 'button', html: I.filter + `<span>Filters${n ? ` (${n})` : ''}</span>`, onclick: () => filterSheet() }));
   const tag = (text, clear) => bar.append(h('button', { class: 'chip on', type: 'button', 'aria-label': `Remove filter: ${text}`, onclick: () => { clear(); F.save(); } }, text, h('span', { class: 'x', html: I.x })));
   if ((f.genres || []).length && !F.allGenres()) {          // many genres collapse into one chip; every genre = no filter
-    if (f.genres.length > 3) tag(`${f.genres.length} genres (any)`, () => { f.genres = []; });
+    const md = f.genres.length > 1 && f.genre_mode === 'all' ? 'all' : 'any';
+    if (f.genres.length > 3) tag(`${f.genres.length} genres (${md})`, () => { f.genres = []; });
+    else if (md === 'all') tag(`All of: ${f.genres.map(shortGenre).join(' + ')}`, () => { f.genres = []; });
     else f.genres.forEach(g => tag(shortGenre(g), () => { f.genres = f.genres.filter(x => x !== g); }));
   }
   if (f.max_runtime) tag((FILTERS.max_runtime.find(x => x[0] === String(f.max_runtime)) || [])[1], () => { delete f.max_runtime; });
@@ -215,7 +217,12 @@ function filterSheet() {
   const f = S.filters;
   sheet('Filters', (b, d) => {
     const on = new Set(f.genres || []);
+    let gmode = f.genre_mode === 'all' ? 'all' : 'any';
     const chips = h('div', { class: 'chips', role: 'group', 'aria-label': 'Genres' });
+    const seg = h('div', { class: 'seg', role: 'group', 'aria-label': 'Match genres' });
+    const paintSeg = () => $$('button', seg).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.m === gmode)));
+    [['any', 'Any of these'], ['all', 'All of these']].forEach(([k, l]) => seg.append(h('button', { type: 'button', 'data-m': k, 'aria-pressed': String(gmode === k),
+      title: k === 'any' ? 'Films in at least one selected genre' : 'Films in every selected genre', onclick: () => { gmode = k; paintSeg(); } }, l)));
     GENRES.forEach(g => chips.append(h('button', { class: 'chip', type: 'button', 'aria-pressed': String(on.has(g)),
       onclick: (e) => { on.has(g) ? on.delete(g) : on.add(g); e.currentTarget.setAttribute('aria-pressed', String(on.has(g))); } }, shortGenre(g))));
     const draft = { era: f.era || '', max_runtime: f.max_runtime ? String(f.max_runtime) : '', max_cert: f.max_cert || '' };
@@ -224,7 +231,7 @@ function filterSheet() {
     const svc = h('input', { type: 'checkbox', id: 'f-svc', checked: !!f.services_only });
     const long = h('input', { type: 'checkbox', id: 'f-long', checked: !!f.long });
     const hasSvc = (S.me?.settings?.services || []).length;
-    b.append(h('div', { class: 'field' }, h('span', { class: 'lab' }, 'Genres (any of these)'), chips),
+    b.append(h('div', { class: 'field' }, h('span', { class: 'lab' }, 'Genres'), chips, h('div', { style: 'margin-top:8px' }, seg)),
       h('div', { style: 'display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0 12px' }, sel('max_runtime', 'Length'), sel('era', 'Era'), sel('max_cert', 'Age rating')),
       h('div', { class: 'field' }, h('label', { class: 'switch' }, svc, 'Only what streams on my services'),
         hasSvc ? null : h('span', { class: 'hint' }, 'You have not added services yet. ', h('a', { href: '#/profile?tab=settings&sec=services', onclick: () => d.close() }, 'Add them'))),
@@ -233,7 +240,7 @@ function filterSheet() {
       h('p', { class: 'hint', style: 'margin-bottom:16px' }, 'Filters are enforced in code for recommendations here and on Home, not just suggested to the model.'),
       h('div', { class: 'actions', style: 'margin:0' }, h('button', { class: 'btn primary', type: 'button', onclick: () => {
         const keep = { never_genres: f.never_genres, min_year: f.min_year, services: f.services };   // chips from messages stay
-        S.filters = { genres: GENRES.filter(g => on.has(g)) };
+        S.filters = { genres: GENRES.filter(g => on.has(g)), genre_mode: gmode };
         for (const [k, v] of Object.entries(keep)) if (v && (!Array.isArray(v) || v.length)) S.filters[k] = v;
         if (!svc.checked) delete S.filters.services;
         if (draft.era) S.filters.era = draft.era;

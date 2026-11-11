@@ -43,8 +43,9 @@ export async function pageShow(id) {
   if (d.next_episode) {
     const n = d.next_episode;
     left.append(h('div', { class: 'sh-next' }, h('span', { class: 'ic', html: I.cal }), h('div', {}, h('b', {}, `Next episode: S${n.season} E${n.episode}${n.title ? ` · ${n.title}` : ''}`),
-      h('div', { class: 'small muted' }, `Airs ${fmtDate(n.date, { weekday: 'long', month: 'long', day: 'numeric' })} (US date from TMDB)`))));
+      h('div', { class: 'small muted' }, `Airs ${fmtDate(n.date, { weekday: 'long', month: 'long', day: 'numeric' })}${n.airstamp ? ` at ${new Date(n.airstamp).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })} your time` : ''} (${n.src === 'TVmaze' ? 'TVmaze' : n.airstamp ? 'date from TMDB, time from TVmaze' : 'US date from TMDB'})`))));
   }
+  if (d.tvmaze?.airs) left.append(h('p', { class: 'sh-airs' }, h('span', { class: 'ic', html: I.tv }), h('span', {}, d.tvmaze.airs)));
   if (d.overview) left.append(h('p', { class: 'sh-ov' }, d.overview));
   if (d.creators?.length) left.append(h('p', { class: 'small muted' }, `Created by ${d.creators.join(', ')}`));
   const pv = d.providers || {};
@@ -85,7 +86,9 @@ export async function pageShow(id) {
   if (d.cast?.length) view.append(section('Cast', {}, h('div', { class: 'cast' }, d.cast.map(c => h('div', { class: 'cm' },
     h('span', { class: 'av' }, c.photo ? h('img', { src: c.photo, alt: '', loading: 'lazy', width: 72, height: 72 }) : (c.name || '?')[0]),
     h('b', {}, c.name), c.character ? h('span', { class: 'small muted' }, c.character) : null)))));
-  view.append(h('p', { class: 'tiny faint', style: 'margin-top:20px' }, 'Show and episode data from TMDB; IMDb ratings from the IMDb datasets (non-commercial use).'));
+  view.append(h('p', { class: 'tiny faint', style: 'margin-top:20px' }, 'Show and episode data from TMDB; IMDb ratings from the IMDb datasets (non-commercial use).',
+    d.tvmaze ? [' Schedule, air times and some episode summaries: ', h('a', { href: d.tvmaze.url || d.tvmaze.credit?.url || 'https://www.tvmaze.com', target: '_blank', rel: 'noopener noreferrer' }, 'TVmaze'),
+      ' (', h('a', { href: 'https://creativecommons.org/licenses/by-sa/4.0/', target: '_blank', rel: 'noopener noreferrer' }, 'CC BY-SA 4.0'), ').'] : null));
 }
 
 function epRow(d, e) {
@@ -100,6 +103,6 @@ function epRow(d, e) {
     h('div', { class: 'ep-still' }, e.still ? h('img', { src: e.still, alt: '', loading: 'lazy', width: 300, height: 169 }) : h('span', { class: 'ph', html: I.tv })),
     h('div', { class: 'ep-in' }, h('div', { class: 'ep-t' }, h('span', { class: 'se' }, `E${e.episode}`), h('b', {}, e.title || `Episode ${e.episode}`),
       e.type === 'finale' ? h('span', { class: 'tag y' }, 'Finale') : e.type === 'mid_season' ? h('span', { class: 'tag' }, 'Mid-season finale') : null),
-      h('div', { class: 'small muted' }, meta.join(' · ')), r, e.overview ? h('p', { class: 'ep-ov' }, e.overview) : null),
+      h('div', { class: 'small muted' }, meta.join(' · ')), r, e.overview ? h('p', { class: 'ep-ov' }, e.overview, e.overview_src ? h('span', { class: 'tiny faint' }, ` (${e.overview_src})`) : null) : null),
     btn ? h('div', { class: 'ep-a' }, btn) : null);
 }

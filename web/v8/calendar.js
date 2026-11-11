@@ -100,6 +100,8 @@ export async function pageCalendar(params) {
     wrap.append(dayPanel(by[st.sel] || []));
     const total = Object.values(by).reduce((n, x) => n + x.length, 0);
     note.textContent = `${total} release${total === 1 ? '' : 's'} in this ${st.view}${st.f !== 'all' ? ' with this filter' : ''}. Dates are US dates from TMDB${j.as_of ? `, lists updated ${j.as_of}` : ''}. TV: season premieres, season finales of well-known shows, and every episode of the shows you follow. Cinemack has no showtimes of its own: Showtimes opens a web search.`;
+    note.querySelector('.tvm')?.remove();
+    for (const c of (j.credits || [])) note.append(' ', h('a', { class: 'tvm', href: c.url, target: '_blank', rel: 'noopener noreferrer' }, `${c.text}.`));
   }
   const kinds = (es) => [...new Set(es.map(e => (KIND[e.kind] || ['', 'un'])[1]))];
   const thumb = (e) => { const it = e.film || e.show; return h('span', { class: 'pp' }, it.poster ? h('img', { src: it.poster, alt: '', loading: 'lazy', width: 54, height: 81 }) : h('span', { class: 'ph' })); };
@@ -109,7 +111,9 @@ export async function pageCalendar(params) {
     if (e.kind === 'digital' && (e.providers || []).length) return e.providers.slice(0, 2).join(', ');
     return [g, f.runtime ? rt(f.runtime) : null].filter(Boolean).join(' · ') || (e.kind === 'theatrical_rerelease' ? 'Re-release' : '');
   };
-  const epLabel = (e) => e.kind === 'tv_episode' ? `S${e.show.season} E${e.show.episode}${e.finale ? ' · finale' : ''}` : `S${e.show.season} premiere`;
+  // round 27: TVmaze air time, shown in the viewer's own time zone (airstamp is UTC)
+  const airTime = (e) => { if (!e.airstamp) return ''; const t = new Date(e.airstamp); return isNaN(t) ? '' : t.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }); };
+  const epLabel = (e) => (e.kind === 'tv_episode' ? `S${e.show.season} E${e.show.episode}${e.finale ? ' · finale' : ''}` : `S${e.show.season} premiere`) + (airTime(e) ? ` · ${airTime(e)}` : '');
   // one release inside a week column: a wide tile (film with a backdrop, quiet group) or a compact row
   function weekItem(e, tile) {
     if (e.show) return h('a', { class: 'wr', href: `#/show/${e.show.id}`, title: e.show.title },
@@ -237,7 +241,7 @@ export async function pageCalendar(params) {
     return h('article', { class: 'ev', 'data-kind': 'tv' }, h('a', { class: 'pp', href: `#/show/${show.id}`, tabindex: '-1', 'aria-hidden': 'true' }, posterImg(show, 'poster', 48)),
       h('div', { class: 'in' }, h('a', { class: 'tt', href: `#/show/${show.id}` }, show.title),
         h('span', { class: 'mm' }, e.kind === 'tv_episode' ? `S${show.season} E${show.episode}${show.episode_title ? ` · ${show.episode_title}` : ''}${e.finale ? ' (season finale)' : ''}` : `Season ${show.season} premieres`),
-        e.network ? h('span', { class: 'sv' }, e.network) : null),
+        (e.where || e.network || airTime(e)) ? h('span', { class: 'sv' }, [airTime(e) ? `${airTime(e)} your time` : null, e.where || e.network ? `${e.streaming ? 'streams on' : 'on'} ${e.where || e.network}` : null].filter(Boolean).join(' · ')) : null),
       h('div', { class: 'ea' }, fol));
   }
   draw();

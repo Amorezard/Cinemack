@@ -26,6 +26,7 @@
 set -u -o pipefail
 cd "$(dirname "$0")"
 [ -f ~/.movie-buff.env ] && source ~/.movie-buff.env
+[ -f keys.env ] && { set -a; source keys.env; set +a; }     # round 27: GUARDIAN / FRED keys used by the sync rounds (git-ignored)
 [ -f ~/venvs/movie-rag/bin/activate ] && source ~/venvs/movie-rag/bin/activate
 DRY=0; [ "${1:-}" = "--dry" ] && DRY=1
 DAY=$(date +%F)
@@ -55,6 +56,12 @@ YEAR=$(date +%Y)
 [ -n "${TMDB_API_KEY:-}" ] && run "tmdb film artwork, logos, US services (calendar window)" python tools/fetch_film_data.py window   # round 19
 [ -n "${OMDB_API_KEY:-}" ] && run "omdb"          python fetch_free_data.py omdb
 [ -n "${GUARDIAN_API_KEY:-}" ] && run "guardian"  python fetch_free_data.py guardian
+# round 27 (11 Nov): pf5 B - Guardian articles before each film's release, ~400 a night after the reviews (the key
+# allows 500 calls a day; the step stops by itself on HTTP 429). About 20 nights to cover the 2000-2015 training films.
+[ -n "${GUARDIAN_API_KEY:-}" ] && run "guardian pre-release articles (pf5 B)" python pf5_data.py press --max "${PRESS_NIGHT:-400}"
+# round 27: TVmaze schedule (one call) and the shows TVmaze changed in the last day (logs/tvmaze.db, website only)
+[ -f logs/tvmaze.db ] && ! tmux has-session -t tvmaze 2>/dev/null && run "tvmaze schedule" python tools/fetch_tvmaze.py schedule
+[ -f logs/tvmaze.db ] && ! tmux has-session -t tvmaze 2>/dev/null && run "tvmaze updates" python tools/fetch_tvmaze.py updates
 [ -n "${NYT_API_KEY:-}" ] && run "nyt"            python fetch_free_data.py nyt --limit 60
 run "wikipedia reception (changed pages)"         python v7_data.py reception --again
 if [ -n "${YOUTUBE_API_KEY:-}" ]; then

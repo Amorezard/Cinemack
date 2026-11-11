@@ -99,6 +99,13 @@ def move_user(old, new):
         m.execute("update or ignore alert_mute set user_key = ? where user_key = ?", (new, old))
         m.execute("delete from alert_mute where user_key = ?", (old,))
         m.commit()
+    try:                                                  # round 27: a guest's banner moves into the new account
+        p, _t = banner_file(old)
+        if p and not banner_file(new)[0]:
+            BANNER_DIR.mkdir(parents=True, exist_ok=True)
+            p.replace(_banner_path(new).with_suffix(p.suffix))
+    except Exception as e:  # noqa: BLE001
+        print(f"[cinemack] banner move failed: {e!r}", flush=True)
 
 
 def delete_user(user):
@@ -110,6 +117,7 @@ def delete_user(user):
         m = _mdb()
         m.execute("delete from alert_mute where user_key = ?", (user,))
         m.commit()
+    banner_delete(user)                                   # round 27
 
 
 # ------------------------------------------------------------------ TV progress
@@ -487,7 +495,10 @@ def summary(user, activity=20):
         if a["media"] == "tv" and a["id"] in tvp:
             a["poster"] = tvp[a["id"]]["poster"]
     banner = None
-    for i in [f["id"] for f in fav] + watched_films:
+    bp, _bt = banner_file(user)
+    if bp:
+        banner = {"custom": True, "from": "your upload", "v": int(bp.stat().st_mtime)}
+    for i in ([] if banner else [f["id"] for f in fav] + watched_films):
         b = (meta.get(i) or {}).get("backdrop")
         if b:
             banner = {"url": b, "from": meta[i]["title"]}
@@ -504,6 +515,65 @@ def summary(user, activity=20):
 
 
 # ------------------------------------------------------------------ routes
+# ------------------------------------------------------------------ round 27: custom profile banner
+import base64
+import hashlib
+import os
+from pathlib import Path
+
+BANNER_DIR = Path(os.environ.get("BANNER_DIR", str(Path(__file__).resolve().parent.parent / "logs" / "banners")))
+BANNER_MAX = 2_000_000                      # bytes after decoding
+_MAGIC = ((b"\xff\xd8\xff", "jpg", "image/jpeg"), (b"\x89PNG\r\n\x1a\n", "png", "image/png"),
+          (b"RIFF", "webp", "image/webp"))
+
+
+def _banner_path(user):
+    """One file per person, named by a hash of their key (no names or ids on disk)."""
+    h = hashlib.sha256(("cinemack-banner|" + str(user)).encode()).hexdigest()[:32]
+    for _m, ext, _t in _MAGIC:
+        p = BANNER_DIR / f"{h}.{ext}"
+        if p.exists():
+            return p
+    return BANNER_DIR / h
+
+
+def banner_save(user, data_url):
+    """data:image/...;base64,... -> saved; returns (ok, message). Only JPEG / PNG / WebP by their first bytes."""
+    if not user:
+        return False, "No user."
+    try:
+        raw = base64.b64decode(str(data_url).split(",", 1)[-1], validate=True)
+    except (ValueError, TypeError):
+        return False, "That file could not be read."
+    if len(raw) > BANNER_MAX:
+        return False, "Images up to 2 MB, please."
+    kind = next(((ext, t) for m, ext, t in _MAGIC if raw.startswith(m) and (ext != "webp" or raw[8:12] == b"WEBP")), None)
+    if not kind:
+        return False, "Use a JPEG, PNG or WebP image."
+    BANNER_DIR.mkdir(parents=True, exist_ok=True)
+    banner_delete(user)
+    p = _banner_path(user).with_suffix("." + kind[0]) if _banner_path(user).suffix == "" else _banner_path(user)
+    tmp = p.with_suffix(".tmp")
+    tmp.write_bytes(raw)
+    tmp.replace(p)
+    return True, "Banner saved."
+
+
+def banner_delete(user):
+    p = _banner_path(user)
+    if p.suffix and p.exists():
+        p.unlink()
+        return True
+    return False
+
+
+def banner_file(user):
+    p = _banner_path(user)
+    if p.suffix and p.exists():
+        return p, next(t for _m, ext, t in _MAGIC if ext == p.suffix[1:])
+    return None, None
+
+
 def install(app, user_of, gate):
     from fastapi import Request
     from fastapi.responses import JSONResponse
@@ -615,6 +685,35 @@ def install(app, user_of, gate):
             return JSONResponse({"error": str(e)}, status_code=400)
         except LookupError as e:
             return JSONResponse({"error": str(e)}, status_code=404)
+
+    class Banner(BaseModel):
+        data: str = ""
+
+    @app.post("/api/v8/banner")
+    async def v8_banner_up(b: Banner, request: Request):
+        if (g := gate(request)):
+            return g
+        if len(b.data) > BANNER_MAX * 4 // 3 + 200:
+            return JSONResponse({"error": "Images up to 2 MB, please."}, status_code=413)
+        ok, msg = await run(banner_save, user_of(request), b.data)
+        return JSONResponse({"ok": ok, "message": msg} if ok else {"error": msg}, status_code=200 if ok else 400)
+
+    @app.delete("/api/v8/banner")
+    async def v8_banner_del(request: Request):
+        if (g := gate(request)):
+            return g
+        return JSONResponse({"ok": await run(banner_delete, user_of(request))})
+
+    @app.get("/api/v8/banner")
+    async def v8_banner_get(request: Request):
+        """The person's own banner image (fetched by the page with its headers; never public)."""
+        from fastapi.responses import FileResponse
+        if (g := gate(request)):
+            return g
+        p, t = banner_file(user_of(request))
+        if not p:
+            return JSONResponse({"error": "No banner."}, status_code=404)
+        return FileResponse(p, media_type=t, headers={"Cache-Control": "private, no-cache"})
 
     @app.get("/api/v8/me/summary")
     async def v8_summary(request: Request, activity: int = 20):

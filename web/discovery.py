@@ -713,10 +713,60 @@ def calendar(user="", days=60, start=None):
         out.append({"date": d[:10], "kind": "tv_episode", "media": "tv", "label": f"S{sn} E{ep}" + (" (season finale)" if typ == "finale" else ""),
                     "following": sid in following, "confirmed": True, "network": b["network"], "finale": typ == "finale",
                     "show": {"id": sid, "title": b["title"], "season": sn, "episode": ep, "episode_title": title, "poster": b["poster"]}})
-    out.sort(key=lambda e: (e["date"], e["kind"]))
+    credits = _tvmaze_calendar(out, start, end, following)          # round 27: air times + followed shows' streaming drops
+    out.sort(key=lambda e: (e["date"], e.get("airstamp") or "", e["kind"]))
     at = _q("select max(fetched_at) from lists")
     return {"from": start, "to": end, "events": out, "as_of": (at[0][0] or "")[:10] if at else None,
-            "note": "Dates come from TMDB. Cinemack doesn't have cinema showtimes; the showtimes link opens a web search."}
+            "note": "Dates come from TMDB" + (", episode air times from TVmaze" if credits else "")
+                    + ". Cinemack doesn't have cinema showtimes; the showtimes link opens a web search.",
+            "credits": credits}
+
+
+def _tvmaze_calendar(out, start, end, following):
+    """Round 27: add TVmaze air times (airstamp, shown in the viewer's own time) and where it airs to the TV events,
+    and add episodes of followed shows that TVmaze dates but TMDB does not. Returns the credit lines to show (CC BY-SA)."""
+    try:
+        import tvmaze
+        if not tvmaze.available():
+            return []
+        ids = {e["show"]["id"] for e in out if e["media"] == "tv"} | set(following or [])
+        ups = tvmaze.upcoming(start, end, sorted(ids))
+    except Exception as e:  # noqa: BLE001
+        print(f"[cinemack] tvmaze calendar: {e!r}", flush=True)
+        return []
+    if not ups:
+        return []
+    by = {(u["tmdb_id"], u["season"], u["episode"]): u for u in ups}
+    used = False
+    have = set()
+    for e in out:
+        if e["media"] != "tv":
+            continue
+        sh = e["show"]
+        key = (sh["id"], sh["season"], sh.get("episode") or 1)
+        have.add(key)
+        u = by.get(key)
+        if u and u.get("airstamp"):
+            e["airstamp"], e["where"], e["streaming"] = u["airstamp"], u.get("where"), u.get("streaming")
+            used = True
+    b = None
+    for u in ups:
+        key = (u["tmdb_id"], u["season"], u["episode"])
+        if key in have or u["tmdb_id"] not in set(following or []) or not u.get("season") or not u.get("episode"):
+            continue
+        if b is None:
+            b = tvdata.basics(list({x["tmdb_id"] for x in ups if x["tmdb_id"] in set(following or [])}))
+        bb = b.get(u["tmdb_id"])
+        if not bb:
+            continue
+        out.append({"date": u["date"], "kind": "tv_episode", "media": "tv",
+                    "label": f"S{u['season']} E{u['episode']}" + (f" on {u['where']}" if u.get("where") else ""),
+                    "following": True, "confirmed": True, "network": bb["network"], "finale": False, "src": "TVmaze",
+                    "airstamp": u.get("airstamp"), "where": u.get("where"), "streaming": u.get("streaming"),
+                    "show": {"id": u["tmdb_id"], "title": bb["title"], "season": u["season"], "episode": u["episode"],
+                             "episode_title": u.get("name"), "poster": bb["poster"]}})
+        used = True
+    return [tvmaze.CREDIT] if used else []
 
 
 # ------------------------------------------------------------------ alerts

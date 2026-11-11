@@ -190,6 +190,8 @@ def clean_chat(raw):
         gs = list(dict.fromkeys(g for g in raw["genres"] if g in GENRES))     # 10 Nov: no [:6] cut (Home sends up to 18)
         if gs:
             out["genres"] = gs
+            if raw.get("genres_mode") == "all" and len(gs) > 1:     # round 27: "All" as on Home (every genre picked)
+                out["genres_mode"] = "all"
     if raw.get("brief") is True:                   # 9 Nov: the v8 chat asks for short answers unless told otherwise
         out["brief"] = True
     try:
@@ -236,6 +238,8 @@ def merge_chat(settings, chat):
         s["max_year"] = hi
     if c.get("genre") or c.get("genres"):
         s["only_genres"] = sorted(set(([c["genre"]] if c.get("genre") else []) + (c.get("genres") or [])))
+        if c.get("genres_mode") == "all" and len(s["only_genres"]) > 1:
+            s["genres_all"] = True
     if c.get("brief") and s.get("length", "normal") == "normal":   # the person's own short/detailed setting wins
         s["length"] = "short"
     if c.get("max_runtime"):
@@ -277,6 +281,8 @@ def filter_tag(settings):
         return ""
     f = {k: settings.get(k) for k in ("never_genres", "min_year", "max_runtime", "max_cert", "services",
                                       "max_year", "only_genres", "services_only")}
+    if settings.get("genres_all"):                    # round 27 (only when on, so older cache keys stay the same)
+        f["genres_all"] = True
     # hiding money / critic lines changes the tool blocks inside the cached prompt, so it is part of the key too
     f.update({k: False for k in ("money", "critics") if settings.get(k) is False})
     if not any(v not in (None, [], "") for v in f.values()):
@@ -319,7 +325,10 @@ def prompt_block(settings, intent=None, question=""):
         if s.get("max_year"):
             lines.append(f"Only recommend films released in {s['max_year']} or earlier.")
         if s.get("only_genres"):
-            lines.append("Only recommend films in this genre: " + ", ".join(s["only_genres"]) + ".")
+            if s.get("genres_all"):
+                lines.append("Only recommend films that are in ALL of these genres at once: " + ", ".join(s["only_genres"]) + ".")
+            else:
+                lines.append("Only recommend films in this genre: " + ", ".join(s["only_genres"]) + ".")
         if s.get("services_only"):
             lines.append("Only recommend films listed on this person's streaming services (named below).")
         if s.get("chat_filters"):
@@ -403,6 +412,8 @@ def excluded(settings, hits):
                 (s.get("max_runtime") and rt and rt > s["max_runtime"]) or (max_y and y and y > max_y):
             out.add(fid)
         elif only and gs and not (only & gs):
+            out.add(fid)
+        elif only and gs and s.get("genres_all") and not (only <= gs):      # round 27: every chosen genre
             out.add(fid)
         elif limit is not None and fid in certs and CERT_RANK[certs[fid]] > limit:
             out.add(fid)

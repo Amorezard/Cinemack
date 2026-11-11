@@ -975,6 +975,22 @@ def filmography_block(name, role):
     return "\n".join(lines)
 
 
+GENRE_AGREE = os.environ.get("GENRE_AGREE", "0") == "1"
+IMDB_GENRE = {"Science Fiction": "Sci-Fi", "Music": "Music"}      # TMDB name -> IMDb name (others are the same)
+
+
+def genre_clause(g):
+    """SQL for "the film is a <g> film" in genre rankings. GENRE_AGREE=1 (round 27): TMDB's tag AND, when IMDb lists
+    genres for the film, IMDb's too (Despicable Me 3 is "Action" on TMDB only, so it topped highest-grossing action
+    films). TMDB-only films (no IMDb row or no IMDb genres) keep TMDB's tags."""
+    if not GENRE_AGREE:
+        return "f.genres_json like ?", [f'%"{g}"%']
+    ig = IMDB_GENRE.get(g, g)
+    return ("(f.genres_json like ? and not exists (select 1 from imdb_titles it where it.tconst = f.imdb_id "
+            "and coalesce(it.genres, '') not in ('', '\\N') and instr(',' || it.genres || ',', ?) = 0))",
+            [f'%"{g}"%', f",{ig},"])
+
+
 def _film_filter(s):
     where, args = ["f.year is not null"], []
     if s.get("year_from"):
@@ -982,7 +998,8 @@ def _film_filter(s):
     if s.get("year_to"):
         where.append("f.year <= ?"); args.append(int(s["year_to"]))
     for g in s.get("genres") or []:
-        where.append("f.genres_json like ?"); args.append(f'%"{g}"%')
+        cl, a = genre_clause(g)
+        where.append(cl); args += a
     if s.get("max_budget"):
         where.append("m.budget <= ?"); args.append(int(s["max_budget"]))
     return " and ".join(where), args
@@ -1452,8 +1469,8 @@ def reception_list_block(question, kind):
         return RC.gap_block(question, limit=10, genre=genre, year_from=yf, year_to=yt, conn=c)
     where, args = ["coalesce(f.vote_count, 0) >= 200"], []
     if genre:
-        where.append("f.genres_json like ?")
-        args.append(f'%"{genre}"%')
+        cl, a = genre_clause(genre)
+        where.append(cl); args += a
     if yf:
         where += ["f.year >= ?", "f.year <= ?"]
         args += [yf, yt]
@@ -1548,6 +1565,14 @@ def _hide_lines(blocks, hide, question):
 
 
 # ================================================================== build
+def _decimal_slip(a, b):
+    """True when a and b differ by a power of ten (10, 100, 1000) within 2%: a misplaced decimal."""
+    if not a or not b:
+        return False
+    r = max(a, b) / min(a, b)
+    return any(abs(r / p - 1) <= 0.02 for p in (10, 100, 1000))
+
+
 def build(facts_path=None, movielens_zip="data/movielens/ml-latest-small.zip"):
     """money: one best figure per film (and the others when sources disagree by > 25%).
     Preference: films released before mid-2022 -> Wikipedia infobox, Wikidata, TMDB (the
@@ -1582,6 +1607,16 @@ def build(facts_path=None, movielens_zip="data/movielens/ml-latest-small.zip"):
             vals = sorted(set(vals), key=lambda x: pref.index(x[1]) if x[1] in pref else 9)
             best = vals[0]
             nums = [v for v, _ in vals]
+            def _support(x):
+                return sum(1 for y in vals if y is not x and y[1] != x[1] and max(x[0], y[0]) / max(min(x[0], y[0]), 1) <= 1.25)
+            slip = [x for x in vals[1:] if _decimal_slip(best[0], x[0]) and _support(x) > _support(best)]
+            if slip:
+                # round 27: the preferred figure is 10x / 100x / 1000x another source's and the other figure has
+                # more sources behind it - a misplaced decimal (Skiptrace: infobox "$136,6 million" was read as
+                # $1.366 billion). Use the supported figure; both stay in the alternatives. With only two
+                # sources nothing changes here (the decimal-comma parse fix in wiki_sections.py handles the cause).
+                best = slip[0]
+                vals = [best] + [x for x in vals if x != best]
             if len(nums) > 1 and max(nums) / max(min(nums), 1) > 1.25:
                 conflict |= (1 << i)
             rec[key] = (best[0], best[1], json.dumps(vals))

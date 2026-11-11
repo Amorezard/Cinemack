@@ -23,6 +23,7 @@ import time
 
 MODERATION = os.environ.get("MODERATION", "0") == "1"
 GUARD_MODEL = os.environ.get("GUARD_MODEL", "llama-guard3:1b")
+ANSWER_PLOT_OK = os.environ.get("ANSWER_PLOT_OK", "0") == "1"   # round 27 (default 0 = the v7 behaviour)
 CATS = {"S1": "violent crimes", "S2": "non-violent crimes", "S3": "sex-related crimes", "S4": "child sexual exploitation",
         "S5": "defamation", "S6": "specialized advice", "S7": "privacy", "S8": "intellectual property",
         "S9": "indiscriminate weapons", "S10": "hate", "S11": "suicide and self-harm", "S12": "sexual content",
@@ -81,6 +82,13 @@ def check(question, answer=None):
         tox = _detox(answer if answer is not None else question) or {}
         if cat in ("S1", "S2") and R_FILM.search(question) and tox.get("toxicity", 0) < 0.5 and answer is None:
             res["why"] = f"Llama Guard {cat} on a film question that is not toxic: let through"
+        elif (ANSWER_PLOT_OK and answer is not None and cat in ("S1", "S2") and tox.get("toxicity", 0) < 0.5
+              and R_FILM.search(question + " " + answer)):
+            # round 27 (11 Nov): the same rule for the ANSWER. The question already passed; a film answer that
+            # describes a plot (a heist, a burglary, a war) is flagged S1/S2 by the 1B guard. Seen in the 3b tuning:
+            # tl01 ("one more film for tonight", PG limit) got the refusal although the question was fine.
+            # Every other category (sexual content, minors, weapons, hate, self-harm) still replaces the answer.
+            res["why"] = f"Llama Guard {cat} on a film answer that is not toxic: let through"
         else:
             res.update(ok=False, category=cat, why=f"Llama Guard: {CATS.get(cat, cat)}",
                        reply=SELF_HARM if cat == "S11" else REFUSAL)
