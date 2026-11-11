@@ -94,7 +94,7 @@ long_arm() {   # long_arm "<env>" <tag>
   ( cd web && env $1 SITE_CACHE=0 MOVIE_BUFF_CODE=movies PORT=49160 python server.py > ../logs/final_long_$2.log 2>&1 ) &
   local pid=$!
   for i in $(seq 1 100); do curl -s -o /dev/null -H "X-Access-Code: movies" localhost:49160/api/health && break; sleep 3; done
-  env $1 python tools/long_eval.py --set sets/sealed_v8_long.json --base http://localhost:49160 --tag sealed8_long_$2 | tail -8
+  env $1 python tools/long_eval.py --set sets/sealed_v8_long.json --base http://localhost:49160 --tag sealed8_long_$2 --judge | tail -12
   pkill -P $pid 2>/dev/null; kill $pid 2>/dev/null; sleep 3; pkill -f "PORT=49160" 2>/dev/null; true
 }
 if has long; then
@@ -122,7 +122,7 @@ if has summary; then
     echo "## same-name routing"; tail -3 results/final_v8_sn_routing.txt 2>/dev/null
     echo "## scores without the judge"; cat results/final_v8_scores.txt 2>/dev/null
     echo "## judge audit (flags = checker likely wrong; read these rows before deciding)"; cat results/final_v8_audit.txt 2>/dev/null
-    echo "## long chats (tools/long_eval.py: the answer names one of expect_films; rule >= 5/6 with LONG_SUMMARY)"
+    echo "## long chats (tools/long_eval.py --judge: eval_v3 judge verdict against the notes, context = the conversation + the films given; rule >= 5/6 with LONG_SUMMARY)"
     for f in results/long_sealed8_long_*.json; do [ -f "$f" ] && python -c "import json,sys; d=json.load(open(sys.argv[1])); print(f\"  {d['tag']}: {d['pass']}/{d['n']}\")" "$f"; done; } > "$SUM"
   echo "=== summary -> $SUM"
 fi

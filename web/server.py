@@ -643,7 +643,8 @@ async def chat(req: ChatRequest, request: Request):
     user = user_of(request)
     conv_id = request.headers.get("x-mb-conv", "")[:40]
     private = private_of(request)                       # v6: private chat - not saved, no memory either way
-    prefs = user_prefs.merge_chat(user_prefs.load(user)["settings"], req.filters)   # 6 Nov: + this chat's filters
+    chat_f = longsum.with_stated_limits(req.filters, [t.content for t in req.history if t.role == "user" and t.content])   # 3b v2 (LONG_SUMMARY=1)
+    prefs = user_prefs.merge_chat(user_prefs.load(user)["settings"], chat_f)   # 6 Nov: + this chat's filters
     mem_on = bool(prefs.get("memory")) and not private
     utag = pipeline.user_tag(user) if hasattr(pipeline, "user_tag") else ""
     rec_block, rec_tag = "", ""

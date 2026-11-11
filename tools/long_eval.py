@@ -13,9 +13,13 @@ Item formats (both are read):
                           services) and is checked from facts.db as above.
   sealed (sealed_v8_long, written 8 Nov): {"id", "turns": [...], "question", "expect_films", "category", ...} - every
                           turn is history (a turn without an "assistant" text is answered by the server first) and
-                          `question` is scored: PASS = the answer names at least one of `expect_films` (title match,
-                          punctuation and case ignored). Decided 10 Nov ~16:00 from the set's structure only, before
-                          any sealed run; the answer text is saved for the judge / a human to read.
+                          `question` is scored. Round 22 showed `expect_films` is EMPTY in every sealed item (the
+                          expected behaviour is in `notes`), so (decided 10 Nov ~16:30, structure only, before any
+                          sealed run): with --judge, PASS = the eval_v3 judge's verdict (gemma3:27b, same prompt as
+                          every other sealed set) given CONTEXT = the conversation so far + the films the bot was
+                          given, and the item's NOTES. Reported next to it, never instead of it: a limit check from
+                          facts.db for any limit pref_phrases finds in the person's FIRST message.
+                          When `expect_films` is non-empty: PASS also needs one of them named.
 Turn entries may be {"user": ..., "assistant": ...} or {"role", "content"} pairs or plain strings.
 Writes results/long_<tag>.json and prints "long <tag>: N/M pass".
 """
@@ -143,6 +147,7 @@ def main():
     ap.add_argument("--base", default="http://localhost:49160")
     ap.add_argument("--tag", required=True)
     ap.add_argument("--build-conv", action="store_true", default=True, help="replay scripted turns into conv state, as the page would hold it")
+    ap.add_argument("--judge", action="store_true", help="grade with the eval_v3 judge against the notes (sealed format)")
     a = ap.parse_args()
     import conv as C
     d = json.load(open(a.set))
@@ -173,13 +178,34 @@ def main():
         else:
             exp = expect_titles(q.get("expect_films"))
             hit = [t for t in exp if _norm(t) in _norm(answer)]
-            fails = {} if hit else {"expected one of": exp}
-            ok = bool(hit) and not err
+            fails = {} if (hit or not exp) else {"expected one of": exp}
+            ok = (bool(hit) or not exp) and not err and bool(answer.strip())
+            import longsum
+            first = hist_pairs[0][0] if hist_pairs else ""
+            lim1, words1 = longsum.limits([first])
+            lim_fail = {f["title"]: check(f["id"], lim1) for f in nm[:3]} if lim1 else {}
+            q["_limit_check"] = {"limit": lim1, "words": words1, "named": [f["title"] for f in nm[:3]], "fails": lim_fail,
+                                 "pass": (bool(nm) and not any(lim_fail.values())) if lim1 else None}
         n_pass += ok
-        out.append({"id": q["id"], "pass": ok, "limit": lim, "category": q.get("category"), "mode": "limit" if lim else "expect_films", "named": [f["title"] for f in nm[:3]], "fails": fails,
+        conv_text = "\n".join(("USER: " if m["role"] == "user" else "BOT: ") + m["content"] for m in history)
+        out.append({"id": q["id"], "pass": ok, "limit": lim, "category": q.get("category") or "long_chat", "mode": "limit" if lim else ("judge" if a.judge else "expect_films"),
+                    "limit_check": q.pop("_limit_check", None), "notes": q.get("notes", ""), "question": last,
+                    "context": "CONVERSATION SO FAR:\n" + conv_text[-9000:] + "\n\nFILMS THE BOT WAS GIVEN FOR THIS ANSWER: "
+                               + "; ".join(f"{f.get('title')} ({f.get('year')})" for f in films[:20]), "named": [f["title"] for f in nm[:3]], "fails": fails,
                     "sources": [f.get("title") for f in films], "answer": answer, "error": err, "history_chars": sum(len(m["content"]) for m in history),
                     "seconds": round(time.time() - t0, 1)})
         print(f"  {q['id']} {'PASS' if ok else 'FAIL'}  named {[f['title'] for f in nm[:3]]}  {'' if ok else fails or 'no source film named'}  ({out[-1]['seconds']}s)", flush=True)
+    if a.judge:
+        import eval_v3
+        print("judging with", eval_v3.JUDGE, flush=True)
+        eval_v3.judge_all(out)
+        n_pass = 0
+        for r in out:
+            v = r.get("judge") or {}
+            r["pass"] = r["pass"] and str(v.get("verdict", "")).lower() == "pass"
+            n_pass += r["pass"]
+        lc = [r["limit_check"]["pass"] for r in out if r.get("limit_check") and r["limit_check"]["pass"] is not None]
+        print(f"  limit check (first-message limits found by pref_phrases, reported only): {sum(lc)}/{len(lc)} of {len(out)}", flush=True)
     os.makedirs(os.path.join(RAG, "results"), exist_ok=True)
     p = os.path.join(RAG, "results", f"long_{a.tag}.json")
     json.dump({"set": a.set, "tag": a.tag, "env": {k: os.environ.get(k) for k in ("LONG_SUMMARY",)}, "pass": n_pass, "n": len(out), "items": out},

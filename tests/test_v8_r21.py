@@ -209,6 +209,22 @@ class LongSummary(unittest.TestCase):
             longsum.LONG_SUMMARY = old
 
 
+class StatedLimits(unittest.TestCase):
+    def test_v2_limits_become_filters_only_when_on(self):
+        import longsum
+        old = longsum.LONG_SUMMARY
+        try:
+            longsum.LONG_SUMMARY = False
+            self.assertEqual(longsum.with_stated_limits({"genres": ["Drama"]}, ["keep it PG please"]), {"genres": ["Drama"]})
+            longsum.LONG_SUMMARY = True
+            f = longsum.with_stated_limits({"max_runtime": 90, "max_cert": "G"}, ["We only have Netflix", "keep it PG, under two hours, no horror"])
+            self.assertEqual(f, {"max_runtime": 90, "max_cert": "G", "never_genres": ["Horror"], "services": ["netflix"], "services_only": True, "strict": True})
+            self.assertEqual(user_prefs.clean_chat(f)["max_cert"], "G")                      # the stricter value wins
+            self.assertIsNone(longsum.with_stated_limits(None, ["who directed Up?"]))
+        finally:
+            longsum.LONG_SUMMARY = old
+
+
 class ChatLimits(unittest.TestCase):
     def test_clean_and_merge(self):
         cc = user_prefs.clean_chat({"never_genres": ["Horror", "Nope"], "min_year": "1990", "services": ["hulu", "x"], "services_only": True})

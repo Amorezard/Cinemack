@@ -11,6 +11,10 @@ What this adds, with no model call (so no extra latency and nothing to hallucina
     year, services). It goes at the top of the answer prompt. At most NOTE_CHARS characters.
   * planner_lines(turns, shown): the same limits line and the earlier questions for conv.planner_block, so retrieval
     knows them too.
+  * v2 (10 Nov ~16:30, after the first tuning run failed 2/6 = 2/6): the limits the person stated in EARLIER messages
+    also become this request's chat filters (with_stated_limits; the stricter value wins, and a film whose fact is
+    unknown fails the limit, as in Pick Tonight). Reason seen in the tuning output: the final "one film for tonight"
+    retrieved films titled "...Night"; the note told the model the limit but every candidate broke it.
 Rule (validation matrix, 8 Nov): sealed_v8_long >= 5/6 with the switch on; multi-turn (sealed_v8_mt) unchanged.
 """
 import os
@@ -103,3 +107,27 @@ def planner_lines(turns, shown):
 def cache_tag(text):
     import hashlib
     return "ls:" + hashlib.sha1(text.encode()).hexdigest()[:10] if text else ""
+
+
+def with_stated_limits(filters, earlier_user_texts):
+    """3b v2: this chat's filter bar plus the limits stated in earlier messages (LONG_SUMMARY=1 only)."""
+    if not LONG_SUMMARY:
+        return filters
+    lim, _w = limits(earlier_user_texts or [])
+    if not lim:
+        return filters
+    f = dict(filters or {})
+    if lim.get("max_runtime"):
+        f["max_runtime"] = min(f.get("max_runtime") or 10 ** 4, lim["max_runtime"])
+    if lim.get("max_cert"):
+        order = ["G", "PG", "PG-13", "R"]
+        cur = f.get("max_cert")
+        f["max_cert"] = lim["max_cert"] if cur not in order else order[min(order.index(cur), order.index(lim["max_cert"]))]
+    if lim.get("never_genres"):
+        f["never_genres"] = sorted(set(f.get("never_genres") or []) | set(lim["never_genres"]))
+    if lim.get("min_year"):
+        f["min_year"] = max(f.get("min_year") or 0, lim["min_year"])
+    if lim.get("services"):
+        f["services"], f["services_only"] = lim["services"], True
+    f["strict"] = True
+    return f
