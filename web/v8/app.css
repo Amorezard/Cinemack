@@ -1139,10 +1139,10 @@ label.check input { width: 20px; height: 20px; margin-top: 1px; flex: none; acce
 .tgroups { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
 .tg { display: grid; gap: 10px; padding: 12px; border-radius: var(--r-md); background: var(--bg-2); border: 1px solid var(--line); }
 .tg[data-s="love"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); } .tg[data-s="avoid"] { opacity: .7; }
-.tg-pp { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; } .tg-pp img { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 4px; background: var(--s3); }
+.tg-pp { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; } .tg-pp img { width: 100%; height: auto; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 4px; background: var(--s3); }
 .tg-a { display: flex; gap: 6px; } .tg-a .chip { flex: 1; justify-content: center; }
 .tfilms { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
-.tf { display: grid; gap: 4px; } .tf img { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 6px; background: var(--s3); }
+.tf { display: grid; gap: 4px; } .tf img { width: 100%; height: auto; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 6px; background: var(--s3); }
 .tf b { font-size: var(--fs-sm); line-height: 1.25; }
 .tf-a { display: grid; gap: 4px; margin-top: 4px; } .tf-a .chip { min-height: 34px; font-size: var(--fs-xs); justify-content: center; }
 @media (max-width: 1023px) { .tf-a .chip, .tg-a .chip { min-height: 44px; } }

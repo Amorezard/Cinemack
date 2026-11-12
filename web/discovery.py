@@ -104,6 +104,12 @@ def _now_playing_set():
 
 
 def _genres_of(ids):
+    try:                                                # 12 Nov GENRE_MAIN: main genres (web/genres.py)
+        import genres as _G
+        if _G.ON:
+            return {k: set(v[0]) for k, v in _G.films(ids).items()}
+    except ImportError:
+        pass
     out = {}
     for fid, g in film_info._many(_f(), "select tmdb_id, genres_json from films where tmdb_id in", [int(i) for i in ids]):
         try:
@@ -161,7 +167,10 @@ def top_rated(sel=(), mode="any", limit=20):
     rows = _q(f"select tmdb_id, (vote_count * 1.0 / (vote_count + ?)) * vote_average + (? * 1.0 / (vote_count + ?)) * ? as wr "
               f"from films where vote_count >= ? and vote_average is not null and not (coalesce(runtime, 0) between 1 and ?){gsql} "
               f"order by wr desc, tmdb_id asc", tuple([m, m, m, c, TOP_MIN_VOTES, SHORT_MAX] + gargs))
-    return [x[0] for x in rows][:limit], len(rows)
+    ids = [x[0] for x in rows]
+    if sel:                                             # 12 Nov: the SQL test is TMDB's list; keep main-genre films
+        ids = match_genres(ids, list(sel), mode)
+    return ids[:limit], len(ids)
 
 
 def _release_of(ids):

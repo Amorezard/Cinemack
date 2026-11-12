@@ -432,9 +432,16 @@ def summary(user, activity=20):
         weight[i] = weight.get(i, 0) + 1
     for i in liked + good:
         weight[i] = weight.get(i, 0) + 1
+    gmain = {}
+    try:                                                # 12 Nov GENRE_MAIN: taste summary from main genres
+        import genres as _G
+        if _G.ON:
+            gmain = {k: list(v[2]) for k, v in _G.films(basis_ids).items()}
+    except ImportError:
+        pass
     gcount, total = {}, 0
     for i in basis_ids:
-        for g in (meta.get(i) or {}).get("genres", []):
+        for g in (gmain.get(i) or (meta.get(i) or {}).get("genres", [])):
             gcount[g] = gcount.get(g, 0) + weight.get(i, 1)
             total += weight.get(i, 1)
     n_basis = sum(1 for i in basis_ids if (meta.get(i) or {}).get("genres"))

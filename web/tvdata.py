@@ -356,6 +356,13 @@ def pick(user="", genre=None, max_cert=None, max_runtime=None, services=None, ne
     def drop(why):
         removed[why] = removed.get(why, 0) + 1
         return False
+    tvm = {}
+    try:                                                # 12 Nov GENRE_MAIN: IMDb's main genres for each show
+        import genres as _G
+        if _G.ON and (genre or never):
+            tvm = _G.shows(ids)
+    except ImportError:
+        pass
     horror = set()
     if genre == "Horror":
         horror = {r[0] for r in _q("select distinct tmdb_id from tv_keywords where lower(name) like '%horror%'")}
@@ -374,14 +381,17 @@ def pick(user="", genre=None, max_cert=None, max_runtime=None, services=None, ne
         tg = gmap.get(sid, set())
         if tg & SKIP_TV:
             continue
-        if genre:
+        if genre and tvm.get(sid) and tvm[sid][0]:
+            if not _G.tv_mood_ok(tvm[sid][0], genre, sid in horror) and not drop("not the mood you picked"):
+                continue
+        elif genre:
             want = MOOD_TV.get(genre)
             if want is None and genre == "Horror":
                 if sid not in horror and "Horror" not in tg and not drop("not the mood you picked"):
                     continue
             elif want and not (tg & want) and not drop("not the mood you picked"):
                 continue
-        if never and set(site_genres(list(tg))) & never and not drop("a genre you never want"):
+        if never and (set(site_genres(list(tg))) | (tvm[sid][1] if sid in tvm else set())) & never and not drop("a genre you never want"):
             continue
         if max_runtime and (not rtm.get(sid) or rtm[sid] > max_runtime) and not drop("episodes too long or length unknown"):
             continue
