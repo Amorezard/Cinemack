@@ -29,10 +29,25 @@ def agree(a, b):
     return sum(a[i] == b[i] for i in both), len(both)
 
 
+def kappa(a, b):
+    """Cohen's kappa on pass/fail (round 35: the plan's rule is >= 80% agreement AND kappa >= 0.6)."""
+    both = [i for i in ids if i in a and i in b]
+    if not both:
+        return None
+    po = sum(a[i] == b[i] for i in both) / len(both)
+    pa, pb = sum(a[i] == "pass" for i in both) / len(both), sum(b[i] == "pass" for i in both) / len(both)
+    pe = pa * pb + (1 - pa) * (1 - pb)
+    return (po - pe) / (1 - pe) if pe < 1 else 1.0
+
+
 for name, a, b in (("judge vs Claude", J, C), ("judge vs you", J, you), ("Claude vs you", C, you)):
     n, m = agree(a, b)
     if m:
-        print(f"{name}: {n}/{m} agree")
+        k = kappa(a, b)
+        print(f"{name}: {n}/{m} agree ({n / m:.0%}), kappa {k:+.2f}  rule (>= 80% and kappa >= 0.6): "
+              f"{'PASS' if n / m >= 0.8 and k >= 0.6 else 'FAIL'}")
+print(f"passes: judge {sum(J[i] == 'pass' for i in ids)}/{len(ids)}, Claude {sum(C[i] == 'pass' for i in ids)}/{len(ids)}"
+      + (f", you {sum(v == 'pass' for v in you.values())}/{len(you)}" if you else ""))
 ref, refname = (you, "you") if you else (C, "Claude")
 fp = [i for i in ids if i in ref and J[i] == "pass" and ref[i] == "fail"]
 fn = [i for i in ids if i in ref and J[i] == "fail" and ref[i] == "pass"]

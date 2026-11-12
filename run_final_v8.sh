@@ -9,6 +9,12 @@
 # made here: invented + real_vague), rc (memory_eval), long (tools/long_eval.py through a copy of the website server on
 # port 49160, added Tue 10 Nov before the freeze: 3b long-chat summaries; scored from facts.db, no judge).
 # Scores: the judge (eval_v3) AND final_score.py (no judge) AND judge_audit.py flags; samename_check.py routing for sn.
+# Round 35 (11 Nov 23:50, before anything ran on the sealed sets): (1) the long-chat server copy uses LONG_PORT
+# (default 49160) because another program took 49152 this week; (2) one report-only arm added to `recall`: memory
+# cards (MEM_CARDS, website-only from round 33) on the sealed recall set, rule = the 3a rule (refer-backs right not
+# lower, false recalls not higher than without cards); (3) the wait also covers long_eval / attack_eval / embed_ft.
+# v8_lock.env unchanged (SAME_NAME TV_SEASONS IDENT_HONEST LONG_SUMMARY); CLARIFY stays in the v7 lock with its
+# declared "v8 without CLARIFY" arm.
 #   tmux new -s final8
 #   source ~/venvs/movie-rag/bin/activate && cd ~/movie-buff/rag && bash run_final_v8.sh
 set -u
@@ -26,7 +32,7 @@ exec > >(tee -a "$LOG") 2>&1
 echo "=== run_final_v8.sh started $(date)   steps: $STEPS"
 echo "    v7 arm: $V7_ENV"; echo "    v8 arm: $V8_ENV"
 has() { [[ " $STEPS " == *" $1 "* ]]; }
-while pgrep -f "stage_scores.py|eval_v3.py|memory_eval.py|run_v8_tune.sh" >/dev/null; do
+while pgrep -f "stage_scores.py|eval_v3.py|memory_eval.py|run_v8_tune.sh|long_eval.py|attack_eval.py|embed_ft.py" >/dev/null; do
   echo "waiting for another eval ... $(date +%H:%M)"; sleep 120; done
 v7() { env $V7_ENV "$@"; }
 v8() { env $V8_ENV "$@"; }
@@ -88,14 +94,17 @@ fi
 if has recall; then
   for a in v7 v8; do echo "=== recall $a $(date +%H:%M)"
     $a python memory_eval.py --set sets/sealed_v8_rc.json --tag sealed8_$a | tail -3 | tee results/final_v8_recall_$a.txt; done
+  echo "=== recall v8 with and without memory cards (report-only arm, round 35) $(date +%H:%M)"
+  v8 python memory_eval.py --cards --set sets/sealed_v8_rc.json --tag sealed8 | tail -6 | tee results/final_v8_recall_cards.txt
 fi
 # long chats: the website path (history cut to 12 messages / 6,000 characters), one server copy per arm, no answer cache
 long_arm() {   # long_arm "<env>" <tag>
-  ( cd web && env $1 SITE_CACHE=0 MOVIE_BUFF_CODE=movies PORT=49160 python server.py > ../logs/final_long_$2.log 2>&1 ) &
+  local P=${LONG_PORT:-49160}
+  ( cd web && env $1 SITE_CACHE=0 MOVIE_BUFF_CODE=movies PORT=$P python server.py > ../logs/final_long_$2.log 2>&1 ) &
   local pid=$!
-  for i in $(seq 1 100); do curl -s -o /dev/null -H "X-Access-Code: movies" localhost:49160/api/health && break; sleep 3; done
-  env $1 python tools/long_eval.py --set sets/sealed_v8_long.json --base http://localhost:49160 --tag sealed8_long_$2 --judge | tail -12
-  pkill -P $pid 2>/dev/null; kill $pid 2>/dev/null; sleep 3; pkill -f "PORT=49160" 2>/dev/null; true
+  for i in $(seq 1 100); do curl -s -H "X-Access-Code: movies" localhost:$P/api/health | grep -q '"ok"' && break; sleep 3; done
+  env $1 python tools/long_eval.py --set sets/sealed_v8_long.json --base http://localhost:$P --tag sealed8_long_$2 --judge | tail -12
+  pkill -P $pid 2>/dev/null; kill $pid 2>/dev/null; sleep 3; pkill -f "PORT=$P" 2>/dev/null; true
 }
 if has long; then
   echo "=== long chats v7 $(date +%H:%M)"; long_arm "$V7_ENV" v7
@@ -118,7 +127,9 @@ if has summary; then
     for f in results/final_v8_*_compare.txt; do echo "## $f"; head -12 "$f"; echo; done
     echo "## retrieval / multi-turn (stage_scores)"; for t in ret mt inv; do for a in v7 v8; do
       f=$(ls -t results/stage_scores_*_sealed8_${t}_$a.json 2>/dev/null | head -1); [ -n "$f" ] && echo "  $t $a: $f"; done; done
-    echo "## recall"; cat results/final_v8_recall_*.txt 2>/dev/null
+    echo "## recall"; cat results/final_v8_recall_v7.txt results/final_v8_recall_v8.txt 2>/dev/null
+    echo "## memory cards on the sealed recall set (report-only arm; rule: right not lower, false not higher)"
+    cat results/final_v8_recall_cards.txt 2>/dev/null
     echo "## same-name routing"; tail -3 results/final_v8_sn_routing.txt 2>/dev/null
     echo "## scores without the judge"; cat results/final_v8_scores.txt 2>/dev/null
     echo "## judge audit (flags = checker likely wrong; read these rows before deciding)"; cat results/final_v8_audit.txt 2>/dev/null

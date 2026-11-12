@@ -107,7 +107,12 @@ named in any question set are left out, hard negatives come from the base model;
 measured on a shadow index (numpy) against the same base model; the live search still uses Ollama's mxbai until the
 fine-tuned model passes its gate and is converted for Ollama.
 
-## 8. Open items (11 Nov)
-See `docs/issue_log.md`. Main ones: judge hand-check grading (user), the sealed v8 run, tonight's rule runs for
-3a / 3d / 4c / persona / guard v2 / embedder (`tools/run_r27_night.sh`, results in `results/r27_night.txt`), pf5 B once
-the Guardian fetch finishes, adapter retraining (needs a rented GPU), chat latency while another job holds the GPU.
+## 8. Open items (11 Nov, round 35)
+- v8 frozen (tag `v8.0-lock`); the sealed run is queued after 4c (`tools/run_r35_final.sh`, log `runs/r35final-*`,
+  summary `results/final_v8_summary.txt`), then the embedder, the round-33 variants and the judge v2 re-score.
+- Hand checks done by Claude as an AI second rater (`docs/hand_checks_2026-11-11.md`): judge agreement 16/30 (rule
+  FAILS), YouTube matches 30% wrong, outlet names 8.6% wrong. A person's grading of `results/judge_check.html` would
+  still strengthen the judge numbers.
+- After the sealed run: judge agreement on 30 v8 answers (plan), then decisions per arm.
+- pf5 B once the Guardian fetch finishes (~21 nights; weekly automatic test). Adapter retraining needs a rented GPU.
+  Push notifications need HTTPS. I-011 (Llama Guard S4 on a family-film answer) needs the user's decision.
