@@ -390,9 +390,10 @@ def recall_block(key, question, conv_id=""):
 # Rule (plan, 6 Nov): on the recall tuning set (memory_eval.py), refer-backs right not lower and false recalls not
 # higher than MEM_EMBED alone.
 MEM_CARDS = os.environ.get("MEM_CARDS", "0") == "1"
-CARD_SYSTEM = ("You label a conversation with a movie chatbot. Write ONE line of at most 12 words saying what the "
-               "person wanted (for example \"slow-burn horror without jump scares\" or \"why Blade Runner flopped\"). "
-               "Use only what the questions say. No names of people, no personal details. Reply with the line only.")
+CARD_SYSTEM = ("You label a conversation with a movie chatbot. Write ONE line of at most 10 words saying what KIND of "
+               "thing the person asked for (for example \"slow-burn horror without jump scares\", \"who scored a war film\", "
+               "\"why a big-budget western flopped\"). Do NOT name any film, show or person, and add nothing the questions "
+               "don't say. Reply with the line only.")
 
 
 def _cards_table(c):
@@ -424,7 +425,13 @@ def _topic(questions, mock=False):
                                                {"role": "user", "content": "\n".join(f"- {q[:300]}" for q in questions[:8])}],
                         options={"temperature": 0, "num_predict": 40}, keep_alive="30m")
         t = " ".join((r["message"]["content"] or "").split()).strip(" .\"'")
-        return t[:120] if 3 <= len(t) else fallback
+        # round 32: the 11 Nov cards run had made-up topics ("Ocean's Twelve" for a Rififi chat, "Non-Stop (2014)").
+        # A topic with a year, quotes, or capitalised words the questions never used is not trusted: first question.
+        asked = " ".join(questions).casefold()
+        caps = re.findall(r"\b[A-Z][a-z']+(?:\s+[A-Z][a-z']+)*", t[1:] if t else "")
+        invented = (re.search(r"\b(19|20)\d\d\b", t) and not re.search(r"\b(19|20)\d\d\b", asked)) or '"' in t \
+            or any(c.casefold() not in asked for c in caps)
+        return t[:100] if 3 <= len(t) and not invented else fallback
     except Exception as e:  # noqa: BLE001 - a card must never break an answer
         print(f"[cinemack] card topic failed: {e!r}", flush=True)
         return fallback
