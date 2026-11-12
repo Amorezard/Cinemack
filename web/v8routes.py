@@ -126,7 +126,8 @@ class Follow(BaseModel):
 
 class Upload(BaseModel):
     text: str
-    kind: str = "netflix"          # netflix | letterboxd_watched
+    kind: str = "netflix"          # netflix | letterboxd_watched | trakt (12 Nov: Trakt export JSON)
+    name: str = ""                 # 12 Nov: the file name (Trakt watchlist files are told apart by it)
 
 
 def install(app, user_of, account_of, gate):
@@ -195,6 +196,9 @@ def install(app, user_of, account_of, gate):
             return JSONResponse({"error": "No browser id."}, status_code=400)
         await _run(discovery.tv_follow, key, body.id, body.on, body.notify)
         return JSONResponse({"ok": True, "shows": await _run(discovery.tv_following, key)})
+
+    import tv_prefs as _tvp                             # 12 Nov: TV taste from onboarding
+    _tvp.install(app, user_of, gate, _run)
 
     @app.get("/api/v8/similar/{fid}")
     async def v8_similar(fid: int, request: Request):
@@ -375,6 +379,8 @@ def install(app, user_of, account_of, gate):
             return JSONResponse({"error": "That file is too big (15 MB at most)."}, status_code=413)
 
         def run():
+            if body.kind == "trakt":                  # 12 Nov: Trakt's export file, no Trakt app key needed
+                return trakt_sync.import_export(key, body.text, body.name)
             rows = history.parse_netflix(body.text) if body.kind == "netflix" else history.parse_letterboxd_watched(body.text)
             src = "netflix" if body.kind == "netflix" else "letterboxd"
             return history.import_rows(key, src, rows)

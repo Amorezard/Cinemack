@@ -62,6 +62,32 @@ const nav = (next, back, opts = {}) => h('div', { class: 'join-nav' },
 const multi = (obj, key, opts) => h('div', { class: 'chips' }, opts.map(([v, l]) => h('button', { class: 'chip', type: 'button', 'aria-pressed': String((obj[key] || []).includes(v)), onclick: (e) => {
   const set = new Set(obj[key] || []); set.has(v) ? set.delete(v) : set.add(v); obj[key] = [...set]; e.currentTarget.setAttribute('aria-pressed', String(set.has(v))); } }, l)));
 
+// 12 Nov (round 36): Trakt's own export (trakt.tv Settings > Data > Export, free): JSON files, several at once.
+// Works without "Connect Trakt" (which needs a Trakt app key on the server).
+function traktFiles(res, after) {
+  const id = 'up-trakt-' + Math.random().toString(36).slice(2, 7);
+  const inp = h('input', { type: 'file', id, accept: '.json,application/json', multiple: true, class: 'input' });
+  inp.addEventListener('change', async () => {
+    const files = [...inp.files]; if (!files.length) return;
+    res.innerHTML = ''; res.append(h('div', { class: 'notice' }, `Importing ${files.length} Trakt file${files.length > 1 ? 's' : ''}…`));
+    const t = { added: 0, duplicates: 0, issues: 0, ratings: 0, watchlist: 0 }, skipped = [], errs = [];
+    for (const f of files) {
+      try {
+        const j = await post('/api/v8/import', { kind: 'trakt', name: f.name, text: await f.text() });
+        t.added += j.added || 0; t.duplicates += j.duplicates || 0; t.issues += (j.issues || []).length; t.ratings += j.ratings || 0; t.watchlist += j.watchlist || 0;
+        if (!j.rows && !j.ratings && !j.watchlist) skipped.push(f.name);
+      } catch (e) { errs.push(`${f.name}: ${e.message}`); }
+    }
+    res.innerHTML = '';
+    res.append(h('div', { class: errs.length ? 'notice warn' : 'notice' }, h('b', {}, 'Trakt imported. '),
+      `${t.added} views added, ${t.duplicates} already there, ${t.ratings} film ratings, ${t.watchlist} watchlist items` + (t.issues ? `, ${t.issues} without a TMDB id` : '') + '.'
+      + (skipped.length ? ` Nothing to import in ${skipped.join(', ')}.` : '') + (errs.length ? ' ' + errs.join(' ') : '')));
+    if (after) after();
+  });
+  return h('div', { class: 'set-card' }, h('h3', {}, h('label', { for: id }, 'Trakt export')),
+    h('p', { class: 'sub' }, 'Trakt: Settings, Data, Export now (free). Trakt emails a ZIP: unzip it and choose the .json files here; you can select them all at once. Watch history, film ratings and your watchlist come in.'), inp);
+}
+
 const STEP = {
   account(b, st, next) {
     const u = h('input', { class: 'input', id: 'j-u', autocomplete: 'username', autocapitalize: 'none', spellcheck: 'false', required: true });
@@ -125,6 +151,45 @@ const STEP = {
       }
       box.append(row);
     }
+    // 12 Nov (round 36): TV. Kinds of shows and shows you know; Pick Tonight's TV picks use them (web/tv_prefs.py)
+    let tv = null;
+    try { tv = await api('/api/v8/onboarding/tv'); } catch { tv = null; }
+    if (tv && ((tv.groups || []).length || (tv.shows || []).length)) {
+      const tl = new Set(tv.picked?.groups || []), ta = new Set(tv.picked?.avoid || []);
+      const saveTv = () => post('/api/v8/onboarding/tv/groups', { groups: [...tl], avoid: [...ta] }).catch((e) => toast(e.message, null, true));
+      box.append(h('h3', { style: 'margin-top:30px' }, 'And TV?'), h('p', { class: 'sub' }, 'Kinds of shows you love or skip. Pick Tonight uses them for shows; nothing is hidden from search.'));
+      const g2 = h('div', { class: 'tgroups' });
+      for (const g of tv.groups || []) {
+        const card = h('div', { class: 'tg' }, h('div', { class: 'tg-pp', 'aria-hidden': 'true' }, (g.shows || []).map(s => h('img', { src: s.poster, alt: '', loading: 'lazy', width: 70, height: 105 }))),
+          h('b', {}, g.label));
+        const love = h('button', { class: 'chip', type: 'button' }, 'Love it');
+        const avoid = h('button', { class: 'chip', type: 'button' }, 'Not for me');
+        const sync = () => { love.setAttribute('aria-pressed', String(tl.has(g.key))); avoid.setAttribute('aria-pressed', String(ta.has(g.key))); card.dataset.s = tl.has(g.key) ? 'love' : ta.has(g.key) ? 'avoid' : ''; };
+        love.addEventListener('click', () => { ta.delete(g.key); tl.has(g.key) ? tl.delete(g.key) : tl.add(g.key); sync(); saveTv(); });
+        avoid.addEventListener('click', () => { tl.delete(g.key); ta.has(g.key) ? ta.delete(g.key) : ta.add(g.key); sync(); saveTv(); });
+        card.append(h('div', { class: 'tg-a', role: 'group', 'aria-label': g.label }, love, avoid)); sync(); g2.append(card);
+      }
+      box.append(g2);
+      if ((tv.shows || []).length) {
+        box.append(h('h3', { style: 'margin-top:22px' }, 'Seen any of these shows?'), h('p', { class: 'sub' }, '"Watching" follows the show: it goes on your Watchlist with new-season alerts. Each answer is saved at once.'));
+        const row2 = h('div', { class: 'tfilms' });
+        for (const s of tv.shows) {
+          let cur = s.mine || '';
+          const bs = [['watching', 'Watching'], ['liked', 'Loved it'], ['not', 'Not for me'], ['unseen', "Haven't seen"]].map(([v, l]) => h('button', { class: 'chip sm', type: 'button', 'aria-pressed': String(cur === v), 'data-v': v }, l));
+          bs.forEach(bt => bt.addEventListener('click', async () => {
+            const v = cur === bt.dataset.v ? '' : bt.dataset.v;
+            try {
+              await post('/api/v8/tv/choice', { id: s.id, title: s.title, choice: v });
+              if (v === 'watching' || cur === 'watching') emit('cm:follow', { id: s.id, on: v === 'watching' });
+              cur = v; bs.forEach(x => x.setAttribute('aria-pressed', String(x.dataset.v === v)));
+            } catch (e) { toast(e.message, null, true); }
+          }));
+          row2.append(h('div', { class: 'tf' }, h('img', { src: s.poster, alt: '', loading: 'lazy', width: 92, height: 138 }), h('b', {}, s.title), h('span', { class: 'small muted' }, String(s.year || '')),
+            h('div', { class: 'tf-a', role: 'group', 'aria-label': s.title }, bs)));
+        }
+        box.append(row2);
+      }
+    }
   },
   limits(b, st, next, back) {
     const s = st.settings, me = S.me || {};
@@ -158,12 +223,13 @@ const STEP = {
     };
     b.append(h('h2', { tabindex: '-1' }, 'Bring your history'), h('p', { class: 'sub' }, 'Optional. What you have watched fills your profile and Continue Watching, and keeps recommendations from repeating films you know.'),
       upload('netflix', 'Netflix viewing history', 'Netflix: Account, your profile, Viewing activity, Download all (NetflixViewingHistory.csv).'),
-      upload('letterboxd_watched', 'Letterboxd watched or diary', 'From your Letterboxd data export: watched.csv or diary.csv.'));
-    const tr = h('div', { class: 'set-card' }, h('h3', {}, 'Trakt'), h('p', { class: 'muted small' }, 'Checking…'));
+      upload('letterboxd_watched', 'Letterboxd watched or diary', 'From your Letterboxd data export: watched.csv or diary.csv.'),
+      traktFiles(res, () => { CW.items = null; emit('cm:imported'); }));
+    const tr = h('div', { class: 'set-card' }, h('h3', {}, 'Trakt account'), h('p', { class: 'muted small' }, 'Checking…'));
     b.append(tr, res, nav(next, back, { skip: 'Skip for now' }));
     try {
       const p = await api('/api/v8/profile'); const t = p.trakt || {}; tr.lastChild.remove();
-      if (!t.available) tr.append(h('p', { class: 'muted small' }, 'Trakt is not set up on this server.'));
+      if (!t.available) tr.append(h('p', { class: 'muted small' }, 'Signing in with Trakt is not set up on this server yet. The Trakt export above brings in the same history, ratings and watchlist.'));
       else if (t.connected) tr.append(h('p', { class: 'small' }, 'Connected. Sync from Settings > Imports.'));
       else tr.append(h('p', { class: 'sub' }, 'Import history, ratings and watchlist from Trakt. You will come back here after approving.'),
         h('button', { class: 'btn secondary sm', type: 'button', onclick: async () => { try { store.set('cm.joinReturn', 'profile'); location.href = (await api('/trakt/start')).url; } catch (e) { toast(e.message, null, true); } } }, 'Connect Trakt'));

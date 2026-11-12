@@ -11,6 +11,16 @@ Forrest Gump (Comedy, Drama, Romance). IMDb lists at most three genres per title
   both   broad = TMDB's + IMDb's, for "never recommend" (a never-Horror person should not get a horror-comedy whose
                main genre is Comedy).
 
+12 Nov (round 37): on the real data the plain agreement rule (variant 1) also removed genres IMDb's three slots had no
+room for: Knives Out left Mystery, Star Wars and Avatar left Science Fiction, Se7en and The Silence of the Lambs left
+Thriller. Variants, chosen by GENRE_MAIN (1, 2 or 3; anything else = off):
+  1  TMDB's genres that IMDb also lists
+  2  only BROAD genres need IMDb's agreement (Drama, Comedy, Action, Adventure, Family, Fantasy, Thriller, Romance:
+     the ones TMDB adds loosely); specific genres (Science Fiction, Horror, Mystery, Crime, War, Western, History,
+     Music, Documentary, Animation) stay as TMDB lists them
+  3  as 2, and TMDB's first-listed genre always stays
+tools/genre_gold.py scores the variants on hand-labelled films and round 37's todo.sh picks the winner.
+
 Used by: Home genre chips (discovery), chat genre filters and Pick Tonight films (user_prefs.excluded), Pick Tonight
 shows (tvdata.pick), the Profile taste summary (v8extra). Switch GENRE_MAIN=1 (site.env); off = TMDB's lists, as before.
 Read-only: facts.db films / tv_shows joined to imdb_titles on the IMDb id."""
@@ -22,7 +32,9 @@ import time
 
 import film_info
 
-ON = os.environ.get("GENRE_MAIN", "0") == "1"
+VARIANT = os.environ.get("GENRE_MAIN", "0").strip()
+ON = VARIANT in ("1", "2", "3")
+BROAD = {"Drama", "Comedy", "Action", "Adventure", "Family", "Fantasy", "Thriller", "Romance"}
 SITE = ["Action", "Adventure", "Animation", "Comedy", "Crime", "Documentary", "Drama", "Family", "Fantasy",
         "History", "Horror", "Music", "Mystery", "Romance", "Science Fiction", "Thriller", "War", "Western"]
 IMDB_MAP = {"Sci-Fi": "Science Fiction", "Musical": "Music"}
@@ -51,12 +63,18 @@ def imdb_genres(s):
     return {IMDB_MAP.get(x.strip(), x.strip()) for x in str(s).split(",")} & set(SITE)
 
 
-def film_split(tmdb, imdb):
-    """(main, broad) lists for a film from TMDB's genre list and IMDb's genre string."""
+def film_split(tmdb, imdb, variant=None):
+    """(main, broad) lists for a film from TMDB's genre list and IMDb's genre string (variant: see the top)."""
     t, i = list(tmdb or []), imdb_genres(imdb)
     if not i:
         return t, t
-    main = [g for g in t if g in i]
+    v = str(variant or VARIANT)
+    if v == "3":
+        main = [g for k, g in enumerate(t) if g in i or g not in BROAD or k == 0]
+    elif v == "2":
+        main = [g for g in t if g in i or g not in BROAD]
+    else:
+        main = [g for g in t if g in i]
     if "Family" in t and "Animation" in main and "Family" not in main:
         main.append("Family")
     if not main:

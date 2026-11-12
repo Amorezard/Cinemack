@@ -1,0 +1,26 @@
+// 12 Nov (round 36): Trakt's own export (trakt.tv Settings > Data > Export, free): JSON files, several at once.
+// Works without "Connect Trakt" (which needs a Trakt app key on the server).
+function traktFiles(res, after) {
+  const id = 'up-trakt-' + Math.random().toString(36).slice(2, 7);
+  const inp = h('input', { type: 'file', id, accept: '.json,application/json', multiple: true, class: 'input' });
+  inp.addEventListener('change', async () => {
+    const files = [...inp.files]; if (!files.length) return;
+    res.innerHTML = ''; res.append(h('div', { class: 'notice' }, `Importing ${files.length} Trakt file${files.length > 1 ? 's' : ''}…`));
+    const t = { added: 0, duplicates: 0, issues: 0, ratings: 0, watchlist: 0 }, skipped = [], errs = [];
+    for (const f of files) {
+      try {
+        const j = await post('/api/v8/import', { kind: 'trakt', name: f.name, text: await f.text() });
+        t.added += j.added || 0; t.duplicates += j.duplicates || 0; t.issues += (j.issues || []).length; t.ratings += j.ratings || 0; t.watchlist += j.watchlist || 0;
+        if (!j.rows && !j.ratings && !j.watchlist) skipped.push(f.name);
+      } catch (e) { errs.push(`${f.name}: ${e.message}`); }
+    }
+    res.innerHTML = '';
+    res.append(h('div', { class: errs.length ? 'notice warn' : 'notice' }, h('b', {}, 'Trakt imported. '),
+      `${t.added} views added, ${t.duplicates} already there, ${t.ratings} film ratings, ${t.watchlist} watchlist items` + (t.issues ? `, ${t.issues} without a TMDB id` : '') + '.'
+      + (skipped.length ? ` Nothing to import in ${skipped.join(', ')}.` : '') + (errs.length ? ' ' + errs.join(' ') : '')));
+    if (after) after();
+  });
+  return h('div', { class: 'set-card' }, h('h3', {}, h('label', { for: id }, 'Trakt export')),
+    h('p', { class: 'sub' }, 'Trakt: Settings, Data, Export now (free). Trakt emails a ZIP: unzip it and choose the .json files here; you can select them all at once. Watch history, film ratings and your watchlist come in.'), inp);
+}
+

@@ -1,0 +1,39 @@
+    // 12 Nov (round 36): TV. Kinds of shows and shows you know; Pick Tonight's TV picks use them (web/tv_prefs.py)
+    let tv = null;
+    try { tv = await api('/api/v8/onboarding/tv'); } catch { tv = null; }
+    if (tv && ((tv.groups || []).length || (tv.shows || []).length)) {
+      const tl = new Set(tv.picked?.groups || []), ta = new Set(tv.picked?.avoid || []);
+      const saveTv = () => post('/api/v8/onboarding/tv/groups', { groups: [...tl], avoid: [...ta] }).catch((e) => toast(e.message, null, true));
+      box.append(h('h3', { style: 'margin-top:30px' }, 'And TV?'), h('p', { class: 'sub' }, 'Kinds of shows you love or skip. Pick Tonight uses them for shows; nothing is hidden from search.'));
+      const g2 = h('div', { class: 'tgroups' });
+      for (const g of tv.groups || []) {
+        const card = h('div', { class: 'tg' }, h('div', { class: 'tg-pp', 'aria-hidden': 'true' }, (g.shows || []).map(s => h('img', { src: s.poster, alt: '', loading: 'lazy', width: 70, height: 105 }))),
+          h('b', {}, g.label));
+        const love = h('button', { class: 'chip', type: 'button' }, 'Love it');
+        const avoid = h('button', { class: 'chip', type: 'button' }, 'Not for me');
+        const sync = () => { love.setAttribute('aria-pressed', String(tl.has(g.key))); avoid.setAttribute('aria-pressed', String(ta.has(g.key))); card.dataset.s = tl.has(g.key) ? 'love' : ta.has(g.key) ? 'avoid' : ''; };
+        love.addEventListener('click', () => { ta.delete(g.key); tl.has(g.key) ? tl.delete(g.key) : tl.add(g.key); sync(); saveTv(); });
+        avoid.addEventListener('click', () => { tl.delete(g.key); ta.has(g.key) ? ta.delete(g.key) : ta.add(g.key); sync(); saveTv(); });
+        card.append(h('div', { class: 'tg-a', role: 'group', 'aria-label': g.label }, love, avoid)); sync(); g2.append(card);
+      }
+      box.append(g2);
+      if ((tv.shows || []).length) {
+        box.append(h('h3', { style: 'margin-top:22px' }, 'Seen any of these shows?'), h('p', { class: 'sub' }, '"Watching" follows the show: it goes on your Watchlist with new-season alerts. Each answer is saved at once.'));
+        const row2 = h('div', { class: 'tfilms' });
+        for (const s of tv.shows) {
+          let cur = s.mine || '';
+          const bs = [['watching', 'Watching'], ['liked', 'Loved it'], ['not', 'Not for me'], ['unseen', "Haven't seen"]].map(([v, l]) => h('button', { class: 'chip sm', type: 'button', 'aria-pressed': String(cur === v), 'data-v': v }, l));
+          bs.forEach(bt => bt.addEventListener('click', async () => {
+            const v = cur === bt.dataset.v ? '' : bt.dataset.v;
+            try {
+              await post('/api/v8/tv/choice', { id: s.id, title: s.title, choice: v });
+              if (v === 'watching' || cur === 'watching') emit('cm:follow', { id: s.id, on: v === 'watching' });
+              cur = v; bs.forEach(x => x.setAttribute('aria-pressed', String(x.dataset.v === v)));
+            } catch (e) { toast(e.message, null, true); }
+          }));
+          row2.append(h('div', { class: 'tf' }, h('img', { src: s.poster, alt: '', loading: 'lazy', width: 92, height: 138 }), h('b', {}, s.title), h('span', { class: 'small muted' }, String(s.year || '')),
+            h('div', { class: 'tf-a', role: 'group', 'aria-label': s.title }, bs)));
+        }
+        box.append(row2);
+      }
+    }

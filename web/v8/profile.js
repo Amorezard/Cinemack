@@ -6,6 +6,32 @@ import { $, $$, S, h, I, api, post, view, store, toast, sheet, emit, on, rt, ago
   empty, CW, continueRow, displayName, authSheet, signOut, wantButton, hdrs } from './core.js';
 import { reviewSheet } from './film.js';
 
+// 12 Nov (round 36): Trakt's own export (trakt.tv Settings > Data > Export, free): JSON files, several at once.
+// Works without "Connect Trakt" (which needs a Trakt app key on the server).
+function traktFiles(res, after) {
+  const id = 'up-trakt-' + Math.random().toString(36).slice(2, 7);
+  const inp = h('input', { type: 'file', id, accept: '.json,application/json', multiple: true, class: 'input' });
+  inp.addEventListener('change', async () => {
+    const files = [...inp.files]; if (!files.length) return;
+    res.innerHTML = ''; res.append(h('div', { class: 'notice' }, `Importing ${files.length} Trakt file${files.length > 1 ? 's' : ''}…`));
+    const t = { added: 0, duplicates: 0, issues: 0, ratings: 0, watchlist: 0 }, skipped = [], errs = [];
+    for (const f of files) {
+      try {
+        const j = await post('/api/v8/import', { kind: 'trakt', name: f.name, text: await f.text() });
+        t.added += j.added || 0; t.duplicates += j.duplicates || 0; t.issues += (j.issues || []).length; t.ratings += j.ratings || 0; t.watchlist += j.watchlist || 0;
+        if (!j.rows && !j.ratings && !j.watchlist) skipped.push(f.name);
+      } catch (e) { errs.push(`${f.name}: ${e.message}`); }
+    }
+    res.innerHTML = '';
+    res.append(h('div', { class: errs.length ? 'notice warn' : 'notice' }, h('b', {}, 'Trakt imported. '),
+      `${t.added} views added, ${t.duplicates} already there, ${t.ratings} film ratings, ${t.watchlist} watchlist items` + (t.issues ? `, ${t.issues} without a TMDB id` : '') + '.'
+      + (skipped.length ? ` Nothing to import in ${skipped.join(', ')}.` : '') + (errs.length ? ' ' + errs.join(' ') : '')));
+    if (after) after();
+  });
+  return h('div', { class: 'set-card' }, h('h3', {}, h('label', { for: id }, 'Trakt export')),
+    h('p', { class: 'sub' }, 'Trakt: Settings, Data, Export now (free). Trakt emails a ZIP: unzip it and choose the .json files here; you can select them all at once. Watch history, film ratings and your watchlist come in.'), inp);
+}
+
 const TABS = [['overview', 'Overview'], ['ratings', 'Ratings'], ['reviews', 'Reviews'], ['history', 'Watch History'], ['friends', 'Friends']];
 const SETS = [['profile', 'Profile and appearance', I.user], ['services', 'Streaming services', I.monitor], ['preferences', 'Movie and TV preferences', I.sliders],
   ['chat', 'Chat and memory', I.bubble], ['notifications', 'Notifications', I.bell], ['privacy', 'Privacy', I.lock], ['imports', 'Imports and connections', I.upload], ['account', 'Account and security', I.shield]];
@@ -400,10 +426,11 @@ const SET = {
       return h('div', { class: 'set-card' }, h('h3', {}, label), h('p', { class: 'sub' }, hint), inp);
     };
     pane.append(upload('netflix', 'Netflix viewing history', 'Netflix: Account, your profile, Viewing activity, Download all (NetflixViewingHistory.csv). ViewingActivity.csv from a data request works too. Episodes are grouped by show.'),
-      upload('letterboxd_watched', 'Letterboxd watched films or diary', 'From your Letterboxd data export: watched.csv or diary.csv.'), res);
+      upload('letterboxd_watched', 'Letterboxd watched films or diary', 'From your Letterboxd data export: watched.csv or diary.csv.'),
+      traktFiles(res, () => { CW.items = null; emit('cm:imported'); }), res);
     const t = p.trakt || {};
     const tc = h('div', { class: 'set-card' }, h('h3', {}, 'Trakt'), h('p', { class: 'sub' }, t.connected ? `Connected${t.last_sync ? `, last synced ${fmtDate(t.last_sync.slice(0, 10))}` : ''}. Syncs history, ratings and watchlist when you press Sync.` : 'Connect your Trakt account to import history, ratings and watchlist.'));
-    if (!t.available) tc.append(h('p', { class: 'muted small' }, 'Trakt is not set up on this server.'));
+    if (!t.available) tc.append(h('p', { class: 'muted small' }, 'Signing in with Trakt is not set up on this server yet. The Trakt export above brings in the same history, ratings and watchlist.'));
     else if (t.connected) tc.append(h('div', { class: 'actions', style: 'margin:0' }, h('button', { class: 'btn secondary sm', type: 'button', onclick: async (e) => { e.currentTarget.classList.add('busy'); try { const j = await post('/api/v8/trakt/sync'); showImport(res, j.history); } catch (er) { toast(er.message, null, true); } e.currentTarget?.classList.remove('busy'); } }, 'Sync now'),
       h('button', { class: 'btn ghost sm', type: 'button', onclick: async () => { try { const j = await post('/api/v8/trakt/disconnect'); toast(`Disconnected; removed ${j.removed_events} imported rows.`); location.reload(); } catch (e) { toast(e.message, null, true); } } }, 'Disconnect')));
     else tc.append(h('button', { class: 'btn primary sm', type: 'button', onclick: async () => { try { const j = await api('/trakt/start'); location.href = j.url; } catch (e) { toast(e.message, null, true); } } }, 'Connect Trakt'));

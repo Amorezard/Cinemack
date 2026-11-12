@@ -348,6 +348,11 @@ def pick(user="", genre=None, max_cert=None, max_runtime=None, services=None, ne
     -> {picks, candidates (next 12, for "try different"), removed (counts by reason), considered}"""
     rows = _q("select tmdb_id, genres_json, episode_runtime, vote_count from tv_shows where coalesce(vote_count, 0) >= 40")
     seen = _watched_or_followed(user) | {int(x) for x in exclude}
+    try:                                                # 12 Nov: TV taste from onboarding (web/tv_prefs.py)
+        import tv_prefs as _tvp
+        seen |= _tvp.skip_ids(user) if user else set()
+    except ImportError:
+        _tvp = None
     ids = [r[0] for r in rows if r[0] not in seen]
     gmap = {r[0]: set(_loads(r[1])) for r in rows}
     rtm = {r[0]: r[2] for r in rows}
@@ -402,6 +407,7 @@ def pick(user="", genre=None, max_cert=None, max_runtime=None, services=None, ne
         keep.append(sid)
     b = basics(keep)
     imdbv = {sid: (x["votes"] if x["rating_src"] == "IMDb" else None) for sid, x in b.items()}
+    tvb = _tvp.boost(user, keep) if _tvp is not None and user else {}
     scored = []
     for sid in keep:
         x = b.get(sid)
@@ -414,7 +420,7 @@ def pick(user="", genre=None, max_cert=None, max_runtime=None, services=None, ne
             s = x["score"]
         else:
             s = x["score"] + 0.12 * math.log10(max(x["votes"] or 1, 1))
-        scored.append((-s, sid))
+        scored.append((-(s + tvb.get(sid, 0.0)), sid))
     order = [sid for _s, sid in sorted(scored)]
     cards = [dict(b[sid], providers=sorted(svc_ok.get(sid, [])) if svc_ok else [], reasons=_reasons(b[sid], genre, max_runtime, max_cert, svc_ok))
              for sid in order[:n + 12]]

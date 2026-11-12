@@ -1,0 +1,68 @@
+# ------------------------------------------------------------------ export files (12 Nov 2026, round 36)
+# Trakt's own export (trakt.tv Settings > Data > Export, free) is a ZIP of JSON files in the API's shapes, so it works
+# without TRAKT_CLIENT_ID. Files are recognised by their items, not their names: history items (watched_at + type),
+# ratings (rating + rated_at), a "watched" summary (plays / last_watched_at; used only when the file has no history
+# items), watchlist items (listed_at, in a file whose name says watchlist). Rows keep Trakt's history ids as keys, so
+# a file imported twice, or after a Connect-Trakt sync, adds nothing twice. Other files (lists, comments) are skipped.
+def parse_export(text, name=""):
+    try:
+        data = json.loads(text)
+    except ValueError:
+        raise ValueError("That is not a Trakt JSON file. Trakt: Settings, Data, Export; unzip the download and choose "
+                         "the .json files.")
+    if isinstance(data, dict):
+        data = next((v for v in data.values() if isinstance(v, list)), [])
+    items = [it for it in data if isinstance(it, dict)] if isinstance(data, list) else []
+    low = (name or "").lower()
+    out = {"history": [], "ratings": [], "watchlist": [], "summary": [], "other": 0}
+    for it in items:
+        if it.get("watched_at") and it.get("type") in ("movie", "episode"):
+            out["history"].append(it)
+        elif it.get("rating") is not None and it.get("rated_at"):
+            out["ratings"].append(it)
+        elif it.get("listed_at") and "watchlist" in low:
+            out["watchlist"].append(it)
+        elif (it.get("plays") or it.get("last_watched_at")) and it.get("movie"):
+            out["summary"].append(it)
+        else:
+            out["other"] += 1
+    return out
+
+
+def import_export(user, text, name=""):
+    p = parse_export(text, name)
+    rows = _rows_history(p["history"])
+    if not rows and p["summary"]:                     # a watched-movies summary: one view per film, at its last date
+        for i, it in enumerate(p["summary"], 1):
+            m = it["movie"]
+            tid = (m.get("ids") or {}).get("tmdb")
+            rows.append({"row": i, "raw": f"{m.get('title')} ({m.get('year')})", "kind": "movie", "title": m.get("title"),
+                         "year": m.get("year"), "tmdb": tid, "date": (it.get("last_watched_at") or "")[:10] or None,
+                         "key": f"wm{tid or i}"})
+    res = _import_by_id(user, rows) if rows else {"rows": 0, "matched": 0, "duplicates": 0, "issues": [], "added": 0}
+    n = 0
+    if p["ratings"]:
+        import social
+        for it in p["ratings"]:
+            tid = ((it.get("movie") or {}).get("ids") or {}).get("tmdb")
+            if it.get("type", "movie") == "movie" and tid and it.get("rating"):
+                social.save_review(user, tid, max(0.5, min(5.0, round(it["rating"] / 2 * 2) / 2)), "")
+                n += 1
+    res["ratings"] = n
+    n = 0
+    if p["watchlist"]:
+        import discovery
+        import film_info
+        for it in p["watchlist"]:
+            m, s = it.get("movie") or {}, it.get("show") or {}
+            if m.get("ids", {}).get("tmdb"):
+                film_info.choose(user, m["ids"]["tmdb"], (m.get("title") or "")[:200], "want")
+                n += 1
+            elif s.get("ids", {}).get("tmdb"):
+                discovery.tv_follow(user, s["ids"]["tmdb"], True)
+                n += 1
+    res["watchlist"] = n
+    res["skipped"] = p["other"]
+    return res
+
+
