@@ -15,7 +15,8 @@ const PRIV = { profile: 'Profile and stats', watchlist: 'Watchlist', history: 'W
 export async function pageJoin(params) {
   view.innerHTML = '';
   try { S.me = await api('/api/me'); } catch {}
-  const st = { i: 0, groups: new Set(), avoid: new Set(), films: {}, settings: Object.assign({}, S.me?.settings || {}), name: displayName(S.me) || '', privacy: null };
+  const mg = (S.me && S.me.groups) || [];                // 12 Nov: start from the saved taste
+  const st = { i: 0, groups: new Set(mg.filter(k => !String(k).startsWith('-'))), avoid: new Set(mg.filter(k => String(k).startsWith('-')).map(k => String(k).slice(1))), films: {}, settings: Object.assign({}, S.me?.settings || {}), name: displayName(S.me) || '', privacy: null };
   const startAt = STEPS.findIndex(s => s[0] === params.get('step'));
   st.i = S.me?.account ? Math.max(1, startAt) : 0;
   const rail = h('ol', { class: 'join-steps', 'aria-label': 'Steps' });
@@ -86,6 +87,40 @@ function traktFiles(res, after) {
   });
   return h('div', { class: 'set-card' }, h('h3', {}, h('label', { for: id }, 'Trakt export')),
     h('p', { class: 'sub' }, 'Trakt: Settings, Data, Export now (free). Trakt emails a ZIP: unzip it and choose the .json files here; you can select them all at once. Watch history, film ratings and your watchlist come in.'), inp);
+}
+
+// 12 Nov (round 38): Connect Trakt with a code (Trakt only returns to https sites; this one is http): the person
+// enters the code at trakt.tv/activate and this page checks every few seconds, then imports.
+function traktConnect(box, after) {
+  const btn = h('button', { class: 'btn primary sm', type: 'button' }, 'Connect Trakt');
+  const out = h('div', { 'aria-live': 'polite' });
+  btn.addEventListener('click', async () => {
+    btn.classList.add('busy');
+    let d;
+    try { d = await post('/api/v8/trakt/device/start', {}); } catch (e) { toast(e.message, null, true); btn.classList.remove('busy'); return; }
+    btn.classList.remove('busy'); btn.hidden = true; out.innerHTML = '';
+    out.append(h('div', { class: 'notice' }, 'Go to ', h('a', { href: d.url, target: '_blank', rel: 'noopener' }, d.url.replace(/^https?:\/\//, '')), ' and enter this code:',
+      h('div', { class: 'trakt-code' }, d.user_code), h('span', { class: 'small muted' }, 'This page checks every few seconds, then imports your history, ratings and watchlist.')));
+    const until = Date.now() + d.expires_in * 1000; let wait = d.interval * 1000;
+    const fail = (msg) => { out.innerHTML = ''; out.append(h('div', { class: 'notice warn' }, msg, ' Press Connect Trakt to try again.')); btn.hidden = false; };
+    const tick = async () => {
+      if (!document.body.contains(out)) return;
+      if (Date.now() > until) return fail('The code expired.');
+      let r; try { r = await post('/api/v8/trakt/device/poll', {}); } catch { r = { status: 'pending' }; }
+      if (r.status === 'connected') {
+        const s = r.sync || {}, hs = s.history || {};
+        out.innerHTML = ''; out.append(h('div', { class: 'notice' }, h('b', {}, 'Trakt connected. '), `${hs.added ?? 0} views added, ${s.ratings ?? 0} film ratings, ${s.watchlist ?? 0} watchlist items.` + (s.error ? ` Import problem: ${s.error}` : '')));
+        if (after) after(); return;
+      }
+      const msg = { denied: 'You declined on Trakt.', expired: 'The code expired.', invalid: 'Trakt did not recognise the code.', used: 'That code was already used.',
+        unauthorized: 'Trakt refused the sign-in. The server may also need the Trakt client secret (TRAKT_CLIENT_SECRET in keys.env).' }[r.status];
+      if (msg) return fail(msg);
+      if (r.status === 'slow_down') wait += 1000;
+      setTimeout(tick, wait);
+    };
+    setTimeout(tick, wait);
+  });
+  box.append(btn, out);
 }
 
 const STEP = {
@@ -231,8 +266,8 @@ const STEP = {
       const p = await api('/api/v8/profile'); const t = p.trakt || {}; tr.lastChild.remove();
       if (!t.available) tr.append(h('p', { class: 'muted small' }, 'Signing in with Trakt is not set up on this server yet. The Trakt export above brings in the same history, ratings and watchlist.'));
       else if (t.connected) tr.append(h('p', { class: 'small' }, 'Connected. Sync from Settings > Imports.'));
-      else tr.append(h('p', { class: 'sub' }, 'Import history, ratings and watchlist from Trakt. You will come back here after approving.'),
-        h('button', { class: 'btn secondary sm', type: 'button', onclick: async () => { try { store.set('cm.joinReturn', 'profile'); location.href = (await api('/trakt/start')).url; } catch (e) { toast(e.message, null, true); } } }, 'Connect Trakt'));
+      else { tr.append(h('p', { class: 'sub' }, 'Import history, ratings and watchlist from Trakt: you get a short code to enter on trakt.tv.'));
+        traktConnect(tr, () => { CW.items = null; emit('cm:imported'); }); }
       st.privacy0 = p.privacy || {};
     } catch { tr.lastChild.textContent = 'Could not check Trakt right now.'; }
   },

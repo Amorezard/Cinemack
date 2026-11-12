@@ -1,0 +1,36 @@
+// 12 Nov (round 38): the onboarding taste (kinds of film, kinds of show), editable in Settings > Movie and TV preferences
+function tasteCard(me) {
+  const card = h('div', { class: 'set-card' }, h('h3', {}, 'Your taste'),
+    h('p', { class: 'sub' }, 'Kinds of films and shows you love or skip. They steer recommendations and Pick Tonight; nothing is hidden from search.'));
+  const box = h('div', {}, h('p', { class: 'muted small' }, 'Loading…'));
+  card.append(box);
+  (async () => {
+    let f, t;
+    try { [f, t] = await Promise.all([api('/api/onboarding'), api('/api/v8/onboarding/tv')]); }
+    catch (e) { box.innerHTML = ''; box.append(h('p', { class: 'err' }, e.message)); return; }
+    const mine = (me && me.groups) || (S.me && S.me.groups) || [];
+    const fl = new Set(mine.filter(k => !String(k).startsWith('-'))), fa = new Set(mine.filter(k => String(k).startsWith('-')).map(k => String(k).slice(1)));
+    const tl = new Set((t.picked && t.picked.groups) || []), ta = new Set((t.picked && t.picked.avoid) || []);
+    const rows = (groups, L, A) => h('div', { class: 'taste-rows' }, groups.map(g => {
+      const love = h('button', { class: 'chip sm', type: 'button' }, 'Love it');
+      const skip = h('button', { class: 'chip sm', type: 'button' }, 'Not for me');
+      const sync = () => { love.setAttribute('aria-pressed', String(L.has(g.key))); skip.setAttribute('aria-pressed', String(A.has(g.key))); };
+      love.addEventListener('click', () => { A.delete(g.key); L.has(g.key) ? L.delete(g.key) : L.add(g.key); sync(); });
+      skip.addEventListener('click', () => { L.delete(g.key); A.has(g.key) ? A.delete(g.key) : A.add(g.key); sync(); });
+      sync();
+      return h('div', { class: 'taste-row' }, h('span', {}, g.label), h('div', { class: 'tg-a', role: 'group', 'aria-label': g.label }, love, skip));
+    }));
+    box.innerHTML = '';
+    box.append(h('h4', {}, 'Films'), rows(f.groups || [], fl, fa), h('h4', {}, 'TV shows'), rows(t.groups || [], tl, ta),
+      h('div', { class: 'taste-save' }, h('button', { class: 'btn primary', type: 'button', onclick: async (e) => {
+        const b = e.currentTarget; b.classList.add('busy');
+        try {
+          S.me = await post('/api/onboarding', { groups: [...fl], avoid: [...fa] });
+          await post('/api/v8/onboarding/tv/groups', { groups: [...tl], avoid: [...ta] });
+          emit('cm:me'); toast('Taste saved.');
+        } catch (er) { toast(er.message, null, true); } finally { b.classList.remove('busy'); }
+      } }, 'Save taste'), h('a', { class: 'btn ghost', href: '#/join?step=taste' }, 'Mark films and shows you know')));
+  })();
+  return card;
+}
+

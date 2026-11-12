@@ -1,0 +1,36 @@
+# 12 Nov (round 38): the site process does not load keys.env (start_site.sh reads only the switch files), so the
+# Trakt client ID set there never reached it ("Trakt is not set up"). Read it from the environment, else keys.env in
+# the rag folder, else ~/.movie-buff.env, under any of the usual names. Values are never printed.
+_ID_NAMES = ("TRAKT_CLIENT_ID", "TRAKT_ID", "TRAKT_API_KEY", "TRAKT_KEY", "TRAKT_CLIENT")
+_SECRET_NAMES = ("TRAKT_CLIENT_SECRET", "TRAKT_SECRET")
+
+
+def _key_from_files(names, paths=None):
+    for p in paths or (RAG_DIR / "keys.env", Path.home() / ".movie-buff.env"):
+        try:
+            lines = Path(p).read_text(encoding="utf-8").splitlines()
+        except OSError:
+            continue
+        for line in lines:
+            line = line.strip()
+            if line.startswith("export "):
+                line = line[7:].strip()
+            if "=" not in line or line.startswith("#"):
+                continue
+            k, v = line.split("=", 1)
+            v = v.split(" #")[0].strip().strip("'\"")
+            if k.strip() in names and v:
+                return v
+    return ""
+
+
+def _key(names):
+    for n in names:
+        v = os.environ.get(n, "").strip().strip("'\"")
+        if v:
+            return v
+    return _key_from_files(names)
+
+
+CLIENT_ID = _key(_ID_NAMES)
+CLIENT_SECRET = _key(_SECRET_NAMES)       # optional: PKCE needs none; sent on the device-code exchange if present

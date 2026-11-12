@@ -199,6 +199,9 @@ def install(app, user_of, account_of, gate):
 
     import tv_prefs as _tvp                             # 12 Nov: TV taste from onboarding
     _tvp.install(app, user_of, gate, _run)
+    import reviews_feed as _rvf                         # 12 Nov: friends' reviews (Profile > Reviews)
+    _rvf.install(app, user_of, gate, _run)
+    trakt_sync.install_device(app, user_of, gate, _run)  # 12 Nov: Connect Trakt with a code
 
     @app.get("/api/v8/similar/{fid}")
     async def v8_similar(fid: int, request: Request):

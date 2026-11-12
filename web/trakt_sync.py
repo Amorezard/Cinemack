@@ -29,10 +29,45 @@ import history
 
 RAG_DIR = Path(__file__).resolve().parent.parent
 DB = os.environ.get("TRAKT_DB", str(RAG_DIR / "logs" / "trakt.db"))
-CLIENT_ID = os.environ.get("TRAKT_CLIENT_ID", "").strip().strip("'\"")
+# 12 Nov (round 38): the site process does not load keys.env (start_site.sh reads only the switch files), so the
+# Trakt client ID set there never reached it ("Trakt is not set up"). Read it from the environment, else keys.env in
+# the rag folder, else ~/.movie-buff.env, under any of the usual names. Values are never printed.
+_ID_NAMES = ("TRAKT_CLIENT_ID", "TRAKT_ID", "TRAKT_API_KEY", "TRAKT_KEY", "TRAKT_CLIENT")
+_SECRET_NAMES = ("TRAKT_CLIENT_SECRET", "TRAKT_SECRET")
+
+
+def _key_from_files(names, paths=None):
+    for p in paths or (RAG_DIR / "keys.env", Path.home() / ".movie-buff.env"):
+        try:
+            lines = Path(p).read_text(encoding="utf-8").splitlines()
+        except OSError:
+            continue
+        for line in lines:
+            line = line.strip()
+            if line.startswith("export "):
+                line = line[7:].strip()
+            if "=" not in line or line.startswith("#"):
+                continue
+            k, v = line.split("=", 1)
+            v = v.split(" #")[0].strip().strip("'\"")
+            if k.strip() in names and v:
+                return v
+    return ""
+
+
+def _key(names):
+    for n in names:
+        v = os.environ.get(n, "").strip().strip("'\"")
+        if v:
+            return v
+    return _key_from_files(names)
+
+
+CLIENT_ID = _key(_ID_NAMES)
+CLIENT_SECRET = _key(_SECRET_NAMES)       # optional: PKCE needs none; sent on the device-code exchange if present
 REDIRECT = os.environ.get("TRAKT_REDIRECT", "REDACTED/trakt/callback")
 API = "https://api.trakt.tv"
-AUTH = "https://trakt.tv/oauth/authorize"
+AUTH = "https://auth.trakt.tv/oauth/authorize"           # 12 Nov: Trakt's sign-in host (developer.trakt.tv)
 _pending = {}            # state -> (user, verifier, created)
 _lock = threading.Lock()
 _C = {}
@@ -125,8 +160,9 @@ def _token(user):
         raise TraktError("Trakt isn't connected.")
     access, refresh, exp = r
     if exp and time.time() > exp - 300 and refresh:
-        st, tok, _h = _http("POST", API + "/oauth/token", {"refresh_token": refresh, "client_id": CLIENT_ID,
-                                                           "redirect_uri": REDIRECT, "grant_type": "refresh_token"})
+        st, tok, _h = _http("POST", API + "/oauth/token", dict({"refresh_token": refresh, "client_id": CLIENT_ID, "grant_type": "refresh_token",
+                                                                "redirect_uri": REDIRECT if REDIRECT.startswith("https://") else "urn:ietf:wg:oauth:2.0:oob"},
+                                                               **({"client_secret": CLIENT_SECRET} if CLIENT_SECRET else {})))
         if st == 200 and tok and tok.get("access_token"):
             _store(user, tok)
             access = tok["access_token"]
@@ -284,6 +320,89 @@ def import_export(user, text, name=""):
     res["watchlist"] = n
     res["skipped"] = p["other"]
     return res
+
+
+# ------------------------------------------------------------------ device-code sign-in (12 Nov 2026, round 38)
+# Trakt only redirects back to https:// addresses (developer.trakt.tv/docs/pkce) and this site is plain http, so
+# "Connect Trakt" uses Trakt's device flow instead: the person opens trakt.tv/activate, types a short code, and the
+# page polls until Trakt says yes. No redirect address is involved.
+_device = {}             # user -> {"code", "interval", "expires"}
+
+
+def device_start(user):
+    if not enabled():
+        raise TraktError("Trakt isn't set up on this server (no Trakt client ID found in keys.env).")
+    try:
+        st, d, _h = _http("POST", API + "/oauth/device/code", {"client_id": CLIENT_ID},
+                          {"trakt-api-version": "2", "trakt-api-key": CLIENT_ID})
+    except (urllib.error.URLError, OSError) as e:
+        raise TraktError(f"Couldn't reach Trakt right now ({e.__class__.__name__}). Try again in a minute.")
+    if st != 200 or not d or not d.get("device_code"):
+        raise TraktError(f"Trakt didn't give a sign-in code (HTTP {st}). Check the client ID in keys.env.")
+    iv, exp = int(d.get("interval") or 5), int(d.get("expires_in") or 600)
+    with _lock:
+        _device[user] = {"code": d["device_code"], "interval": iv, "expires": time.time() + exp}
+    return {"user_code": d.get("user_code"), "url": d.get("verification_url") or "https://trakt.tv/activate",
+            "interval": iv, "expires_in": exp}
+
+
+DEVICE_STATUS = {400: "pending", 429: "slow_down", 404: "invalid", 409: "used", 410: "expired", 418: "denied",
+                 401: "unauthorized", 403: "unauthorized"}
+
+
+def device_poll(user):
+    with _lock:
+        p = _device.get(user)
+    if not p:
+        return {"status": "none"}
+    if time.time() > p["expires"]:
+        with _lock:
+            _device.pop(user, None)
+        return {"status": "expired"}
+    body = {"code": p["code"], "client_id": CLIENT_ID}
+    if CLIENT_SECRET:
+        body["client_secret"] = CLIENT_SECRET
+    try:
+        st, tok, _h = _http("POST", API + "/oauth/device/token", body, {"trakt-api-version": "2", "trakt-api-key": CLIENT_ID})
+    except (urllib.error.URLError, OSError):
+        return {"status": "error"}                 # the page keeps checking
+    if st == 200 and tok and tok.get("access_token"):
+        with _lock:
+            _device.pop(user, None)
+        _store(user, tok)
+        try:
+            res = sync(user)
+        except Exception as e:  # noqa: BLE001  (connected either way; Settings > Imports can sync again)
+            res = {"error": str(e)}
+        return {"status": "connected", "sync": res}
+    status = DEVICE_STATUS.get(st, "error")
+    if status in ("invalid", "used", "expired", "denied"):
+        with _lock:
+            _device.pop(user, None)
+    return {"status": status, "http": st}
+
+
+def install_device(app, user_of, gate, run):
+    from fastapi import Request
+    from fastapi.responses import JSONResponse
+
+    @app.post("/api/v8/trakt/device/start")
+    async def trakt_device_start(request: Request):
+        if (g := gate(request)):
+            return g
+        key = user_of(request)
+        if not key:
+            return JSONResponse({"error": "No browser id."}, status_code=400)
+        try:
+            return JSONResponse(await run(device_start, key))
+        except TraktError as e:
+            return JSONResponse({"error": str(e)}, status_code=400)
+
+    @app.post("/api/v8/trakt/device/poll")
+    async def trakt_device_poll(request: Request):
+        if (g := gate(request)):
+            return g
+        return JSONResponse(await run(device_poll, user_of(request)))
 
 
 def disconnect(user):

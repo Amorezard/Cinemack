@@ -206,6 +206,8 @@ def clean_chat(raw):
         out["services_only"] = True
     if raw.get("strict") is True:            # v8 Pick tonight: a film whose fact is unknown fails that limit too
         out["strict"] = True
+    if raw.get("mood") in ("mind",):         # 12 Nov: Pick Tonight "Mind-bending" = sci-fi without superhero films
+        out["mood"] = raw["mood"]
     # round 21 (3c preference chips): limits accepted from a chat message, for this chat only
     if isinstance(raw.get("never_genres"), list):
         ng = list(dict.fromkeys(g for g in raw["never_genres"] if g in GENRES))
@@ -259,6 +261,8 @@ def merge_chat(settings, chat):
         s["min_year"] = max(c["min_year"], s.get("min_year") or c["min_year"])
     if c.get("strict"):
         s["strict"] = True
+    if c.get("mood"):
+        s["mood"] = c["mood"]
     s["chat_filters"] = c
     return s
 
@@ -280,7 +284,7 @@ def filter_tag(settings):
     if not settings:
         return ""
     f = {k: settings.get(k) for k in ("never_genres", "min_year", "max_runtime", "max_cert", "services",
-                                      "max_year", "only_genres", "services_only")}
+                                      "max_year", "only_genres", "services_only", "mood")}
     if settings.get("genres_all"):                    # round 27 (only when on, so older cache keys stay the same)
         f["genres_all"] = True
     # hiding money / critic lines changes the tool blocks inside the cached prompt, so it is part of the key too
@@ -400,6 +404,13 @@ def excluded(settings, hits):
     except ImportError:
         pass
     only = set(s.get("only_genres") or [])
+    heroes = set()
+    if s.get("mood") == "mind":                         # 12 Nov: "Mind-bending" leaves superhero films out
+        hid = [int(h["id"]) for h in hits if str(h.get("id") or "").isdigit()]
+        if hid:
+            heroes = {r[0] for r in _q(_facts(), "select distinct tmdb_id from keywords where name in ("
+                                      + ",".join("?" * len(_NO_HEROES)) + ") and tmdb_id in (" + ",".join("?" * len(hid)) + ")",
+                                      list(_NO_HEROES) + hid)}
     max_y = s.get("max_year")
     # 6 Nov "only on my services": a film counts only when JustWatch (via TMDB) lists it on one of their services;
     # a film with no listing is removed too, because nothing shows it is there
@@ -420,6 +431,8 @@ def excluded(settings, hits):
                 (s.get("max_runtime") and rt and rt > s["max_runtime"]) or (max_y and y and y > max_y):
             out.add(fid)
         elif only and gm and not (only & gm):
+            out.add(fid)
+        elif heroes and fid in heroes:
             out.add(fid)
         elif only and gs and s.get("genres_all") and not (only <= gs):      # round 27: every chosen genre
             out.add(fid)

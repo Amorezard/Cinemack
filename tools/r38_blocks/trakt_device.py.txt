@@ -1,0 +1,83 @@
+# ------------------------------------------------------------------ device-code sign-in (12 Nov 2026, round 38)
+# Trakt only redirects back to https:// addresses (developer.trakt.tv/docs/pkce) and this site is plain http, so
+# "Connect Trakt" uses Trakt's device flow instead: the person opens trakt.tv/activate, types a short code, and the
+# page polls until Trakt says yes. No redirect address is involved.
+_device = {}             # user -> {"code", "interval", "expires"}
+
+
+def device_start(user):
+    if not enabled():
+        raise TraktError("Trakt isn't set up on this server (no Trakt client ID found in keys.env).")
+    try:
+        st, d, _h = _http("POST", API + "/oauth/device/code", {"client_id": CLIENT_ID},
+                          {"trakt-api-version": "2", "trakt-api-key": CLIENT_ID})
+    except (urllib.error.URLError, OSError) as e:
+        raise TraktError(f"Couldn't reach Trakt right now ({e.__class__.__name__}). Try again in a minute.")
+    if st != 200 or not d or not d.get("device_code"):
+        raise TraktError(f"Trakt didn't give a sign-in code (HTTP {st}). Check the client ID in keys.env.")
+    iv, exp = int(d.get("interval") or 5), int(d.get("expires_in") or 600)
+    with _lock:
+        _device[user] = {"code": d["device_code"], "interval": iv, "expires": time.time() + exp}
+    return {"user_code": d.get("user_code"), "url": d.get("verification_url") or "https://trakt.tv/activate",
+            "interval": iv, "expires_in": exp}
+
+
+DEVICE_STATUS = {400: "pending", 429: "slow_down", 404: "invalid", 409: "used", 410: "expired", 418: "denied",
+                 401: "unauthorized", 403: "unauthorized"}
+
+
+def device_poll(user):
+    with _lock:
+        p = _device.get(user)
+    if not p:
+        return {"status": "none"}
+    if time.time() > p["expires"]:
+        with _lock:
+            _device.pop(user, None)
+        return {"status": "expired"}
+    body = {"code": p["code"], "client_id": CLIENT_ID}
+    if CLIENT_SECRET:
+        body["client_secret"] = CLIENT_SECRET
+    try:
+        st, tok, _h = _http("POST", API + "/oauth/device/token", body, {"trakt-api-version": "2", "trakt-api-key": CLIENT_ID})
+    except (urllib.error.URLError, OSError):
+        return {"status": "error"}                 # the page keeps checking
+    if st == 200 and tok and tok.get("access_token"):
+        with _lock:
+            _device.pop(user, None)
+        _store(user, tok)
+        try:
+            res = sync(user)
+        except Exception as e:  # noqa: BLE001  (connected either way; Settings > Imports can sync again)
+            res = {"error": str(e)}
+        return {"status": "connected", "sync": res}
+    status = DEVICE_STATUS.get(st, "error")
+    if status in ("invalid", "used", "expired", "denied"):
+        with _lock:
+            _device.pop(user, None)
+    return {"status": status, "http": st}
+
+
+def install_device(app, user_of, gate, run):
+    from fastapi import Request
+    from fastapi.responses import JSONResponse
+
+    @app.post("/api/v8/trakt/device/start")
+    async def trakt_device_start(request: Request):
+        if (g := gate(request)):
+            return g
+        key = user_of(request)
+        if not key:
+            return JSONResponse({"error": "No browser id."}, status_code=400)
+        try:
+            return JSONResponse(await run(device_start, key))
+        except TraktError as e:
+            return JSONResponse({"error": str(e)}, status_code=400)
+
+    @app.post("/api/v8/trakt/device/poll")
+    async def trakt_device_poll(request: Request):
+        if (g := gate(request)):
+            return g
+        return JSONResponse(await run(device_poll, user_of(request)))
+
+

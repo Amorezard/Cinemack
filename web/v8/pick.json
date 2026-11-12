@@ -49,7 +49,8 @@
     "mind": {
       "label": "Mind-bending",
       "filters": {
-        "genre": "Science Fiction"
+        "genre": "Science Fiction",
+        "mood": "mind"
       },
       "words": "mind-bending"
     },

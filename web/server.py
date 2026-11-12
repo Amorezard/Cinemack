@@ -756,11 +756,13 @@ async def chat(req: ChatRequest, request: Request):
             safety2.reset()                            # round 27: guard v2 remembers what it removed, per request
             put(sse("status", stage="searching"))
             user_prefs.CURRENT["settings"] = prefs           # v6: the person's limits, for chat._personalize
+            user_prefs.CURRENT["user"] = user                # 12 Nov: whose TV taste (web/tv_prefs.py)
             clear_ctx = _request_context(prefs, user, private)
             try:
                 prompt, hits = pipeline.prepare(question, req.recent_titles, conv_in, user)
             finally:
                 user_prefs.CURRENT["settings"] = None
+                user_prefs.CURRENT["user"] = None
                 clear_ctx()
             trace = pipeline.last_trace()
             try:

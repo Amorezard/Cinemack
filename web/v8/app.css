@@ -1136,6 +1136,17 @@ label.check { display: flex; gap: 10px; align-items: flex-start; font-size: var(
 label.check input { width: 20px; height: 20px; margin-top: 1px; flex: none; accent-color: var(--accent); }
 .join-nav { display: flex; gap: 10px; align-items: center; margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--line); }
 .join-nav .btn svg { width: 16px; height: 16px; }
+/* 12 Nov (round 38): Trakt code, Settings taste rows, one Reviews tab */
+.trakt-code { font: 700 28px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .14em; margin: 10px 0 6px; }
+.taste-rows { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 0 20px; }
+.taste-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.taste-row .tg-a { flex: none; }
+.set-card h4 { margin: 14px 0 4px; font-size: var(--fs-md); }
+.taste-save { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 14px; }
+.rv-list { display: grid; gap: 10px; }
+.rv-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 4px 0 12px; }
+.rv-head h3 { margin: 0; }
+.rv-friends { margin-top: 30px; }
 .tgroups { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
 .tg { display: grid; gap: 10px; padding: 12px; border-radius: var(--r-md); background: var(--bg-2); border: 1px solid var(--line); }
 .tg[data-s="love"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); } .tg[data-s="avoid"] { opacity: .7; }

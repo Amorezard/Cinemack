@@ -1,0 +1,25 @@
+  ratings(b, { sum }) {
+    const rated = sum.reviews.filter(r => r.rating != null);
+    if (!rated.length) { b.append(empty('No ratings yet', 'Rate films you have seen and Cinemack learns your taste. Ratings stay private unless you share them with friends.', 'ticket',
+      [h('button', { class: 'btn primary', type: 'button', onclick: () => rateSearch() }, 'Rate your first movie')])); return; }
+    const sortSel = h('select', { class: 'input', 'aria-label': 'Sort ratings', style: 'width:auto' }, [['new', 'Newest'], ['high', 'Highest rated'], ['low', 'Lowest rated'], ['title', 'Title A–Z']].map(([v, l]) => h('option', { value: v }, l)));
+    const grid = h('div', { class: 'grid' });
+    const draw = () => {
+      const by = { new: (a, z) => (z.updated || '').localeCompare(a.updated || ''), high: (a, z) => z.rating - a.rating, low: (a, z) => a.rating - z.rating, title: (a, z) => (a.title || '').localeCompare(z.title || '') };
+      grid.innerHTML = '';
+      [...rated].sort(by[sortSel.value]).forEach(r => grid.append(posterCard({ id: r.id, title: r.title || 'Unknown film', year: r.year, poster: r.poster }, { noRating: true, save: false,
+        meta: [`★ ${r.rating}`, r.updated ? ago(r.updated.slice(0, 10)) : null].filter(Boolean),
+        extra: h('button', { class: 'btn ghost sm', type: 'button', style: 'align-self:flex-start;margin-left:-8px', onclick: () => reviewSheet({ id: r.id, title: r.title, myRating: Math.round(r.rating), myReview: r.text }, () => location.reload()) }, 'Edit') })));
+    };
+    sortSel.addEventListener('change', draw);
+    b.append(h('div', { class: 'wl-filters' }, h('span', { class: 'muted small' }, `${rated.length} rating${rated.length === 1 ? '' : 's'}`), h('span', { class: 'spacer' }), sortSel), grid);
+    draw();
+  },
+  reviews(b, { sum }) {
+    const rv = sum.reviews.filter(r => (r.text || '').trim());
+    if (!rv.length) { b.append(empty('No reviews yet', 'Write a few lines when you rate a film. Reviews are private unless you share them with friends.', 'ticket', [h('button', { class: 'btn primary', type: 'button', onclick: () => rateSearch() }, 'Write a review')])); return; }
+    b.append(h('div', { class: 'rv-list' }, rv.map(r => h('article', { class: 'rv-card' }, h('a', { class: 'pp', href: `#/film/${r.id}`, tabindex: '-1', 'aria-hidden': 'true' }, r.poster ? h('img', { src: r.poster, alt: '', loading: 'lazy', width: 64, height: 96 }) : h('span', { class: 'ph' })),
+      h('div', { style: 'min-width:0' }, h('a', { class: 't', href: `#/film/${r.id}` }, r.title || 'Unknown film', r.year ? ` (${r.year})` : ''),
+        h('div', { class: 'small muted', style: 'margin-top:2px' }, [r.rating != null ? `★ ${r.rating}` : null, r.updated ? fmtDate(r.updated.slice(0, 10)) : null].filter(Boolean).join(' · ')),
+        h('p', { class: 'tx' }, r.text), h('button', { class: 'btn ghost sm', type: 'button', style: 'margin:6px 0 0 -8px', onclick: () => reviewSheet({ id: r.id, title: r.title, myRating: r.rating ? Math.round(r.rating) : 0, myReview: r.text }, () => location.reload()) }, 'Edit'))))));
+  },

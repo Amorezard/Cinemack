@@ -8,7 +8,12 @@ rating alone. Onboarding's taste step now has a TV part:
 Pick Tonight (tvdata.pick): shows marked watching / loved / not for me are left out (seen or unwanted); a show whose
 main genres (web/genres.py) meet a loved kind or a loved show's genres gets a lift, a disliked kind a drop. Nothing is
 hidden from search. Example posters are hand-picked (the film groups' lesson: queries pick odd examples).
-Tables live in users.db (USERS_DB). Routes: install(app, user_of, gate, run) from v8routes.install."""
+Tables live in users.db (USERS_DB). Routes: install(app, user_of, gate, run) from v8routes.install.
+12 Nov (round 38): Ask Cinemack's show recommendations use the same taste (TV_TASTE=1, site.env): install_chat()
+wraps tv.retrieve_tv for the person whose question is being answered (user_prefs.CURRENT["user"], set by server.py):
+shows they watch, loved or marked not for me leave a recommendation list (never all of it), the rest are ordered by
+the same lift; and pipeline.user_tag gets a hash of their TV taste so a cached search is never reused for another
+taste. People with no TV taste, and the evaluation (no person), are untouched."""
 import json
 import os
 import sqlite3
@@ -226,6 +231,77 @@ def boost(user, ids):
     return out
 
 
+def taste_tag(user):
+    """Short hash of this person's TV taste ('' if none): part of the search-cache key."""
+    if not user:
+        return ""
+    g, ch = load_groups(user), choices(user)
+    if not (g["groups"] or g["avoid"] or ch):
+        return ""
+    import hashlib
+    return hashlib.sha1(json.dumps([g, sorted(ch.items())]).encode()).hexdigest()[:8]
+
+
+def personalize_tv(user, hits):
+    """Recommendation hits from tv.retrieve_tv (ids in 'tv_id') for this person: marked shows out (never all of
+    them), then ordered by boost(); the first hit keeps the plan."""
+    if not user or not hits:
+        return hits
+    plan = hits[0].get("_plan")
+    skip = skip_ids(user)
+    ids = [h.get("tv_id") for h in hits if h.get("tv_id")]
+    b = boost(user, ids)
+    if not skip and not b:
+        return hits
+    kept = [h for h in hits if h.get("tv_id") not in skip] or hits
+    kept = [h for _i, h in sorted(enumerate(kept), key=lambda x: (-b.get(x[1].get("tv_id"), 0.0), x[0]))]
+    if plan is not None:
+        for h in hits:
+            h.pop("_plan", None)
+        kept[0]["_plan"] = plan
+    return kept
+
+
+def install_chat():
+    """Wrap tv.retrieve_tv and pipeline.user_tag (TV_TASTE=1). Safe to call twice."""
+    if os.environ.get("TV_TASTE", "0") != "1":
+        return False
+    try:
+        import tv as _tv
+        import user_prefs
+    except ImportError:
+        return False
+    orig = getattr(_tv.retrieve_tv, "_tvp_orig", _tv.retrieve_tv)
+
+    def retrieve_tv(question, k=3, recent_titles=None, why=None):
+        hits = orig(question, k=k, recent_titles=recent_titles, why=why)
+        try:
+            if hits and (hits[0].get("_plan") or {}).get("intent") == "recommend":
+                hits = personalize_tv(user_prefs.CURRENT.get("user"), hits)
+        except Exception as e:  # noqa: BLE001  (taste must never lose the answer)
+            print(f"[tv_prefs] chat taste failed: {e!r}", flush=True)
+        return hits
+    retrieve_tv._tvp_orig = orig
+    _tv.retrieve_tv = retrieve_tv
+    try:
+        import pipeline
+        if hasattr(pipeline, "user_tag") and not getattr(pipeline.user_tag, "_tvp", False):
+            base = pipeline.user_tag
+
+            def user_tag(user):
+                t = base(user)
+                try:
+                    tt = taste_tag(user)
+                except Exception:  # noqa: BLE001
+                    tt = ""
+                return f"{t}|tv{tt}" if tt else t
+            user_tag._tvp = True
+            pipeline.user_tag = user_tag
+    except Exception as e:  # noqa: BLE001  (no pipeline here, e.g. tests: chat taste still works)
+        print(f"[tv_prefs] search-cache key not extended: {e!r}", flush=True)
+    return True
+
+
 # ------------------------------------------------------------------ routes
 def install(app, user_of, gate, run):
     from typing import List
@@ -233,6 +309,8 @@ def install(app, user_of, gate, run):
     from fastapi import Request
     from fastapi.responses import JSONResponse
     from pydantic import BaseModel
+
+    install_chat()
 
     class TvChoice(BaseModel):
         id: int

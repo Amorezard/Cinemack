@@ -1,0 +1,45 @@
+  // 12 Nov (round 38): one Reviews tab instead of Ratings and Reviews: write a review, all your ratings and reviews
+  // (filter and sort), and reviews from friends who share theirs (GET /api/v8/reviews/friends)
+  async reviews(b, { sum, account }) {
+    const mine = sum.reviews.filter(r => r.rating != null || (r.text || '').trim());
+    const written = (r) => !!(r.text || '').trim();
+    const card = (r, friend) => h('article', { class: 'rv-card' },
+      h('a', { class: 'pp', href: `#/film/${r.id}`, tabindex: '-1', 'aria-hidden': 'true' }, r.poster ? h('img', { src: r.poster, alt: '', loading: 'lazy', width: 64, height: 96 }) : h('span', { class: 'ph' })),
+      h('div', { style: 'min-width:0' }, h('a', { class: 't', href: `#/film/${r.id}` }, r.title || 'Unknown film', r.year ? ` (${r.year})` : ''),
+        h('div', { class: 'small muted', style: 'margin-top:2px' }, [friend || null, r.rating != null ? `★ ${r.rating}` : null, r.updated ? fmtDate(r.updated.slice(0, 10)) : null].filter(Boolean).join(' · ')),
+        written(r) ? h('p', { class: 'tx' }, r.text) : (friend ? null : h('p', { class: 'small muted', style: 'margin:6px 0 0' }, 'Rated, no review written yet.')),
+        friend ? null : h('button', { class: 'btn ghost sm', type: 'button', style: 'margin:6px 0 0 -8px',
+          onclick: () => reviewSheet({ id: r.id, title: r.title, myRating: r.rating ? Math.round(r.rating) : 0, myReview: r.text }, () => location.reload()) }, written(r) ? 'Edit' : 'Write a review')));
+    b.append(h('div', { class: 'rv-head' }, h('h3', {}, 'Your reviews'), h('button', { class: 'btn primary sm', type: 'button', html: I.edit + 'Write a review', onclick: () => rateSearch() })));
+    if (!mine.length) {
+      b.append(empty('No reviews yet', 'Rate a film you have seen and add a few lines if you like. Reviews are private unless you share them with friends.', 'ticket',
+        [h('button', { class: 'btn primary', type: 'button', onclick: () => rateSearch() }, 'Write your first review')]));
+    } else {
+      const kind = h('select', { class: 'input', 'aria-label': 'Show', style: 'width:auto' }, [['all', 'All'], ['text', 'Written reviews'], ['stars', 'Ratings only']].map(([v, l]) => h('option', { value: v }, l)));
+      const sortSel = h('select', { class: 'input', 'aria-label': 'Sort reviews', style: 'width:auto' }, [['new', 'Newest'], ['high', 'Highest rated'], ['low', 'Lowest rated'], ['title', 'Title A–Z']].map(([v, l]) => h('option', { value: v }, l)));
+      const list = h('div', { class: 'rv-list' });
+      const draw = () => {
+        const by = { new: (a, z) => (z.updated || '').localeCompare(a.updated || ''), high: (a, z) => (z.rating ?? -1) - (a.rating ?? -1), low: (a, z) => (a.rating ?? 9) - (z.rating ?? 9), title: (a, z) => (a.title || '').localeCompare(z.title || '') };
+        const keep = { all: () => true, text: written, stars: (r) => !written(r) }[kind.value];
+        const rows = mine.filter(keep).sort(by[sortSel.value]);
+        list.innerHTML = '';
+        if (!rows.length) list.append(h('p', { class: 'muted' }, 'Nothing here with this filter.'));
+        rows.forEach(r => list.append(card(r)));
+      };
+      kind.addEventListener('change', draw); sortSel.addEventListener('change', draw);
+      b.append(h('div', { class: 'wl-filters' }, h('span', { class: 'muted small' }, `${mine.length} rated · ${mine.filter(written).length} written`), h('span', { class: 'spacer' }), kind, sortSel), list);
+      draw();
+    }
+    const fr = h('section', { class: 'rv-friends' }, h('div', { class: 'rv-head' }, h('h3', {}, 'From your friends')));
+    b.append(fr);
+    if (!account) { fr.append(h('p', { class: 'muted' }, 'Create an account and add friends to see what they think of films.')); return; }
+    const fl = h('div', { class: 'rv-list' }, h('p', { class: 'muted small' }, 'Loading…'));
+    fr.append(fl);
+    try {
+      const j = await api('/api/v8/reviews/friends');
+      fl.innerHTML = '';
+      if (!j.reviews.length) fl.append(h('p', { class: 'muted' }, !j.friends ? 'Add friends (Friends tab) to see their reviews here.'
+        : !j.sharing ? 'None of your friends share their ratings or reviews yet; each person chooses that in Settings, Privacy.' : 'Your friends have not rated anything yet.'));
+      j.reviews.forEach(r => fl.append(card(r, r.friend)));
+    } catch (e) { fl.innerHTML = ''; fl.append(h('p', { class: 'err' }, e.message)); }
+  },

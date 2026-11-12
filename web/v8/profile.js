@@ -32,7 +32,77 @@ function traktFiles(res, after) {
     h('p', { class: 'sub' }, 'Trakt: Settings, Data, Export now (free). Trakt emails a ZIP: unzip it and choose the .json files here; you can select them all at once. Watch history, film ratings and your watchlist come in.'), inp);
 }
 
-const TABS = [['overview', 'Overview'], ['ratings', 'Ratings'], ['reviews', 'Reviews'], ['history', 'Watch History'], ['friends', 'Friends']];
+// 12 Nov (round 38): Connect Trakt with a code (Trakt only returns to https sites; this one is http): the person
+// enters the code at trakt.tv/activate and this page checks every few seconds, then imports.
+function traktConnect(box, after) {
+  const btn = h('button', { class: 'btn primary sm', type: 'button' }, 'Connect Trakt');
+  const out = h('div', { 'aria-live': 'polite' });
+  btn.addEventListener('click', async () => {
+    btn.classList.add('busy');
+    let d;
+    try { d = await post('/api/v8/trakt/device/start', {}); } catch (e) { toast(e.message, null, true); btn.classList.remove('busy'); return; }
+    btn.classList.remove('busy'); btn.hidden = true; out.innerHTML = '';
+    out.append(h('div', { class: 'notice' }, 'Go to ', h('a', { href: d.url, target: '_blank', rel: 'noopener' }, d.url.replace(/^https?:\/\//, '')), ' and enter this code:',
+      h('div', { class: 'trakt-code' }, d.user_code), h('span', { class: 'small muted' }, 'This page checks every few seconds, then imports your history, ratings and watchlist.')));
+    const until = Date.now() + d.expires_in * 1000; let wait = d.interval * 1000;
+    const fail = (msg) => { out.innerHTML = ''; out.append(h('div', { class: 'notice warn' }, msg, ' Press Connect Trakt to try again.')); btn.hidden = false; };
+    const tick = async () => {
+      if (!document.body.contains(out)) return;
+      if (Date.now() > until) return fail('The code expired.');
+      let r; try { r = await post('/api/v8/trakt/device/poll', {}); } catch { r = { status: 'pending' }; }
+      if (r.status === 'connected') {
+        const s = r.sync || {}, hs = s.history || {};
+        out.innerHTML = ''; out.append(h('div', { class: 'notice' }, h('b', {}, 'Trakt connected. '), `${hs.added ?? 0} views added, ${s.ratings ?? 0} film ratings, ${s.watchlist ?? 0} watchlist items.` + (s.error ? ` Import problem: ${s.error}` : '')));
+        if (after) after(); return;
+      }
+      const msg = { denied: 'You declined on Trakt.', expired: 'The code expired.', invalid: 'Trakt did not recognise the code.', used: 'That code was already used.',
+        unauthorized: 'Trakt refused the sign-in. The server may also need the Trakt client secret (TRAKT_CLIENT_SECRET in keys.env).' }[r.status];
+      if (msg) return fail(msg);
+      if (r.status === 'slow_down') wait += 1000;
+      setTimeout(tick, wait);
+    };
+    setTimeout(tick, wait);
+  });
+  box.append(btn, out);
+}
+
+// 12 Nov (round 38): the onboarding taste (kinds of film, kinds of show), editable in Settings > Movie and TV preferences
+function tasteCard(me) {
+  const card = h('div', { class: 'set-card' }, h('h3', {}, 'Your taste'),
+    h('p', { class: 'sub' }, 'Kinds of films and shows you love or skip. They steer recommendations and Pick Tonight; nothing is hidden from search.'));
+  const box = h('div', {}, h('p', { class: 'muted small' }, 'Loading…'));
+  card.append(box);
+  (async () => {
+    let f, t;
+    try { [f, t] = await Promise.all([api('/api/onboarding'), api('/api/v8/onboarding/tv')]); }
+    catch (e) { box.innerHTML = ''; box.append(h('p', { class: 'err' }, e.message)); return; }
+    const mine = (me && me.groups) || (S.me && S.me.groups) || [];
+    const fl = new Set(mine.filter(k => !String(k).startsWith('-'))), fa = new Set(mine.filter(k => String(k).startsWith('-')).map(k => String(k).slice(1)));
+    const tl = new Set((t.picked && t.picked.groups) || []), ta = new Set((t.picked && t.picked.avoid) || []);
+    const rows = (groups, L, A) => h('div', { class: 'taste-rows' }, groups.map(g => {
+      const love = h('button', { class: 'chip sm', type: 'button' }, 'Love it');
+      const skip = h('button', { class: 'chip sm', type: 'button' }, 'Not for me');
+      const sync = () => { love.setAttribute('aria-pressed', String(L.has(g.key))); skip.setAttribute('aria-pressed', String(A.has(g.key))); };
+      love.addEventListener('click', () => { A.delete(g.key); L.has(g.key) ? L.delete(g.key) : L.add(g.key); sync(); });
+      skip.addEventListener('click', () => { L.delete(g.key); A.has(g.key) ? A.delete(g.key) : A.add(g.key); sync(); });
+      sync();
+      return h('div', { class: 'taste-row' }, h('span', {}, g.label), h('div', { class: 'tg-a', role: 'group', 'aria-label': g.label }, love, skip));
+    }));
+    box.innerHTML = '';
+    box.append(h('h4', {}, 'Films'), rows(f.groups || [], fl, fa), h('h4', {}, 'TV shows'), rows(t.groups || [], tl, ta),
+      h('div', { class: 'taste-save' }, h('button', { class: 'btn primary', type: 'button', onclick: async (e) => {
+        const b = e.currentTarget; b.classList.add('busy');
+        try {
+          S.me = await post('/api/onboarding', { groups: [...fl], avoid: [...fa] });
+          await post('/api/v8/onboarding/tv/groups', { groups: [...tl], avoid: [...ta] });
+          emit('cm:me'); toast('Taste saved.');
+        } catch (er) { toast(er.message, null, true); } finally { b.classList.remove('busy'); }
+      } }, 'Save taste'), h('a', { class: 'btn ghost', href: '#/join?step=taste' }, 'Mark films and shows you know')));
+  })();
+  return card;
+}
+
+const TABS = [['overview', 'Overview'], ['reviews', 'Reviews'], ['history', 'Watch History'], ['friends', 'Friends']];   // 12 Nov: Ratings merged into Reviews
 const SETS = [['profile', 'Profile and appearance', I.user], ['services', 'Streaming services', I.monitor], ['preferences', 'Movie and TV preferences', I.sliders],
   ['chat', 'Chat and memory', I.bubble], ['notifications', 'Notifications', I.bell], ['privacy', 'Privacy', I.lock], ['imports', 'Imports and connections', I.upload], ['account', 'Account and security', I.shield]];
 const SRC = { netflix: 'Netflix', letterboxd: 'Letterboxd', trakt: 'Trakt', cinemack: 'Cinemack', you: 'You' };
@@ -53,7 +123,7 @@ export async function pageProfile(params) {
   const body = h('div', { role: 'tabpanel', id: 'pf-panel' });
   view.append(h('div', { class: 'pf-tabs' }, tabs, gear), body);
   TABS.forEach(([k, l]) => tabs.append(h('button', { type: 'button', role: 'tab', 'data-k': k, 'aria-controls': 'pf-panel', onclick: () => show(k) }, l,
-    k === 'ratings' && sum.stats.ratings ? h('span', { class: 'count' }, String(sum.stats.ratings)) : null, k === 'reviews' && sum.stats.reviews ? h('span', { class: 'count' }, String(sum.stats.reviews)) : null)));
+    k === 'ratings' && sum.stats.ratings ? h('span', { class: 'count' }, String(sum.stats.ratings)) : null, k === 'reviews' && (sum.stats.ratings || sum.stats.reviews) ? h('span', { class: 'count' }, String(Math.max(sum.stats.ratings || 0, sum.stats.reviews || 0))) : null)));
   function show(k, sec) {
     $$('[role=tab]', tabs).forEach(b => b.setAttribute('aria-selected', String(b.dataset.k === k)));
     gear.setAttribute('aria-pressed', String(k === 'settings'));
@@ -62,6 +132,7 @@ export async function pageProfile(params) {
     (k === 'settings' ? (b) => settings(b, ctx, sec) : PANES[k])(body, ctx);
   }
   const tr = params.get('trakt'); if (tr) toast({ connected: 'Trakt connected and imported.', failed: "Trakt sign-in didn't work. Try again.", cancelled: 'Trakt sign-in cancelled.' }[tr] || '');
+  if (params.get('tab') === 'ratings') params.set('tab', 'reviews');          // 12 Nov: old links to the Ratings tab
   const t0 = params.get('tab') === 'settings' || tr ? 'settings' : (TABS.some(t => t[0] === params.get('tab')) ? params.get('tab') : 'overview');
   show(t0, tr ? 'imports' : params.get('sec'));
   on('cm:progress', (items) => { const box = $('#pf-cw'); if (box) box.replaceWith(cwPanel(items)); }, body);
@@ -212,30 +283,50 @@ const PANES = {
     grid.append(tp, fp);
     b.append(grid);
   },
-  ratings(b, { sum }) {
-    const rated = sum.reviews.filter(r => r.rating != null);
-    if (!rated.length) { b.append(empty('No ratings yet', 'Rate films you have seen and Cinemack learns your taste. Ratings stay private unless you share them with friends.', 'ticket',
-      [h('button', { class: 'btn primary', type: 'button', onclick: () => rateSearch() }, 'Rate your first movie')])); return; }
-    const sortSel = h('select', { class: 'input', 'aria-label': 'Sort ratings', style: 'width:auto' }, [['new', 'Newest'], ['high', 'Highest rated'], ['low', 'Lowest rated'], ['title', 'Title A–Z']].map(([v, l]) => h('option', { value: v }, l)));
-    const grid = h('div', { class: 'grid' });
-    const draw = () => {
-      const by = { new: (a, z) => (z.updated || '').localeCompare(a.updated || ''), high: (a, z) => z.rating - a.rating, low: (a, z) => a.rating - z.rating, title: (a, z) => (a.title || '').localeCompare(z.title || '') };
-      grid.innerHTML = '';
-      [...rated].sort(by[sortSel.value]).forEach(r => grid.append(posterCard({ id: r.id, title: r.title || 'Unknown film', year: r.year, poster: r.poster }, { noRating: true, save: false,
-        meta: [`★ ${r.rating}`, r.updated ? ago(r.updated.slice(0, 10)) : null].filter(Boolean),
-        extra: h('button', { class: 'btn ghost sm', type: 'button', style: 'align-self:flex-start;margin-left:-8px', onclick: () => reviewSheet({ id: r.id, title: r.title, myRating: Math.round(r.rating), myReview: r.text }, () => location.reload()) }, 'Edit') })));
-    };
-    sortSel.addEventListener('change', draw);
-    b.append(h('div', { class: 'wl-filters' }, h('span', { class: 'muted small' }, `${rated.length} rating${rated.length === 1 ? '' : 's'}`), h('span', { class: 'spacer' }), sortSel), grid);
-    draw();
-  },
-  reviews(b, { sum }) {
-    const rv = sum.reviews.filter(r => (r.text || '').trim());
-    if (!rv.length) { b.append(empty('No reviews yet', 'Write a few lines when you rate a film. Reviews are private unless you share them with friends.', 'ticket', [h('button', { class: 'btn primary', type: 'button', onclick: () => rateSearch() }, 'Write a review')])); return; }
-    b.append(h('div', { class: 'rv-list' }, rv.map(r => h('article', { class: 'rv-card' }, h('a', { class: 'pp', href: `#/film/${r.id}`, tabindex: '-1', 'aria-hidden': 'true' }, r.poster ? h('img', { src: r.poster, alt: '', loading: 'lazy', width: 64, height: 96 }) : h('span', { class: 'ph' })),
+  // 12 Nov (round 38): one Reviews tab instead of Ratings and Reviews: write a review, all your ratings and reviews
+  // (filter and sort), and reviews from friends who share theirs (GET /api/v8/reviews/friends)
+  async reviews(b, { sum, account }) {
+    const mine = sum.reviews.filter(r => r.rating != null || (r.text || '').trim());
+    const written = (r) => !!(r.text || '').trim();
+    const card = (r, friend) => h('article', { class: 'rv-card' },
+      h('a', { class: 'pp', href: `#/film/${r.id}`, tabindex: '-1', 'aria-hidden': 'true' }, r.poster ? h('img', { src: r.poster, alt: '', loading: 'lazy', width: 64, height: 96 }) : h('span', { class: 'ph' })),
       h('div', { style: 'min-width:0' }, h('a', { class: 't', href: `#/film/${r.id}` }, r.title || 'Unknown film', r.year ? ` (${r.year})` : ''),
-        h('div', { class: 'small muted', style: 'margin-top:2px' }, [r.rating != null ? `★ ${r.rating}` : null, r.updated ? fmtDate(r.updated.slice(0, 10)) : null].filter(Boolean).join(' · ')),
-        h('p', { class: 'tx' }, r.text), h('button', { class: 'btn ghost sm', type: 'button', style: 'margin:6px 0 0 -8px', onclick: () => reviewSheet({ id: r.id, title: r.title, myRating: r.rating ? Math.round(r.rating) : 0, myReview: r.text }, () => location.reload()) }, 'Edit'))))));
+        h('div', { class: 'small muted', style: 'margin-top:2px' }, [friend || null, r.rating != null ? `★ ${r.rating}` : null, r.updated ? fmtDate(r.updated.slice(0, 10)) : null].filter(Boolean).join(' · ')),
+        written(r) ? h('p', { class: 'tx' }, r.text) : (friend ? null : h('p', { class: 'small muted', style: 'margin:6px 0 0' }, 'Rated, no review written yet.')),
+        friend ? null : h('button', { class: 'btn ghost sm', type: 'button', style: 'margin:6px 0 0 -8px',
+          onclick: () => reviewSheet({ id: r.id, title: r.title, myRating: r.rating ? Math.round(r.rating) : 0, myReview: r.text }, () => location.reload()) }, written(r) ? 'Edit' : 'Write a review')));
+    b.append(h('div', { class: 'rv-head' }, h('h3', {}, 'Your reviews'), h('button', { class: 'btn primary sm', type: 'button', html: I.edit + 'Write a review', onclick: () => rateSearch() })));
+    if (!mine.length) {
+      b.append(empty('No reviews yet', 'Rate a film you have seen and add a few lines if you like. Reviews are private unless you share them with friends.', 'ticket',
+        [h('button', { class: 'btn primary', type: 'button', onclick: () => rateSearch() }, 'Write your first review')]));
+    } else {
+      const kind = h('select', { class: 'input', 'aria-label': 'Show', style: 'width:auto' }, [['all', 'All'], ['text', 'Written reviews'], ['stars', 'Ratings only']].map(([v, l]) => h('option', { value: v }, l)));
+      const sortSel = h('select', { class: 'input', 'aria-label': 'Sort reviews', style: 'width:auto' }, [['new', 'Newest'], ['high', 'Highest rated'], ['low', 'Lowest rated'], ['title', 'Title A–Z']].map(([v, l]) => h('option', { value: v }, l)));
+      const list = h('div', { class: 'rv-list' });
+      const draw = () => {
+        const by = { new: (a, z) => (z.updated || '').localeCompare(a.updated || ''), high: (a, z) => (z.rating ?? -1) - (a.rating ?? -1), low: (a, z) => (a.rating ?? 9) - (z.rating ?? 9), title: (a, z) => (a.title || '').localeCompare(z.title || '') };
+        const keep = { all: () => true, text: written, stars: (r) => !written(r) }[kind.value];
+        const rows = mine.filter(keep).sort(by[sortSel.value]);
+        list.innerHTML = '';
+        if (!rows.length) list.append(h('p', { class: 'muted' }, 'Nothing here with this filter.'));
+        rows.forEach(r => list.append(card(r)));
+      };
+      kind.addEventListener('change', draw); sortSel.addEventListener('change', draw);
+      b.append(h('div', { class: 'wl-filters' }, h('span', { class: 'muted small' }, `${mine.length} rated · ${mine.filter(written).length} written`), h('span', { class: 'spacer' }), kind, sortSel), list);
+      draw();
+    }
+    const fr = h('section', { class: 'rv-friends' }, h('div', { class: 'rv-head' }, h('h3', {}, 'From your friends')));
+    b.append(fr);
+    if (!account) { fr.append(h('p', { class: 'muted' }, 'Create an account and add friends to see what they think of films.')); return; }
+    const fl = h('div', { class: 'rv-list' }, h('p', { class: 'muted small' }, 'Loading…'));
+    fr.append(fl);
+    try {
+      const j = await api('/api/v8/reviews/friends');
+      fl.innerHTML = '';
+      if (!j.reviews.length) fl.append(h('p', { class: 'muted' }, !j.friends ? 'Add friends (Friends tab) to see their reviews here.'
+        : !j.sharing ? 'None of your friends share their ratings or reviews yet; each person chooses that in Settings, Privacy.' : 'Your friends have not rated anything yet.'));
+      j.reviews.forEach(r => fl.append(card(r, r.friend)));
+    } catch (e) { fl.innerHTML = ''; fl.append(h('p', { class: 'err' }, e.message)); }
   },
   history(b, { sum, p }) {
     const hist = sum.history;
@@ -335,6 +426,7 @@ const SET = {
   },
   preferences(pane, { me }) {
     head(pane, 'Movie and TV preferences', 'Decades and languages gently lift recommendations. Never-recommend genres are a hard limit everywhere.');
+    pane.append(tasteCard(me));
     const s = Object.assign({}, me.settings);
     pane.append(h('div', { class: 'set-card' }, h('h3', {}, 'Favorite decades'), h('p', { class: 'sub' }, 'A lift in recommendations; nothing is hidden.'),
         multi(s, 'decades', [['pre1970', 'Before 1970'], ['1970s', '70s'], ['1980s', '80s'], ['1990s', '90s'], ['2000s', '2000s'], ['2010s', '2010s'], ['2020s', '2020s']])),
@@ -433,7 +525,7 @@ const SET = {
     if (!t.available) tc.append(h('p', { class: 'muted small' }, 'Signing in with Trakt is not set up on this server yet. The Trakt export above brings in the same history, ratings and watchlist.'));
     else if (t.connected) tc.append(h('div', { class: 'actions', style: 'margin:0' }, h('button', { class: 'btn secondary sm', type: 'button', onclick: async (e) => { e.currentTarget.classList.add('busy'); try { const j = await post('/api/v8/trakt/sync'); showImport(res, j.history); } catch (er) { toast(er.message, null, true); } e.currentTarget?.classList.remove('busy'); } }, 'Sync now'),
       h('button', { class: 'btn ghost sm', type: 'button', onclick: async () => { try { const j = await post('/api/v8/trakt/disconnect'); toast(`Disconnected; removed ${j.removed_events} imported rows.`); location.reload(); } catch (e) { toast(e.message, null, true); } } }, 'Disconnect')));
-    else tc.append(h('button', { class: 'btn primary sm', type: 'button', onclick: async () => { try { const j = await api('/trakt/start'); location.href = j.url; } catch (e) { toast(e.message, null, true); } } }, 'Connect Trakt'));
+    else traktConnect(tc, () => { CW.items = null; emit('cm:imported'); });
     pane.append(tc, h('p', { class: 'hint', style: 'margin-top:12px' }, 'Cinemack cannot see what you play on Netflix or other services by itself; these files and Trakt are the only sources of watch history.'));
     if (p.imports?.length) pane.append(h('div', { class: 'set-card' }, h('h3', {}, 'Past imports'), p.imports.map(j => h('div', { class: 'pv-row' },
       h('div', {}, h('b', {}, SRC[j.source] || j.source), h('div', { class: 'small muted' }, `${j.rows} rows: ${j.matched} matched, ${j.duplicates} already there, ${j.issues} not matched · ${fmtDate(j.at.slice(0, 10))}`),

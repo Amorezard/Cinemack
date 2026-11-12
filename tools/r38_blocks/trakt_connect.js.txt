@@ -1,0 +1,34 @@
+// 12 Nov (round 38): Connect Trakt with a code (Trakt only returns to https sites; this one is http): the person
+// enters the code at trakt.tv/activate and this page checks every few seconds, then imports.
+function traktConnect(box, after) {
+  const btn = h('button', { class: 'btn primary sm', type: 'button' }, 'Connect Trakt');
+  const out = h('div', { 'aria-live': 'polite' });
+  btn.addEventListener('click', async () => {
+    btn.classList.add('busy');
+    let d;
+    try { d = await post('/api/v8/trakt/device/start', {}); } catch (e) { toast(e.message, null, true); btn.classList.remove('busy'); return; }
+    btn.classList.remove('busy'); btn.hidden = true; out.innerHTML = '';
+    out.append(h('div', { class: 'notice' }, 'Go to ', h('a', { href: d.url, target: '_blank', rel: 'noopener' }, d.url.replace(/^https?:\/\//, '')), ' and enter this code:',
+      h('div', { class: 'trakt-code' }, d.user_code), h('span', { class: 'small muted' }, 'This page checks every few seconds, then imports your history, ratings and watchlist.')));
+    const until = Date.now() + d.expires_in * 1000; let wait = d.interval * 1000;
+    const fail = (msg) => { out.innerHTML = ''; out.append(h('div', { class: 'notice warn' }, msg, ' Press Connect Trakt to try again.')); btn.hidden = false; };
+    const tick = async () => {
+      if (!document.body.contains(out)) return;
+      if (Date.now() > until) return fail('The code expired.');
+      let r; try { r = await post('/api/v8/trakt/device/poll', {}); } catch { r = { status: 'pending' }; }
+      if (r.status === 'connected') {
+        const s = r.sync || {}, hs = s.history || {};
+        out.innerHTML = ''; out.append(h('div', { class: 'notice' }, h('b', {}, 'Trakt connected. '), `${hs.added ?? 0} views added, ${s.ratings ?? 0} film ratings, ${s.watchlist ?? 0} watchlist items.` + (s.error ? ` Import problem: ${s.error}` : '')));
+        if (after) after(); return;
+      }
+      const msg = { denied: 'You declined on Trakt.', expired: 'The code expired.', invalid: 'Trakt did not recognise the code.', used: 'That code was already used.',
+        unauthorized: 'Trakt refused the sign-in. The server may also need the Trakt client secret (TRAKT_CLIENT_SECRET in keys.env).' }[r.status];
+      if (msg) return fail(msg);
+      if (r.status === 'slow_down') wait += 1000;
+      setTimeout(tick, wait);
+    };
+    setTimeout(tick, wait);
+  });
+  box.append(btn, out);
+}
+

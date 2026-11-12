@@ -1,0 +1,2 @@
+      else tr.append(h('p', { class: 'sub' }, 'Import history, ratings and watchlist from Trakt. You will come back here after approving.'),
+        h('button', { class: 'btn secondary sm', type: 'button', onclick: async () => { try { store.set('cm.joinReturn', 'profile'); location.href = (await api('/trakt/start')).url; } catch (e) { toast(e.message, null, true); } } }, 'Connect Trakt'));
