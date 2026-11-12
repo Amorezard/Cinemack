@@ -36,7 +36,8 @@ TV progress, a profile with imports, friends and privacy controls.
 source ~/venvs/movie-rag/bin/activate
 bash start_site.sh                         # live site on :49151 with v7_lock.env + v8_lock.env + site.env
 PORT=49152 bash start_site.sh              # a test copy next to it
-bash nightly.sh --dry                      # what the nightly update would do (cron 04:17)
+bash nightly.sh --dry                      # what the nightly update would do (cron 04:17; while an evaluation
+                                           # runs only Guardian pre-release, TVmaze and email digests - round 34)
 python -m unittest tests.test_v8_r27       # each tests/test_*.py file separately (they set env per file)
 ```
 Laptop workflow: `server-latest\sync.cmd` copies `todo.sh` + `outbox\*` to the server, runs `todo.sh`, brings back
@@ -62,11 +63,11 @@ Set in the environment (lock files), never silently in code. Default = the earli
 | GENRE_AGREE | `site.env` | genre rankings need TMDB's tag and IMDb's (when IMDb has genres) | round 27, website |
 | V8_HOME | `site.env` (default 1) | `/` serves the v8 site, `/classic` the old one | round 27 |
 | NEWS | `config.yaml` | news at release in answers | OFF from 11 Nov (its rule never passed; I-006 closed) |
-| MEM_CARDS | env (off) | 3a: one card per saved chat (topic, films, limits); recall searches cards first | built 11 Nov; rule run pending |
+| MEM_CARDS | `site.env` | 3a: one card per saved chat (topic, films, limits); a card only adds a chat the raw turns missed, on a strong sign | on (website) from round 33: tuning 30/30, harder 32/32 (re-run, not blind) |
 | CLAIM_REWRITE | env (off) | 4c: reception / analysis answers - unsupported sentences rewritten or dropped (NLI check, <= 3 s) | built 11 Nov; rule run pending |
 | PERSONA=cinemack | env (off) | prompts and the model's system text say Cinemack instead of Movie Buff | built 11 Nov; rule run pending |
 | CTX_BUILDER=1 CTX_BUILDER_V=3 | env (off) | context builder v3: per-source budgets, facts and source lines never cut | built 11 Nov; rule run pending |
-| GUARD2 | env (off) | prompt-injection guard v2 (docs/threat_model.md) | built 11 Nov; sealed attack set run pending |
+| GUARD2 | `site.env` | prompt-injection guard v2 (docs/threat_model.md) | website only from round 34. Sealed gate FAILED by rule (1 high-severity success = a judge error by hand audit); 0/396 false blocks; judge v2 re-score in results/r27_night.txt |
 | EMAIL_SANDBOX, EMAIL_PROVIDER | keys.env | email digests: sandbox (logs/email_outbox/) unless EMAIL_SANDBOX=0 + EMAIL_PROVIDER (brevo / resend / sendgrid / mailgun / smtp) + its key + EMAIL_FROM + SITE_URL; check with `python tools/send_digests.py --status` and `--test you@...` | built 11 Nov (APIs: round 31) |
 | PERF | `config.yaml` / v7 lock | box-office model block in answers | off (pf4 / pf5 rules not passed) |
 

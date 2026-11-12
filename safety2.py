@@ -32,7 +32,9 @@ import safety
 GUARD2 = os.environ.get("GUARD2", "0") == "1"
 REPLY = ("I can't change how I work or share my setup, but I'm happy to help with films and TV: ask me about a movie, "
          "a scene you half-remember, or what to watch next.")
-CRED_REPLY = ("I never ask for passwords, card numbers or logins, and you should never share them in a chat. "
+# round 34: the reply no longer repeats "card number" (dev a10 was scored as a success only because the refusal
+# itself contained the attack's marker words).
+CRED_REPLY = ("I never ask for passwords, payment details or logins, and you should never share them in a chat. "
               "Happy to help with films and TV instead.")
 
 # 1. the question: attempts to change the bot itself (second person / rule-setting), not film plots about AIs

@@ -34,8 +34,13 @@ REP=results/nightly_$DAY.txt
 mkdir -p results logs
 exec > >(tee -a "$REP") 2>&1
 echo "=== nightly $DAY $(date +%H:%M)  dry=$DRY"
-if [ "$DRY" = 0 ] && pgrep -f "run_v7_night.sh|run_final_v8|stage_scores|eval_v3" >/dev/null; then
-  echo "an evaluation or night run is going: nightly update skipped tonight"; exit 0
+# round 34 (11 Nov): while an evaluation runs, only the steps that never touch what the answer path reads still run
+# (Guardian pre-release articles for pf5 B, TVmaze for the website, email digests) - so a long evaluation no longer
+# costs a night of the ~20-night Guardian fetch. Everything else waits for a quiet night, as before.
+BUSY=0
+if [ "$DRY" = 0 ] && pgrep -f "run_v7_night.sh|run_final_v8|stage_scores|eval_v3|attack_eval|memory_eval" >/dev/null; then
+  BUSY=1
+  echo "an evaluation or night run is going: only the Guardian pre-release fetch, TVmaze and email digests tonight"
 fi
 run() {                        # run "label" cmd... : time it, keep its last lines, never stop the night
   local label=$1; shift
@@ -46,6 +51,20 @@ run() {                        # run "label" cmd... : time it, keep its last lin
   echo "  [$label: exit ${PIPESTATUS[0]}, $(( $(date +%s) - t0 ))s]"
 }
 YEAR=$(date +%Y)
+
+light() {                      # round 34: the steps that run every night, busy or not
+  [ -n "${GUARDIAN_API_KEY:-}" ] && run "guardian pre-release articles (pf5 B)" python pf5_data.py press --max "${PRESS_NIGHT:-400}"
+  [ -f logs/tvmaze.db ] && ! tmux has-session -t tvmaze 2>/dev/null && run "tvmaze schedule" python tools/fetch_tvmaze.py schedule
+  [ -f logs/tvmaze.db ] && ! tmux has-session -t tvmaze 2>/dev/null && run "tvmaze updates" python tools/fetch_tvmaze.py updates
+  [ -f logs/email.db ] && run "email digests" python tools/send_digests.py
+  return 0
+}
+if [ "$BUSY" = 1 ]; then
+  light
+  timeout 300 python pf5_data.py status 2>&1 | grep -E "Guardian" | sed 's/^/  /'
+  echo "=== nightly done (busy night: light steps only) $(date +%H:%M)"
+  exit 0
+fi
 
 # ---- fetch
 [ -n "${TMDB_API_KEY:-}" ] && run "tmdb current"  python fetch_tmdb.py current --pages 10
@@ -58,15 +77,12 @@ YEAR=$(date +%Y)
 [ -n "${GUARDIAN_API_KEY:-}" ] && run "guardian"  python fetch_free_data.py guardian
 # round 27 (11 Nov): pf5 B - Guardian articles before each film's release, ~400 a night after the reviews (the key
 # allows 500 calls a day; the step stops by itself on HTTP 429). About 20 nights to cover the 2000-2015 training films.
-[ -n "${GUARDIAN_API_KEY:-}" ] && run "guardian pre-release articles (pf5 B)" python pf5_data.py press --max "${PRESS_NIGHT:-400}"
 # round 33: Sundays, the prediction model again (pf5_model.py: A/C/D, B by CV, and B on the main split once >= 90% of
 # the training films have Guardian data - its rule is in the file); results/pf5_summary.txt
+light                                              # round 34: Guardian pre-release, TVmaze, email digests
 [ "$(date +%u)" = 7 ] && run "pf5 model (weekly)" timeout 2h python pf5_model.py
 # round 27: TVmaze schedule (one call) and the shows TVmaze changed in the last day (logs/tvmaze.db, website only)
-[ -f logs/tvmaze.db ] && ! tmux has-session -t tvmaze 2>/dev/null && run "tvmaze schedule" python tools/fetch_tvmaze.py schedule
-[ -f logs/tvmaze.db ] && ! tmux has-session -t tvmaze 2>/dev/null && run "tvmaze updates" python tools/fetch_tvmaze.py updates
 # round 27: email digests of new alerts (verified, opted-in addresses only; sandbox unless EMAIL_SANDBOX=0 + SMTP_*)
-[ -f logs/email.db ] && run "email digests" python tools/send_digests.py
 [ -n "${NYT_API_KEY:-}" ] && run "nyt"            python fetch_free_data.py nyt --limit 60
 run "wikipedia reception (changed pages)"         python v7_data.py reception --again
 if [ -n "${YOUTUBE_API_KEY:-}" ]; then
