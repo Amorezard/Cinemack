@@ -32,11 +32,15 @@ have = sum(1 for r in rows if r[5] and r[5] != "\\N")
 say(f"films with 1,000+ votes in the catalogue: {len(rows):,}; with IMDb genres: {have:,} ({100 * have / max(len(rows), 1):.1f}%)")
 say("")
 say("== per genre (films with 1,000+ votes): TMDB list -> main genres; most-voted films that leave the genre")
+GV = genres.genome_votes([r[0] for r in rows]) if genres.VARIANT == "4" else {}   # round 39: variant 4's genome votes
+CUTS = genres.genome_cuts() if GV else None
+if GV:
+    say(f"genome votes for {len(GV):,} of these films; cut-offs {CUTS}")
 for g in genres.SITE:
     before, after, gone = 0, 0, []
     for fid, t, y, gj, v, ig in rows:
         tm = json.loads(gj or "[]")
-        main, _b = genres.film_split(tm, ig)
+        main, _b = genres.film_split(tm, ig, votes=GV.get(fid), cuts=CUTS) if GV else genres.film_split(tm, ig)
         if g in tm:
             before += 1
             if g in main:

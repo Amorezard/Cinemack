@@ -19,7 +19,10 @@ Thriller. Variants, chosen by GENRE_MAIN (1, 2 or 3; anything else = off):
      the ones TMDB adds loosely); specific genres (Science Fiction, Horror, Mystery, Crime, War, Western, History,
      Music, Documentary, Animation) stay as TMDB lists them
   3  as 2, and TMDB's first-listed genre always stays
-tools/genre_gold.py scores the variants on hand-labelled films and round 37's todo.sh picks the winner.
+  4  as 2, and a broad genre IMDb did not list also stays when the MovieLens tag genome scores it at or above that
+     genre's cut-off (round 39; logs/genre_votes.db from tools/build_genre_votes.py; the cut-off is the 25th
+     percentile among films TMDB and IMDb agree on). Films the genome does not cover behave as variant 2.
+tools/genre_gold.py scores the variants on hand-labelled films and the install picks the winner.
 
 Used by: Home genre chips (discovery), chat genre filters and Pick Tonight films (user_prefs.excluded), Pick Tonight
 shows (tvdata.pick), the Profile taste summary (v8extra). Switch GENRE_MAIN=1 (site.env); off = TMDB's lists, as before.
@@ -33,7 +36,9 @@ import time
 import film_info
 
 VARIANT = os.environ.get("GENRE_MAIN", "0").strip()
-ON = VARIANT in ("1", "2", "3")
+ON = VARIANT in ("1", "2", "3", "4")
+VOTES = os.environ.get("GENRE_VOTES_DB", str(film_info.RAG_DIR / "logs" / "genre_votes.db"))
+
 BROAD = {"Drama", "Comedy", "Action", "Adventure", "Family", "Fantasy", "Thriller", "Romance"}
 SITE = ["Action", "Adventure", "Animation", "Comedy", "Crime", "Documentary", "Drama", "Family", "Fantasy",
         "History", "Horror", "Music", "Mystery", "Romance", "Science Fiction", "Thriller", "War", "Western"]
@@ -63,13 +68,17 @@ def imdb_genres(s):
     return {IMDB_MAP.get(x.strip(), x.strip()) for x in str(s).split(",")} & set(SITE)
 
 
-def film_split(tmdb, imdb, variant=None):
-    """(main, broad) lists for a film from TMDB's genre list and IMDb's genre string (variant: see the top)."""
+def film_split(tmdb, imdb, variant=None, votes=None, cuts=None):
+    """(main, broad) lists for a film from TMDB's genre list and IMDb's genre string (variant: see the top);
+    votes {genre: genome relevance} and cuts {genre: cut-off} only matter for variant 4."""
     t, i = list(tmdb or []), imdb_genres(imdb)
     if not i:
         return t, t
     v = str(variant or VARIANT)
-    if v == "3":
+    if v == "4":
+        votes, cuts = votes or {}, cuts if cuts is not None else genome_cuts()
+        main = [g for g in t if g in i or g not in BROAD or (g in cuts and votes.get(g, -1.0) >= cuts[g])]
+    elif v == "3":
         main = [g for k, g in enumerate(t) if g in i or g not in BROAD or k == 0]
     elif v == "2":
         main = [g for g in t if g in i or g not in BROAD]
@@ -80,6 +89,52 @@ def film_split(tmdb, imdb, variant=None):
     if not main:
         main = t
     return main, list(dict.fromkeys(t + [g for g in SITE if g in i]))
+
+
+_GV = {"t": 0.0, "cuts": None}
+
+
+def _votes_conn():
+    if not os.path.exists(VOTES):
+        return None
+    try:
+        return sqlite3.connect(f"file:{VOTES}?mode=ro", uri=True, check_same_thread=False)
+    except sqlite3.Error:
+        return None
+
+
+def genome_cuts():
+    """{genre: cut-off} from logs/genre_votes.db ({} when it is not built: variant 4 then equals variant 2)."""
+    with _lock:
+        if _GV["cuts"] is not None and time.time() - _GV["t"] < TTL:
+            return _GV["cuts"]
+    c, cuts = _votes_conn(), {}
+    if c is not None:
+        try:
+            cuts = {g: float(x) for g, x in c.execute("select genre, cut from genre_cut")}
+        except sqlite3.Error:
+            cuts = {}
+        c.close()
+    with _lock:
+        _GV.update(t=time.time(), cuts=cuts)
+    return cuts
+
+
+def genome_votes(ids):
+    """{tmdb_id: {genre: relevance}} for the broad genres the genome covers."""
+    ids = [int(i) for i in ids]
+    c, out = _votes_conn(), {}
+    if c is None or not ids:
+        return out
+    try:
+        for k in range(0, len(ids), CHUNK):
+            part = ids[k:k + CHUNK]
+            for fid, g, rel in c.execute("select tmdb_id, genre, rel from genome_genre where tmdb_id in (" + ",".join("?" * len(part)) + ")", part):
+                out.setdefault(fid, {})[g] = rel
+    except sqlite3.Error:
+        pass
+    c.close()
+    return out
 
 
 def tv_split(tmdb_tv, imdb):
@@ -129,8 +184,10 @@ def _lookup(kind, ids):
                              "select tmdb_id, genres_json from tv_shows where tmdb_id in ({})", need)
                 split = tv_split
             got = {}
+            gv = genome_votes([r[0] for r in rows]) if kind == "film" and ON and VARIANT == "4" else {}
+            cuts = genome_cuts() if gv else None
             for fid, g, ig in rows:
-                m, b = split(_list(g), ig if ON else None)
+                m, b = split(_list(g), ig if ON else None, votes=gv.get(fid), cuts=cuts) if gv else split(_list(g), ig if ON else None)
                 got[fid] = (frozenset(m), frozenset(b), tuple(m))
             with _lock:
                 _cache[kind].update(got)

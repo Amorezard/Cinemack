@@ -67,6 +67,7 @@ CLIENT_ID = _key(_ID_NAMES)
 CLIENT_SECRET = _key(_SECRET_NAMES)       # optional: PKCE needs none; sent on the device-code exchange if present
 REDIRECT = os.environ.get("TRAKT_REDIRECT", "REDACTED/trakt/callback")
 API = "https://api.trakt.tv"
+UA = "Cinemack/1.0 (Merrimack College student research project)"   # 12 Nov: Trakt behind Cloudflare
 AUTH = "https://auth.trakt.tv/oauth/authorize"           # 12 Nov: Trakt's sign-in host (developer.trakt.tv)
 _pending = {}            # state -> (user, verifier, created)
 _lock = threading.Lock()
@@ -100,7 +101,7 @@ def _http(method, url, body=None, headers=None):
     if HTTP:
         return HTTP(method, url, body, headers or {})
     data = json.dumps(body).encode() if body is not None else None
-    req = urllib.request.Request(url, data=data, method=method, headers=dict({"Content-Type": "application/json"},
+    req = urllib.request.Request(url, data=data, method=method, headers=dict({"Content-Type": "application/json", "User-Agent": UA},
                                                                             **(headers or {})))
     try:
         with urllib.request.urlopen(req, timeout=30) as r:

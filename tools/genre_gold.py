@@ -6,8 +6,9 @@ genres it clearly IS ("in") and genres TMDB gives it that it clearly is NOT, as 
 are labelled; everything else is left out of the score.
 Score per variant = "in" labels the filter keeps + "out" labels it removes (a label whose genre TMDB does not list at
 all counts as kept only for "out"). Variant 0 = TMDB's list (no filter).
-Decision rule (written before any run): the highest score wins; a tie keeps the variant now live (1); otherwise the
-lower number. todo.sh writes GENRE_MAIN=<winner> to site.env (0 = off)."""
+Decision rule (written before any run): the highest score wins; a tie keeps the variant now live (env GENRE_LIVE,
+round 37: 1); otherwise the lower number. todo.sh writes GENRE_MAIN=<winner> to site.env (0 = off).
+Round 39 adds variant 4 (genome vote, logs/genre_votes.db); same rule, written before its first run; live = 2."""
 import json
 import os
 import sys
@@ -88,13 +89,24 @@ def main():
         out.append(f"  {title} ({r[2]}) | {', '.join(json.loads(r[3] or '[]'))} | {r[4]}")
     out.append("")
     scores = {}
-    for v in ("0", "1", "2", "3"):
+    gv = genres.genome_votes([rows[g[0]][0] for g in found])
+    cuts = genres.genome_cuts()
+    out.append(f"genome cut-offs: {cuts or 'none (no vote file, or no genre with 30+ films TMDB and IMDb agree on)'}")
+    out.append("genome votes for broad genres TMDB lists but IMDb does not:")
+    for title, year, gin, gout in found:
+        r = rows[title]
+        t, im = json.loads(r[3] or "[]"), genres.imdb_genres(r[4])
+        miss = [g for g in t if g in genres.BROAD and g not in im]
+        if miss:
+            out.append(f"  {title}: " + ", ".join(f"{g} {gv.get(r[0], {}).get(g, '-')}" for g in miss))
+    variants = ("0", "1", "2", "3", "4")
+    for v in variants:
         kept = removed = n_in = n_out = 0
         misses = []
         for title, year, gin, gout in found:
             r = rows[title]
             t = json.loads(r[3] or "[]")
-            main_ = t if v == "0" else genres.film_split(t, r[4], v)[0]
+            main_ = t if v == "0" else genres.film_split(t, r[4], v, votes=gv.get(r[0]), cuts=cuts)[0]
             for g in gin:
                 n_in += 1
                 if g in main_:
@@ -111,8 +123,9 @@ def main():
         out.append(f"variant {v}: in kept {kept}/{n_in}, out removed {removed}/{n_out}, score {kept + removed}")
         out.append("   misses: " + "; ".join(misses))
     top = max(scores.values())
-    tied = [v for v in ("0", "1", "2", "3") if scores[v] == top]
-    best = "1" if "1" in tied else tied[0]
+    live = os.environ.get("GENRE_LIVE", "1")
+    tied = [v for v in variants if scores[v] == top]
+    best = live if live in tied else tied[0]
     out.append("")
     out.append(f"BEST={best}")
     text = "\n".join(out)
