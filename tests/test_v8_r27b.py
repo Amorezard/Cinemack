@@ -228,5 +228,98 @@ class Email(unittest.TestCase):
         self.assertFalse(E.set_email("acct2", "x@example.com")[0])
 
 
+class EmailAPIs(unittest.TestCase):
+    """Round 31: each provider gets the right URL, auth header and payload; a refusal is not marked sent."""
+    def _with(self, env):
+        import importlib
+        old = {k: os.environ.get(k) for k in env}
+        os.environ.update(env)
+        import emailer
+        E = importlib.reload(emailer)
+        return E, old
+
+    def _restore(self, old):
+        import importlib
+        for k, v in old.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+        import emailer
+        importlib.reload(emailer)
+
+    def test_payloads(self):
+        import io
+        import urllib.request
+        seen = []
+
+        class R(io.BytesIO):
+            status = 201
+            headers = {}
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+
+        def fake(req, timeout=0):
+            seen.append((req.full_url, dict(req.header_items()), req.data))
+            return R(b'{"messageId": "m-1", "id": "m-1"}')
+        real = urllib.request.urlopen
+        urllib.request.urlopen = fake
+        try:
+            for prov, key in (("brevo", "BREVO_API_KEY"), ("resend", "RESEND_API_KEY"), ("sendgrid", "SENDGRID_API_KEY"),
+                              ("mailgun", "MAILGUN_API_KEY")):
+                E, old = self._with({"EMAIL_SANDBOX": "0", "EMAIL_PROVIDER": prov, key: "k-123", "MAILGUN_DOMAIN": "mg.example.org",
+                                     "EMAIL_FROM": "Cinemack <alerts@example.org>",
+                                     "SITE_URL": "http://site.example.org"})
+                try:
+                    self.assertEqual(E.configured(), (True, prov))
+                    where = E.send("wes@example.com", "Hi", "Body https://x.org/email/unsubscribe?t=abc")
+                    self.assertTrue(where.startswith(prov), where)
+                    url, hdr, data = seen[-1]
+                    hdr = {k.lower(): v for k, v in hdr.items()}
+                    if prov == "brevo":
+                        self.assertEqual(url, "https://api.brevo.com/v3/smtp/email")
+                        self.assertEqual(hdr["api-key"], "k-123")
+                        self.assertEqual(json.loads(data)["to"], [{"email": "wes@example.com"}])
+                    elif prov == "resend":
+                        self.assertEqual(url, "https://api.resend.com/emails")
+                        self.assertEqual(hdr["authorization"], "Bearer k-123")
+                    elif prov == "sendgrid":
+                        self.assertEqual(url, "https://api.sendgrid.com/v3/mail/send")
+                        self.assertEqual(json.loads(data)["from"]["email"], "alerts@example.org")
+                    else:
+                        self.assertEqual(url, "https://api.mailgun.net/v3/mg.example.org/messages")
+                        self.assertTrue(hdr["authorization"].startswith("Basic "))
+                        self.assertIn(b"to=wes%40example.com", data)
+                finally:
+                    self._restore(old)
+        finally:
+            urllib.request.urlopen = real
+
+    def test_missing_key_or_sandbox_stays_local(self):
+        E, old = self._with({"EMAIL_SANDBOX": "0", "EMAIL_PROVIDER": "brevo"})
+        try:
+            os.environ.pop("BREVO_API_KEY", None)
+            self.assertFalse(E.configured()[0])
+            self.assertTrue(E.send("a@example.com", "s", "b").endswith(".eml"))
+        finally:
+            self._restore(old)
+
+    def test_refused_send_is_not_marked_sent(self):
+        E, old = self._with({"EMAIL_SANDBOX": "1"})
+        try:
+            E.conn().execute("insert or replace into emails(user_key, email, verified, digest, unsub) values ('acct9', 'z@example.com', 1, 1, 'tok-zzzzzzzzzzzzzzzzzzzzzz')")
+            E.conn().commit()
+
+            def boom(*a):
+                raise RuntimeError("HTTP 401")
+            E.send = boom
+            alerts = {"alerts": [{"film": {"id": 7}, "kind": "released", "detail": "", "text": "X is out"}]}
+            r = E.digest_all(lambda u: alerts)
+            self.assertEqual((r["emails"], r.get("failed")), (0, 1))
+            self.assertEqual(E.conn().execute("select count(*) from sent where user_key = 'acct9'").fetchone()[0], 0)
+        finally:
+            self._restore(old)
+
+
 if __name__ == "__main__":
     unittest.main()

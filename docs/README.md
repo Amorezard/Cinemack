@@ -67,7 +67,7 @@ Set in the environment (lock files), never silently in code. Default = the earli
 | PERSONA=cinemack | env (off) | prompts and the model's system text say Cinemack instead of Movie Buff | built 11 Nov; rule run pending |
 | CTX_BUILDER=1 CTX_BUILDER_V=3 | env (off) | context builder v3: per-source budgets, facts and source lines never cut | built 11 Nov; rule run pending |
 | GUARD2 | env (off) | prompt-injection guard v2 (docs/threat_model.md) | built 11 Nov; sealed attack set run pending |
-| EMAIL_SANDBOX | env (default 1) | email digests written to logs/email_outbox/ instead of sent; 0 + SMTP_* to send | built 11 Nov |
+| EMAIL_SANDBOX, EMAIL_PROVIDER | keys.env | email digests: sandbox (logs/email_outbox/) unless EMAIL_SANDBOX=0 + EMAIL_PROVIDER (brevo / resend / sendgrid / mailgun / smtp) + its key + EMAIL_FROM + SITE_URL; check with `python tools/send_digests.py --status` and `--test you@...` | built 11 Nov (APIs: round 31) |
 | PERF | `config.yaml` / v7 lock | box-office model block in answers | off (pf4 / pf5 rules not passed) |
 
 ## 5. How features are judged

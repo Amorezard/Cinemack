@@ -7,8 +7,8 @@ unsubscribe link. Then once a day (nightly.sh -> tools/send_digests.py) they get
 once (table `sent`); an opted-out or unverified address gets nothing; muted films never make alerts at all.
 
 Sandbox by default: EMAIL_SANDBOX=1 (the default) writes each email as a .eml file to logs/email_outbox/ instead of
-sending it. Real sending needs EMAIL_SANDBOX=0 and SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS / SMTP_FROM in
-keys.env, and SITE_URL for the unsubscribe link. Push notifications are not offered: the browser Push API only works
+sending it. Real sending (round 31): EMAIL_SANDBOX=0 + EMAIL_PROVIDER (brevo / resend / sendgrid / mailgun / smtp) +
+that provider's key + EMAIL_FROM in keys.env, and SITE_URL for the unsubscribe link (see "email APIs" below). Push notifications are not offered: the browser Push API only works
 on HTTPS pages, and the site is plain HTTP for now.
 """
 import hashlib
@@ -56,30 +56,153 @@ def status(user):
     with _lock:
         r = conn().execute("select email, verified, digest, last_sent_at from emails where user_key = ?", (user,)).fetchone()
     if not r:
-        return {"email": None, "verified": False, "digest": False, "sandbox": SANDBOX}
+        return {"email": None, "verified": False, "digest": False, "sandbox": not configured()[0]}
     e = r[0]
     masked = e[0] + "***" + e[e.index("@"):] if "@" in e else e
-    return {"email": masked, "verified": bool(r[1]), "digest": bool(r[2]), "last_sent": r[3], "sandbox": SANDBOX}
+    return {"email": masked, "verified": bool(r[1]), "digest": bool(r[2]), "last_sent": r[3], "sandbox": not configured()[0]}
+
+
+# ------------------------------------------------------------------ round 31: email APIs (11 Nov)
+# EMAIL_PROVIDER picks how mail leaves the server (keys live in keys.env, chmod 600, never printed):
+#   brevo     POST https://api.brevo.com/v3/smtp/email        BREVO_API_KEY       (free plan: 300 emails a day;
+#             the sender address EMAIL_FROM must be verified in Brevo first - no own domain needed to start)
+#   resend    POST https://api.resend.com/emails              RESEND_API_KEY      (needs a verified domain to mail others)
+#   sendgrid  POST https://api.sendgrid.com/v3/mail/send      SENDGRID_API_KEY    (single-sender verification)
+#   mailgun   POST https://api.mailgun.net/v3/<domain>/messages  MAILGUN_API_KEY + MAILGUN_DOMAIN (+ MAILGUN_BASE for EU)
+#   smtp      SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS   (e.g. a mail account's app password)
+# Nothing is sent while EMAIL_SANDBOX=1 (the default) or when the chosen provider has no key: the email is written
+# to logs/email_outbox/ instead. Every real send is logged in table send_log (time, provider, status, provider id;
+# no addresses or content).
+PROVIDER = os.environ.get("EMAIL_PROVIDER", "smtp").strip().lower()
+FROM = os.environ.get("EMAIL_FROM") or os.environ.get("SMTP_FROM") or "Cinemack <no-reply@cinemack.invalid>"
+_KEYS = {"brevo": ("BREVO_API_KEY",), "resend": ("RESEND_API_KEY",), "sendgrid": ("SENDGRID_API_KEY",),
+         "mailgun": ("MAILGUN_API_KEY", "MAILGUN_DOMAIN"), "smtp": ("SMTP_HOST",)}
+
+
+def _from_parts():
+    import email.utils
+    name, addr = email.utils.parseaddr(FROM)
+    return name or "Cinemack", addr
+
+
+def configured():
+    """(live?, why): live only when the sandbox is off and the provider's settings are present."""
+    if SANDBOX:
+        return False, "sandbox (EMAIL_SANDBOX=1)"
+    need = _KEYS.get(PROVIDER)
+    if not need:
+        return False, f"unknown EMAIL_PROVIDER {PROVIDER!r}"
+    miss = [k for k in need if not os.environ.get(k)]
+    if miss:
+        return False, f"{PROVIDER}: missing {', '.join(miss)}"
+    if PROVIDER != "smtp" and not _from_parts()[1].count("@"):
+        return False, "EMAIL_FROM has no address"
+    if not os.environ.get("SITE_URL"):
+        return False, "SITE_URL not set (the unsubscribe link in every email must point at the real site)"
+    return True, PROVIDER
+
+
+def _http(url, payload, headers, form=False):
+    import base64 as _b64
+    import json as _json
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+    data = urllib.parse.urlencode(payload).encode() if form else _json.dumps(payload).encode()
+    h = {"Content-Type": "application/x-www-form-urlencoded" if form else "application/json", "Accept": "application/json",
+         "User-Agent": "Cinemack/8 (student research project)"}
+    h.update(headers)
+    if "basic" in h:
+        h["Authorization"] = "Basic " + _b64.b64encode(h.pop("basic").encode()).decode()
+    last = None
+    for attempt in range(3):                       # 429 / 5xx: wait and try again, at most 3 times
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, data=data, headers=h, method="POST"), timeout=20) as r:
+                body = r.read().decode("utf-8", "replace")
+                try:
+                    j = _json.loads(body or "{}")
+                except ValueError:
+                    j = {}
+                return r.status, str(j.get("messageId") or j.get("id") or r.headers.get("X-Message-Id") or "")[:120]
+        except urllib.error.HTTPError as e:
+            last = (e.code, e.read().decode("utf-8", "replace")[:300])
+            if e.code in (429, 500, 502, 503, 504) and attempt < 2:
+                time.sleep(2 * (attempt + 1))
+                continue
+            raise RuntimeError(f"{PROVIDER} HTTP {e.code}: {last[1]}") from None
+    raise RuntimeError(f"{PROVIDER} failed: {last}")
+
+
+def _send_api(to, subject, body):
+    name, addr = _from_parts()
+    if PROVIDER == "brevo":
+        return _http("https://api.brevo.com/v3/smtp/email",
+                     {"sender": {"name": name, "email": addr}, "to": [{"email": to}], "subject": subject, "textContent": body},
+                     {"api-key": os.environ["BREVO_API_KEY"]})
+    if PROVIDER == "resend":
+        return _http("https://api.resend.com/emails", {"from": f"{name} <{addr}>", "to": [to], "subject": subject, "text": body},
+                     {"Authorization": "Bearer " + os.environ["RESEND_API_KEY"]})
+    if PROVIDER == "sendgrid":
+        return _http("https://api.sendgrid.com/v3/mail/send",
+                     {"personalizations": [{"to": [{"email": to}]}], "from": {"email": addr, "name": name},
+                      "subject": subject, "content": [{"type": "text/plain", "value": body}]},
+                     {"Authorization": "Bearer " + os.environ["SENDGRID_API_KEY"]})
+    if PROVIDER == "mailgun":
+        base = os.environ.get("MAILGUN_BASE", "https://api.mailgun.net").rstrip("/")
+        return _http(f"{base}/v3/{os.environ['MAILGUN_DOMAIN']}/messages",
+                     {"from": f"{name} <{addr}>", "to": to, "subject": subject, "text": body},
+                     {"basic": "api:" + os.environ["MAILGUN_API_KEY"]}, form=True)
+    raise RuntimeError(f"unknown EMAIL_PROVIDER {PROVIDER!r}")
+
+
+def _log_send(status, ref, err=""):
+    try:
+        with _lock:
+            c = conn()
+            c.execute("create table if not exists send_log(at real, provider text, status text, ref text, error text)")
+            c.execute("insert into send_log values (?,?,?,?,?)", (time.time(), PROVIDER, str(status), ref or "", err[:300]))
+            c.commit()
+    except sqlite3.Error:
+        pass
 
 
 def send(to, subject, body):
-    """Send (or, in the sandbox, write logs/email_outbox/<time>.eml). Returns where it went."""
-    msg = EmailMessage()
-    msg["From"] = os.environ.get("SMTP_FROM", "Cinemack <no-reply@cinemack.invalid>")
-    msg["To"] = to
-    msg["Subject"] = subject
-    msg.set_content(body)
-    if SANDBOX or not os.environ.get("SMTP_HOST"):
+    """Send through EMAIL_PROVIDER, or in the sandbox write logs/email_outbox/<time>.eml. Returns where it went;
+    raises RuntimeError when a live provider refuses (the caller keeps the alert unsent for the next run)."""
+    live, why = configured()
+    unsub = re.search(r"https?://\S+/email/unsubscribe\?t=\S+", body or "")
+    if not live:
+        msg = EmailMessage()
+        msg["From"] = FROM
+        msg["To"] = to
+        msg["Subject"] = subject
+        if unsub:
+            msg["List-Unsubscribe"] = f"<{unsub.group(0)}>"
+        msg.set_content(body)
         OUTBOX.mkdir(parents=True, exist_ok=True)
         p = OUTBOX / f"{time.strftime('%Y%m%d-%H%M%S')}-{secrets.token_hex(3)}.eml"
         p.write_bytes(bytes(msg))
         return str(p)
-    with smtplib.SMTP(os.environ["SMTP_HOST"], int(os.environ.get("SMTP_PORT", "587")), timeout=20) as s:
-        s.starttls()
-        if os.environ.get("SMTP_USER"):
-            s.login(os.environ["SMTP_USER"], os.environ.get("SMTP_PASS", ""))
-        s.send_message(msg)
-    return "smtp"
+    try:
+        if PROVIDER == "smtp":
+            msg = EmailMessage()
+            msg["From"], msg["To"], msg["Subject"] = FROM, to, subject
+            if unsub:
+                msg["List-Unsubscribe"] = f"<{unsub.group(0)}>"
+            msg.set_content(body)
+            with smtplib.SMTP(os.environ["SMTP_HOST"], int(os.environ.get("SMTP_PORT", "587")), timeout=20) as s:
+                s.starttls()
+                if os.environ.get("SMTP_USER"):
+                    s.login(os.environ["SMTP_USER"], os.environ.get("SMTP_PASS", ""))
+                s.send_message(msg)
+            _log_send("ok", "")
+            return "smtp"
+        status, ref = _send_api(to, subject, body)
+        _log_send(status, ref)
+        return f"{PROVIDER}:{ref or status}"
+    except Exception as e:  # noqa: BLE001
+        _log_send("error", "", repr(e))
+        raise RuntimeError(str(e)) from None
 
 
 def set_email(user, email):
@@ -103,9 +226,13 @@ def set_email(user, email):
                   "code_hash = excluded.code_hash, code_at = excluded.code_at, codes_sent = excluded.codes_sent, digest = 0, "
                   "unsub = excluded.unsub", (user, email, _h(code, user), now, ",".join(map(str, recent + [now])), unsub, now))
         c.commit()
-    send(email, "Your Cinemack code", f"Your Cinemack code is {code}. It works for one hour.\n\n"
-         "If you didn't ask for it, ignore this email: nothing will be sent to this address.")
-    return True, "We sent a 6-digit code" + (" (sandbox: saved on the server, not mailed)." if SANDBOX else ".")
+    try:
+        send(email, "Your Cinemack code", f"Your Cinemack code is {code}. It works for one hour.\n\n"
+             "If you didn't ask for it, ignore this email: nothing will be sent to this address.")
+    except RuntimeError as e:
+        print(f"[email] code not sent: {e}", flush=True)
+        return False, "The email service didn't accept the message. Try again later."
+    return True, "We sent a 6-digit code" + ("." if configured()[0] else " (test mode: saved on the server, not mailed).")
 
 
 def verify(user, code):
@@ -169,7 +296,12 @@ def digest_all(alerts_fn, limit_users=None):
         body = ("New on your Cinemack watchlist:\n\n" + "\n".join(f"- {a['text']}" for a in new[:20])
                 + (f"\n...and {len(new) - 20} more." if len(new) > 20 else "")
                 + f"\n\nSee them: {SITE_URL}/#/watchlist\nStop these emails: {SITE_URL}/email/unsubscribe?t={unsub}\n")
-        send(email, f"Cinemack: {len(new)} new alert{'s' if len(new) != 1 else ''}", body)
+        try:
+            send(email, f"Cinemack: {len(new)} new alert{'s' if len(new) != 1 else ''}", body)
+        except RuntimeError as e:                     # round 31: nothing marked sent; tried again next night
+            print(f"[email] digest for {user[:8]}... not sent: {e}", flush=True)
+            done["failed"] = done.get("failed", 0) + 1
+            continue
         now = time.time()
         with _lock:
             conn().executemany("insert or ignore into sent values (?,?,?)", [(user, _key(a), now) for a in new])
