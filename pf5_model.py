@@ -202,6 +202,9 @@ def add_track(c, rows, info, ret, greal):
         r["d_prior_noms"] = float(n)
 
 
+B_MAIN_MIN = float(os.environ.get("B_MAIN_MIN", "0.9"))
+
+
 def add_press(c, rows, info):
     done, arts, dropped = {}, {}, [0, 0]
     try:
@@ -394,6 +397,28 @@ def main():
     L.append(f"  n {b['n']:,}; MAE pf4 {b['mae_base']:.3f} -> +B {b['mae_b']:.3f}; diff {b['diff'][0]:+.3f} "
              f"[{b['diff'][1]:+.3f}, {b['diff'][2]:+.3f}] -> {'helps (CI excludes 0)' if b['diff'][2] < 0 else 'no'}"
              if b else "  not enough fetched films")
+    # round 33 (11 Nov): B on the MAIN split once the nightly fetch has covered the training films. Rule (written
+    # before any such run): +B trained on <= 2015 beats pf4 on 2016-2019 with the bootstrap CI excluding 0, and the
+    # shuffled-B control does not. Needs >= B_MAIN_MIN of the training films fetched; reported as waiting otherwise.
+    cov = sum(1 for r in tr if not math.isnan(r.get("b_log_n", NAN))) / max(1, len(tr))
+    res["B_train_coverage"] = round(cov, 4)
+    L += ["", f"B on the main split: training films with Guardian data {cov:.1%} (needs {B_MAIN_MIN:.0%})"]
+    if B and cov >= B_MAIN_MIN:
+        m = new(); m.fit(P.matrix(tr, base + B), ytr)
+        eb = np.abs(m.predict(P.matrix(te, base + B)) - yte)
+        db = P.boot_diff(eb, b0)
+        Xtr, Xte = P.matrix(tr, base + B), P.matrix(te, base + B)
+        k0 = len(base)
+        Xtr[:, k0:] = Xtr[rng.permutation(len(Xtr)), k0:]
+        Xte[:, k0:] = Xte[rng.permutation(len(Xte)), k0:]
+        m = new(); m.fit(Xtr, ytr)
+        dsh = P.boot_diff(np.abs(m.predict(Xte) - yte), b0)
+        ok_b = db[2] < 0 and dsh[2] >= 0
+        res["B_main"] = {"diff": [round(x, 4) for x in db], "shuffled": [round(x, 4) for x in dsh], "rule": ok_b}
+        L += [f"  +B Guardian: MAE {float(eb.mean()):.3f}; diff vs pf4 {db[0]:+.3f} [{db[1]:+.3f}, {db[2]:+.3f}]; "
+              f"shuffled B {dsh[0]:+.3f} [{dsh[1]:+.3f}, {dsh[2]:+.3f}] -> RULE B: {'YES' if ok_b else 'no'}"]
+    else:
+        L.append("  waiting for the nightly fetch (pf5_data.py press)")
     rg = ranges(tr, te, base)
     res["range"] = rg
     L += ["", "80% range (10% and 90% quantile models on pf4's inputs), 2016-2019:"]

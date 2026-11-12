@@ -570,7 +570,12 @@ def refill(settings, hits, kept):
         f["genres"] = list(s["only_genres"])
     try:
         c = sqlite3.connect(f"file:{_R._VEC.get('db') or 'movies.db'}?mode=ro", uri=True)
-        cands = _R.backfill(c, f, 120, {h.get("id") for h in hits})
+        if s.get("services_only") and s.get("services"):
+            # round 33 (11 Nov): "Netflix only" - the 120 most-voted films of the whole catalogue had none on Netflix
+            # (3b tl05 still named nothing with REFILL). Start from the films ON their services instead.
+            cands = _service_cands(c, s, f, {h.get("id") for h in hits})
+        else:
+            cands = _R.backfill(c, f, 120, {h.get("id") for h in hits})
         c.close()
     except Exception as e:  # noqa: BLE001
         print(f"[cinemack] refill failed: {e!r}", flush=True)
@@ -578,6 +583,34 @@ def refill(settings, hits, kept):
     gone = excluded(dict(s, strict=True), cands)        # added films must be KNOWN to meet the limits
     out = [dict(h, _refill=True) for h in cands if h.get("id") not in gone][:need]
     return out
+
+
+def _service_cands(mc, s, f, exclude, limit=200):
+    """Most-voted catalogue films streaming on one of the person's services (US), with retrieve's hit fields."""
+    names = [n for k in s.get("services") or [] if k in SERVICES for n in SERVICES[k][1]]
+    if not names:
+        return []
+    rows = _q(_facts(), "select distinct tmdb_id, provider_name from watch_providers where region = 'US' and kind in ("
+              + ",".join("?" * len(STREAM_KINDS)) + ")", list(STREAM_KINDS))
+    mine = set(s.get("services") or [])
+    ids = sorted({fid for fid, pn in rows if service_of(pn) in mine} - set(exclude))
+    if not ids:
+        return []
+    out = []
+    lo, hi = f.get("year_min", 0), f.get("year_max", 9999)
+    for i in range(0, len(ids), 900):
+        part = ids[i:i + 900]
+        q = ("SELECT id, title, release_year, genres, director, top_cast, embed_text, vote_count FROM movies WHERE id IN ("
+             + ",".join("?" * len(part)) + ") AND CAST(release_year AS INTEGER) BETWEEN ? AND ?")
+        args = part + [lo, hi]
+        for g in f.get("genres", []):
+            q += " AND genres LIKE ?"
+            args.append(f"%{g}%")
+        for r in mc.execute(q, args):
+            out.append({"id": r[0], "title": r[1], "release_year": r[2], "genres": r[3], "director": r[4], "top_cast": r[5],
+                        "text": r[6], "vote_count": r[7] or 0, "distance": None})
+    out.sort(key=lambda h: -h["vote_count"])
+    return out[:limit]
 
 
 def filter_hits(settings, hits):

@@ -59,6 +59,9 @@ YEAR=$(date +%Y)
 # round 27 (11 Nov): pf5 B - Guardian articles before each film's release, ~400 a night after the reviews (the key
 # allows 500 calls a day; the step stops by itself on HTTP 429). About 20 nights to cover the 2000-2015 training films.
 [ -n "${GUARDIAN_API_KEY:-}" ] && run "guardian pre-release articles (pf5 B)" python pf5_data.py press --max "${PRESS_NIGHT:-400}"
+# round 33: Sundays, the prediction model again (pf5_model.py: A/C/D, B by CV, and B on the main split once >= 90% of
+# the training films have Guardian data - its rule is in the file); results/pf5_summary.txt
+[ "$(date +%u)" = 7 ] && run "pf5 model (weekly)" timeout 2h python pf5_model.py
 # round 27: TVmaze schedule (one call) and the shows TVmaze changed in the last day (logs/tvmaze.db, website only)
 [ -f logs/tvmaze.db ] && ! tmux has-session -t tvmaze 2>/dev/null && run "tvmaze schedule" python tools/fetch_tvmaze.py schedule
 [ -f logs/tvmaze.db ] && ! tmux has-session -t tvmaze 2>/dev/null && run "tvmaze updates" python tools/fetch_tvmaze.py updates

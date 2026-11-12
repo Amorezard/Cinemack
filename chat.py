@@ -337,6 +337,10 @@ def build_context(hits, tool):
 # source-label lines ("[TMDB ...]") are never cut. Rule (written 11 Nov before any run): judge passes not lower on
 # analytic, reception and TV, mean grounding not lower than CTX_BUILDER=0, prompt not longer on average.
 CTX_MIN_SOURCE = int(_os.environ.get("CTX_MIN_SOURCE", "500"))
+# round 33 (11 Nov): v3 failed its rule only on the TV set (28 -> 27 passes, grounding 4.67 -> 4.47) while analytic
+# (44 -> 45) and reception (37 -> 39) improved with shorter prompts. TV cards are season / episode tables, not passages:
+# CTX_V3_SKIP_TV=1 gives TV answers the plain context (as with CTX_BUILDER=0). Re-test on the same three sets (not blind).
+CTX_V3_SKIP_TV = _os.environ.get("CTX_V3_SKIP_TV", "0") == "1"
 
 
 def _is_fact_line(line):
@@ -455,7 +459,7 @@ def _build_context_v1(hits, tool):
 
 
 def _v3_prompt(question, hits, tool, amb_line):
-    if CTX_BUILDER:
+    if CTX_BUILDER and not (CTX_V3_SKIP_TV and CTX_BUILDER_V == "3" and hits and hits[0].get("_tv")):
         context, blocks = build_context(hits, tool)
         context, blocks = _spot(context), _spot(blocks)
     else:

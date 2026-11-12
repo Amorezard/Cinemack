@@ -17,6 +17,9 @@ import re
 PERSONA = os.environ.get("PERSONA", "").strip().lower()
 ON = PERSONA == "cinemack"
 NAME = "Cinemack" if ON else "Movie Buff"
+# round 33 (11 Nov): the full switch failed its rule (reception 37 -> 34 passes). PERSONA_SYSTEM=0 renames only the
+# prompt lines the code writes and leaves the model's own SYSTEM text alone (no system message added).
+SYSTEM = os.environ.get("PERSONA_SYSTEM", "1") == "1"
 _SYS = {"text": None, "tried": False}
 
 
@@ -54,7 +57,7 @@ def with_system(messages, model):
     if not ON:
         return messages
     out = [dict(m, content=rename(m.get("content") or "")) for m in messages]
-    if any(m.get("role") == "system" for m in out):
+    if not SYSTEM or any(m.get("role") == "system" for m in out):
         return out
     s = system_text(model)
     return ([{"role": "system", "content": s}] + out) if s else out
