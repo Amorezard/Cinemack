@@ -1,0 +1,36 @@
+Identity audit (v8.1 slice 1.0) on /home/you/movie-buff/rag-v81/facts.db
+
+films
+  films                                                          33,041
+    without IMDb id                                              1,934
+    IMDb id not of the form tt + digits                          0
+    without Wikidata id                                          3,399
+    IMDb ids used by more than one film                          0
+    Wikidata ids used by more than one film                      0
+    IMDb id is a TV title in IMDb's own list                     519
+    IMDb id missing from IMDb's title list (stale or wrong)      22
+    IMDb year differs from TMDB year by more than 1              140
+    without a release date                                       14
+    same title (case-folded) and year as another film            114
+
+TV shows
+  shows                                                          8,043
+    without IMDb id                                              49
+    without Wikidata id                                          203
+    IMDb ids used by more than one show                          0
+    IMDb id is a film title in IMDb's own list                   13
+
+films and shows together (the same TMDB number means different things in the two tables)
+    TMDB numbers used by both a film and a show                  1,072
+    film-show pairs sharing an IMDb id                           8
+    same title (case-folded) for a film and a show               955
+
+aliases
+    alias rows                                                   73,775
+    alias rows pointing at a film id that does not exist         74
+    aliases shared by more than one title                        1,382
+
+TVmaze link (logs/tvmaze.db in the LIVE folder, opened read-only, if present)
+  tables: meta, show, map_done, episode, episodes_done, schedule
+  show: 7,699 rows; id columns tvmaze_id, tmdb_id, imdb_id
+  map_done: 8,006 rows; id columns tmdb_id, tvmaze_id

@@ -1,0 +1,52 @@
+Filter conformance (v8.1 slice 2.2), 33,041 films from /home/you/movie-buff/rag-v81/facts.db, 30 cases
+
+year_from_2016                 reference 12,941 | plan_sql 12,941 OK | site 12,941 (+0 -0) | chat 12,927 (+0 -14)
+year_to_1999                   reference  8,991 | plan_sql  8,991 OK | site  8,991 (+0 -0) | chat  8,977 (+0 -14)
+year_2000_2009                 reference  5,506 | plan_sql  5,506 OK | site  5,506 (+0 -0) | chat  5,492 (+0 -14)
+year_from_2016_strict          reference 12,927 | plan_sql 12,927 OK | site 12,927 (+0 -0)
+runtime_90                     reference 10,872 | plan_sql 10,872 OK | site 10,872 (+0 -0)
+runtime_120_strict             reference 28,154 | plan_sql 28,154 OK | site 28,154 (+0 -0)
+never_horror                   reference 28,179 | plan_sql 28,179 OK | site 28,179 (+0 -0)
+never_horror_strict            reference 27,624 | plan_sql 27,624 OK | site 27,624 (+0 -0)
+never_horror_animation         reference 25,685 | plan_sql 25,685 OK | site 25,685 (+0 -0)
+only_comedy                    reference 11,822 | plan_sql 11,822 OK | site 11,822 (+0 -0) | home 11,267 (+0 -555) | chat 11,267 (+0 -555)
+only_comedy_strict             reference 11,267 | plan_sql 11,267 OK | site 11,267 (+0 -0)
+only_scifi                     reference  3,495 | plan_sql  3,495 OK | site  3,495 (+0 -0) | home  2,940 (+0 -555) | chat  2,940 (+0 -555)
+any_comedy_romance             reference 14,333 | plan_sql 14,333 OK | site 14,333 (+0 -0) | home 13,778 (+0 -555) | chat 13,778 (+0 -555)
+all_comedy_romance             reference  3,058 | plan_sql  3,058 OK | site  3,058 (+0 -0) | home  2,503 (+0 -555)
+all_crime_drama_strict         reference  2,053 | plan_sql  2,053 OK | site  2,053 (+0 -0)
+only_music                     reference  1,703 | plan_sql  1,703 OK | site  1,703 (+0 -0) | home  1,148 (+0 -555) | chat  1,148 (+0 -555)
+only_documentary_never_music   reference  2,228 | plan_sql  2,228 OK | site  2,228 (+0 -0)
+cert_pg                        reference 20,549 | plan_sql 20,549 OK | site 20,549 (+0 -0)
+cert_pg_strict                 reference  3,891 | plan_sql  3,891 OK | site  3,891 (+0 -0)
+cert_pg13                      reference 24,510 | plan_sql 24,510 OK | site 24,510 (+0 -0)
+cert_g_strict                  reference  1,147 | plan_sql  1,147 OK | site  1,147 (+0 -0)
+netflix_only                   reference  2,320 | plan_sql  2,320 OK | site  2,320 (+0 -0)
+netflix_hulu_only              reference  2,932 | plan_sql  2,932 OK | site  2,932 (+0 -0)
+max_prime_disney               reference  6,864 | plan_sql  6,864 OK | site  6,864 (+0 -0)
+free_services                  reference 10,897 | plan_sql 10,897 OK | site 10,897 (+0 -0)
+kids_evening                   reference  2,383 | plan_sql  2,383 OK | site  2,383 (+0 -0)
+recent_short_comedy_netflix    reference    586 | plan_sql    586 OK | site    586 (+0 -0)
+old_westerns                   reference    293 | plan_sql    293 OK | site    293 (+0 -0) | chat    285 (+0 -8)
+everything_strict              reference  2,227 | plan_sql  2,227 OK | site  2,227 (+0 -0)
+no_limits                      reference 33,041 | plan_sql 33,041 OK | site 33,041 (+0 -0)
+
+RULE plan_sql = reference on every case: PASS
+(+n = films a path lets through that the reference removes; -n = films it removes that the reference keeps)
+
+Why the existing paths differ (count of films by which fact was missing):
+  year_from_2016                 chat_missing_why   {'missing year/cert': 8, 'missing year/cert/genres': 3, 'missing year/runtime/cert/genres': 2, 'missing year/runtime/cert': 1}
+  year_to_1999                   chat_missing_why   {'missing year/cert': 8, 'missing year/cert/genres': 3, 'missing year/runtime/cert/genres': 2, 'missing year/runtime/cert': 1}
+  year_2000_2009                 chat_missing_why   {'missing year/cert': 8, 'missing year/cert/genres': 3, 'missing year/runtime/cert/genres': 2, 'missing year/runtime/cert': 1}
+  only_comedy                    home_missing_why   {'missing cert/genres': 445, 'missing year/cert/genres': 3, 'missing runtime/cert/genres': 95, 'missing genres': 10, 'missing year/runtime/cert/genres': 2}
+  only_comedy                    chat_missing_why   {'missing cert/genres': 445, 'missing year/cert/genres': 3, 'missing runtime/cert/genres': 95, 'missing genres': 10, 'missing year/runtime/cert/genres': 2}
+  only_scifi                     home_missing_why   {'missing cert/genres': 445, 'missing year/cert/genres': 3, 'missing runtime/cert/genres': 95, 'missing genres': 10, 'missing year/runtime/cert/genres': 2}
+  only_scifi                     chat_missing_why   {'missing cert/genres': 445, 'missing year/cert/genres': 3, 'missing runtime/cert/genres': 95, 'missing genres': 10, 'missing year/runtime/cert/genres': 2}
+  any_comedy_romance             home_missing_why   {'missing cert/genres': 445, 'missing year/cert/genres': 3, 'missing runtime/cert/genres': 95, 'missing genres': 10, 'missing year/runtime/cert/genres': 2}
+  any_comedy_romance             chat_missing_why   {'missing cert/genres': 445, 'missing year/cert/genres': 3, 'missing runtime/cert/genres': 95, 'missing genres': 10, 'missing year/runtime/cert/genres': 2}
+  all_comedy_romance             home_missing_why   {'missing cert/genres': 445, 'missing year/cert/genres': 3, 'missing runtime/cert/genres': 95, 'missing genres': 10, 'missing year/runtime/cert/genres': 2}
+  only_music                     home_missing_why   {'missing cert/genres': 445, 'missing year/cert/genres': 3, 'missing runtime/cert/genres': 95, 'missing genres': 10, 'missing year/runtime/cert/genres': 2}
+  only_music                     chat_missing_why   {'missing cert/genres': 445, 'missing year/cert/genres': 3, 'missing runtime/cert/genres': 95, 'missing genres': 10, 'missing year/runtime/cert/genres': 2}
+  old_westerns                   chat_missing_why   {'missing cert/genres': 3, 'missing year/cert/genres': 3, 'missing year/runtime/cert/genres': 2}
+
+13 s
