@@ -1,0 +1,313 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cinemack.local/schemas/prediction_response.v1.json",
+  "title": "Proposed film box-office forecast response v1",
+  "description": "Research-only pending empirical model validation. Currency is nominal unless method notes indicate otherwise. Validate reconciliation and point-in-time invariants in application code.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "prediction_id",
+    "media_id",
+    "model_version",
+    "status",
+    "horizon",
+    "as_of",
+    "currency",
+    "budget",
+    "domestic_gross",
+    "international_gross",
+    "worldwide_gross",
+    "gross_to_budget_multiple",
+    "source_notes",
+    "warnings"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "prediction_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "media_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "model_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "enum": [
+        "experimental",
+        "validated",
+        "disabled"
+      ]
+    },
+    "horizon": {
+      "enum": [
+        "d90",
+        "d7",
+        "opening_weekend_update"
+      ]
+    },
+    "as_of": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "amount",
+        "known_as_of",
+        "source_id"
+      ],
+      "properties": {
+        "amount": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "known_as_of": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "source_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "domestic_gross": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "point",
+        "intervals"
+      ],
+      "properties": {
+        "point": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "intervals": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "nominal_coverage",
+              "lower",
+              "upper"
+            ],
+            "properties": {
+              "nominal_coverage": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "exclusiveMaximum": 1
+              },
+              "lower": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "upper": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              }
+            }
+          },
+          "maxItems": 5
+        }
+      }
+    },
+    "international_gross": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "point",
+        "intervals"
+      ],
+      "properties": {
+        "point": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "intervals": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "nominal_coverage",
+              "lower",
+              "upper"
+            ],
+            "properties": {
+              "nominal_coverage": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "exclusiveMaximum": 1
+              },
+              "lower": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "upper": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              }
+            }
+          },
+          "maxItems": 5
+        }
+      }
+    },
+    "worldwide_gross": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "point",
+        "intervals"
+      ],
+      "properties": {
+        "point": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "intervals": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "nominal_coverage",
+              "lower",
+              "upper"
+            ],
+            "properties": {
+              "nominal_coverage": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "exclusiveMaximum": 1
+              },
+              "lower": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "upper": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              }
+            }
+          },
+          "maxItems": 5
+        }
+      }
+    },
+    "gross_to_budget_multiple": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "point",
+        "intervals"
+      ],
+      "properties": {
+        "point": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "intervals": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "nominal_coverage",
+              "lower",
+              "upper"
+            ],
+            "properties": {
+              "nominal_coverage": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "exclusiveMaximum": 1
+              },
+              "lower": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "upper": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              }
+            }
+          },
+          "maxItems": 5
+        }
+      }
+    },
+    "source_notes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 500
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 500
+      }
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "event_id": "EXAMPLE_E1",
+  "occurred_at": "2026-11-12T21:00:00Z",
+  "subject_key": null,
+  "session_key": "EXAMPLE_SESSION",
+  "media_id": "EXAMPLE_FILM",
+  "placement": "pick_tonight",
+  "event_type": "impression",
+  "ranking_version": "example-ranker-v1",
+  "exposure_id": "EXAMPLE_EXPOSURE",
+  "position": 0,
+  "context_key": "EXAMPLE_CONTEXT",
+  "consent_scope": "anonymous",
+  "explicit_rating": null
+}

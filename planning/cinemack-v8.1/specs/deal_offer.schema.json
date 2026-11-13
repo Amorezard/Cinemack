@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cinemack.local/schemas/deal_offer.v1.json",
+  "title": "Proposed verified theater/streaming promotion offer v1",
+  "description": "Offer existence and real-time checkout price are different; never invent either.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "offer_id",
+    "provider_name",
+    "offer_type",
+    "title",
+    "region",
+    "location_ids",
+    "eligible_weekdays",
+    "eligibility",
+    "exclusions",
+    "promotion_terms",
+    "price_status",
+    "price",
+    "currency",
+    "source_url",
+    "last_verified_at",
+    "verification_status",
+    "valid_from",
+    "valid_until"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "offer_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "provider_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "offer_type": {
+      "enum": [
+        "discount_day",
+        "bundle",
+        "loyalty",
+        "subscription",
+        "student",
+        "matinee",
+        "streaming_rental",
+        "streaming_subscription",
+        "other"
+      ]
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "region": {
+      "type": "string",
+      "minLength": 2
+    },
+    "location_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "eligible_weekdays": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "monday",
+          "tuesday",
+          "wednesday",
+          "thursday",
+          "friday",
+          "saturday",
+          "sunday"
+        ]
+      }
+    },
+    "eligibility": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "exclusions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "promotion_terms": {
+      "type": "string",
+      "minLength": 1
+    },
+    "price_status": {
+      "enum": [
+        "unknown",
+        "published_offer",
+        "verified_checkout"
+      ]
+    },
+    "price": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "currency": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[A-Z]{3}$"
+    },
+    "source_url": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://"
+    },
+    "last_verified_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "verification_status": {
+      "enum": [
+        "unverified",
+        "verified",
+        "expired",
+        "disputed"
+      ]
+    },
+    "valid_from": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "valid_until": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    }
+  }
+}

@@ -1,0 +1,7 @@
+I approve the Cinemack v8.1 roadmap, including P0 structured RAG/cache/search, personalized recommendations, and calibrated box-office prediction with point-in-time factor/correlation research; P1 UX/Pick Tonight/Calendar/concurrency/tools; and P2 localization and theater/streaming deals.
+
+You are operating in the actual Cinemack repository. Read the entire implementation kit at `planning/cinemack-v8.1/`, starting with `CLAUDE_MASTER_PROMPT.md` and its linked files, plus the repository's own README/history, decision log, validation matrix, issue log and source code.
+
+Begin with a READ-ONLY source-of-truth audit and baseline measurements. Distinguish verified code from README descriptions and proposed schemas. Produce `AUDIT_REPORT.md`, `IMPLEMENTATION_PLAN_LOCKED.md`, and `BASELINE_RESULTS.md` as specified. Then work through small safe P0 slices behind off-by-default flags, test and commit each passing slice, and continue through the approved roadmap where the dependencies and safety gates permit. Do NOT touch production, consume sealed one-shot evaluations, enable email sends, spend money, overwrite data, or perform destructive migrations without my explicit approval. Report failures honestly and preserve all existing functionality.
+
+Do not just respond with a plan or rewrite the master prompt: perform actual safe repository work after the audit and use the quality gates. If the kit lives somewhere else, ask me only for the kit path or use the files attached to this message.

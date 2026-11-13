@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "offer_id": "EXAMPLE_NOT_A_REAL_OFFER",
+  "provider_name": "Example Cinema",
+  "offer_type": "discount_day",
+  "title": "Illustrative Tuesday member offer",
+  "region": "US-MA",
+  "location_ids": [],
+  "eligible_weekdays": [
+    "tuesday"
+  ],
+  "eligibility": [
+    "Hypothetical free membership requirement"
+  ],
+  "exclusions": [
+    "Terms unknown; example only"
+  ],
+  "promotion_terms": "FICTIONAL SAMPLE. No actual offer is being asserted.",
+  "price_status": "unknown",
+  "price": null,
+  "currency": null,
+  "source_url": "https://example.com/not-a-real-offer",
+  "last_verified_at": "2026-11-12T20:00:00Z",
+  "verification_status": "unverified",
+  "valid_from": null,
+  "valid_until": null
+}

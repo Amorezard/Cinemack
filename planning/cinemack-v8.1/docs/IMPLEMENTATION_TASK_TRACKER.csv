@@ -1,0 +1,11 @@
+package_id,priority,workstream,status,acceptance_summary
+0,P0,Repository audit and baseline,unstarted,"Audit report, initial tests, no sealed run"
+1,P0,Canonical media identity and provenance,unstarted,Mapping audits and stable IDs
+2,P0,JSON planner and hard filter unification,unstarted,"Pydantic schema, no SQL generation, Any/All tests"
+3,P0,Hybrid retrieval/chunks/embeddings/caching/articles,unstarted,Held-out improvements and freshness/security tests
+4,P0,"Box-office baseline, factor study and calibrated forecasts",unstarted,"As-of features, correlations, 50/80% ranges, model card"
+5,P0,Personalized recommendation service,unstarted,"Candidate generation, filtering, evaluation, reason codes"
+6,P1,"20-principle UX, Pick Tonight and Calendar",unstarted,"Animation tokens, one reason, browser/accessibility tests"
+7,P1,Multiuser serving and bounded tool calling,unstarted,"1/2/4/8 load tests, authz/queue isolation"
+8,P2,Localization and multilingual search,unstarted,"Translations, locale/region separation"
+9,P2,"Theater deals, bundles, memberships, streaming offers",unstarted,Verified terms and unknown price states

@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "intent": "recommend",
+  "media_types": [
+    "movie"
+  ],
+  "query_text": "mind-bending science fiction",
+  "entity": {
+    "internal_media_id": null,
+    "tmdb_id": null,
+    "imdb_id": null,
+    "candidate_title": null
+  },
+  "filters": {
+    "year_min": 2016,
+    "year_max": null,
+    "runtime_min_minutes": null,
+    "runtime_max_minutes": 120,
+    "genres_any": [
+      "science fiction"
+    ],
+    "genres_all": [],
+    "genres_exclude": [],
+    "watch_region": "US",
+    "watch_provider_ids_any": [
+      "netflix",
+      "hulu"
+    ],
+    "watch_monetization": [
+      "flatrate"
+    ],
+    "exclude_watched": true,
+    "include_media_ids": [],
+    "exclude_media_ids": []
+  },
+  "retrieval": {
+    "routes": [
+      "sql",
+      "fts",
+      "vector",
+      "recommendations"
+    ],
+    "article_mode": "none",
+    "max_candidates": 80
+  },
+  "response": {
+    "language": "en-US",
+    "include_explanations": true,
+    "include_sources": true
+  }
+}

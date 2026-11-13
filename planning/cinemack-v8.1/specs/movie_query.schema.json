@@ -1,0 +1,290 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cinemack.local/schemas/movie_query.v1.json",
+  "title": "Proposed Cinemack structured query plan v1",
+  "description": "Proposed interface. Resolve IDs and enforce server-side authorization and parameterized SQL. Do not treat schema validation alone as authorization.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "intent",
+    "media_types",
+    "query_text",
+    "entity",
+    "filters",
+    "retrieval",
+    "response"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "intent": {
+      "enum": [
+        "identify",
+        "facts",
+        "compare",
+        "reception",
+        "recommend",
+        "availability",
+        "news",
+        "forecast"
+      ]
+    },
+    "media_types": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "movie",
+          "tv"
+        ]
+      }
+    },
+    "query_text": {
+      "type": "string",
+      "maxLength": 1200
+    },
+    "entity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "internal_media_id",
+        "tmdb_id",
+        "imdb_id",
+        "candidate_title"
+      ],
+      "properties": {
+        "internal_media_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tmdb_id": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "imdb_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "candidate_title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "filters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "year_min",
+        "year_max",
+        "runtime_min_minutes",
+        "runtime_max_minutes",
+        "genres_any",
+        "genres_all",
+        "genres_exclude",
+        "watch_region",
+        "watch_provider_ids_any",
+        "watch_monetization",
+        "exclude_watched",
+        "include_media_ids",
+        "exclude_media_ids"
+      ],
+      "properties": {
+        "year_min": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1880,
+          "maximum": 2200
+        },
+        "year_max": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1880,
+          "maximum": 2200
+        },
+        "runtime_min_minutes": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "runtime_max_minutes": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "genres_any": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "maxLength": 80
+          }
+        },
+        "genres_all": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "maxLength": 80
+          }
+        },
+        "genres_exclude": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "maxLength": 80
+          }
+        },
+        "watch_region": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[A-Z]{2}$"
+        },
+        "watch_provider_ids_any": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "maxLength": 80
+          }
+        },
+        "watch_monetization": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "flatrate",
+              "free",
+              "ads",
+              "rent",
+              "buy"
+            ]
+          }
+        },
+        "exclude_watched": {
+          "type": "boolean"
+        },
+        "include_media_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "exclude_media_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        }
+      }
+    },
+    "retrieval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "routes",
+        "article_mode",
+        "max_candidates"
+      ],
+      "properties": {
+        "routes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "sql",
+              "fts",
+              "vector",
+              "articles",
+              "recommendations"
+            ]
+          }
+        },
+        "article_mode": {
+          "enum": [
+            "none",
+            "cached",
+            "refresh_if_stale"
+          ]
+        },
+        "max_candidates": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200
+        }
+      }
+    },
+    "response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "language",
+        "include_explanations",
+        "include_sources"
+      ],
+      "properties": {
+        "language": {
+          "type": "string",
+          "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+        },
+        "include_explanations": {
+          "type": "boolean"
+        },
+        "include_sources": {
+          "type": "boolean"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "intent": {
+            "const": "forecast"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "media_types": {
+            "contains": {
+              "const": "movie"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

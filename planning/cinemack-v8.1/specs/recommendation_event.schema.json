@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cinemack.local/schemas/recommendation_event.v1.json",
+  "title": "Proposed recommendation event v1",
+  "description": "Only server-derived identity is trusted; this is a storage/event contract, not a client-auth payload.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "event_id",
+    "occurred_at",
+    "subject_key",
+    "session_key",
+    "media_id",
+    "placement",
+    "event_type",
+    "ranking_version",
+    "exposure_id",
+    "position",
+    "context_key"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "event_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "subject_key": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "session_key": {
+      "type": "string",
+      "minLength": 1
+    },
+    "media_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "placement": {
+      "enum": [
+        "home",
+        "chat",
+        "pick_tonight",
+        "watchlist",
+        "detail",
+        "calendar"
+      ]
+    },
+    "event_type": {
+      "enum": [
+        "impression",
+        "click",
+        "watchlist_add",
+        "watchlist_remove",
+        "watch_started",
+        "watch_completed",
+        "rating_positive",
+        "rating_negative",
+        "not_interested",
+        "pick_tonight_selected",
+        "already_watched",
+        "more_like_this"
+      ]
+    },
+    "ranking_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "exposure_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "position": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "context_key": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "consent_scope": {
+      "enum": [
+        "anonymous",
+        "consented_personalization",
+        "service_required"
+      ]
+    },
+    "explicit_rating": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 5
+    }
+  }
+}

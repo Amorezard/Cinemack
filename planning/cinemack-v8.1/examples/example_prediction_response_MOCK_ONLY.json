@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "prediction_id": "EXAMPLE_DO_NOT_DISPLAY",
+  "media_id": "EXAMPLE_MOVIE_ID",
+  "model_version": "example-model-not-trained",
+  "status": "experimental",
+  "horizon": "d7",
+  "as_of": "2026-11-01T12:00:00Z",
+  "currency": "USD",
+  "budget": {
+    "amount": 100000000.0,
+    "known_as_of": "2026-10-30T10:00:00Z",
+    "source_id": "EXAMPLE_SOURCE"
+  },
+  "domestic_gross": {
+    "point": 130000000,
+    "intervals": [
+      {
+        "nominal_coverage": 0.5,
+        "lower": 100000000,
+        "upper": 160000000
+      },
+      {
+        "nominal_coverage": 0.8,
+        "lower": 70000000,
+        "upper": 210000000
+      }
+    ]
+  },
+  "international_gross": {
+    "point": 170000000,
+    "intervals": [
+      {
+        "nominal_coverage": 0.5,
+        "lower": 120000000,
+        "upper": 220000000
+      },
+      {
+        "nominal_coverage": 0.8,
+        "lower": 60000000,
+        "upper": 310000000
+      }
+    ]
+  },
+  "worldwide_gross": {
+    "point": 300000000,
+    "intervals": [
+      {
+        "nominal_coverage": 0.5,
+        "lower": 240000000,
+        "upper": 370000000
+      },
+      {
+        "nominal_coverage": 0.8,
+        "lower": 150000000,
+        "upper": 520000000
+      }
+    ]
+  },
+  "gross_to_budget_multiple": {
+    "point": 3.0,
+    "intervals": [
+      {
+        "nominal_coverage": 0.5,
+        "lower": 2.4,
+        "upper": 3.7
+      },
+      {
+        "nominal_coverage": 0.8,
+        "lower": 1.5,
+        "upper": 5.2
+      }
+    ]
+  },
+  "source_notes": [
+    "Example figures are invented for schema validation and must never be shown as real predictions."
+  ],
+  "warnings": [
+    "NO TRAINED MODEL HAS GENERATED THIS SAMPLE.",
+    "Marginal domestic and international ranges are not required to sum to the worldwide interval."
+  ]
+}

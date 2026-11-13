@@ -1,0 +1,70 @@
+# PROPOSED quality gates. Read actual docs/validation_matrix.md and preserve any stricter existing gate.
+# These are not results; they are parameters/hypotheses to confirm BEFORE experimentation.
+version: 1
+status: proposed_not_measured
+policies:
+  evaluation_rules_written_before_results: true
+  separate_tuning_and_holdout_sets: true
+  sealed_runs_require_explicit_approval: true
+  no_live_feature_promotion_without_gate: true
+  new_feature_flags_default_off: true
+  no_cross_user_data_access_ever: true
+  test_features_individually_before_combining: true
+
+search:
+  hard_filter_curated_suite_pass_fraction: 1.0
+  id_disambiguation_tests_required: true
+  relative_quality_gate: "no_material_regression_and_prefer_improvement_on_untouched_retrieval_set"
+  latency_gate: "p95_not_worse_than_predeclared_budget_with_documented_tradeoff"
+
+cache:
+  cross_user_or_permission_leak_count: 0
+  incompatible_filters_cache_hit_count: 0
+  invalidation_tests: required
+  fresh_vs_stale_source_tests: required
+  target_hit_rate: measure_before_setting
+
+recommendation:
+  mandatory_comparators: [current_live_logic, popularity_baseline, content_based_baseline]
+  primary_metric: chronological_ndcg_at_10
+  additional_metrics: [recall_at_10, catalog_coverage, diversity, per_user_coverage]
+  gates: "predeclare_noninferiority_or_improvement_and_test_significance_or_bootstrap_uncertainty"
+  score_is_not_probability_without_calibration: true
+
+box_office:
+  preserve_pf4_pf5_protocols: true
+  reference_pf4_test_mae_on_log_gross_over_budget: 1.200
+  reference_reported_80pct_interval_coverage: 0.781
+  proposed_80pct_interval_empirical_coverage_min: 0.75
+  proposed_80pct_interval_empirical_coverage_max: 0.85
+  required_coverage_levels: [0.5, 0.8]
+  required_outputs: [domestic_gross, international_gross, worldwide_gross, gross_to_budget_multiple]
+  note: "Baseline figures from user README, not reproduced by this kit; coverage alone is insufficient: measure interval width, MAE and subgroup behavior. If data cannot support an output, report unavailable."
+  mandatory: [point_in_time_cutoffs, chronological_holdout, leakage_tests, source_provenance, correlation_report, feature_ablation, reconciliation_checks, no_profit_claims]
+  forecast_horizons: [d90, d7, opening_weekend_update]
+
+ui:
+  exactly_one_why_per_recommendation: true
+  preserve_calendar_week_month_and_tv_timezone: true
+  keyboard_and_reduced_motion_tests: required
+  goal_wcag: "2.2 AA"
+  core_web_vitals_field_p75_goals:
+    lcp_seconds_max: 2.5
+    inp_milliseconds_max: 200
+    cls_max: 0.1
+  note: "Field goals require representative real user traffic; local lab tests are separate."
+
+concurrency:
+  simulated_user_counts: [1, 2, 4, 8]
+  required_metrics: [ttft_p50, ttft_p95, total_latency_p50, total_latency_p95, tokens_per_sec, queue_wait, peak_vram, error_count]
+  isolation_errors_allowed: 0
+  gpu_contention_with_nightly_job_test: required
+  note: "No invented throughput or hard p95 threshold. Define budgets after baseline and hardware inspection."
+
+release:
+  destructive_migrations_require_permission: true
+  live_deployment_requires_permission: true
+  closed_sealed_eval_requires_permission: true
+  email_sandbox_off_requires_permission: true
+  paid_external_services_require_permission: true
+  source_attribution_and_license_review: required

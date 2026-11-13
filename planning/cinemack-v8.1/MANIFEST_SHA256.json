@@ -1,0 +1,159 @@
+{
+  "name": "Cinemack v8.1 Claude Code Implementation Kit",
+  "created": "2026-11-12",
+  "project_repository_modified": false,
+  "application_tests_run": false,
+  "kit_validation_only": true,
+  "files": [
+    {
+      "relative_path": "CLAUDE_MASTER_PROMPT.md",
+      "bytes": 33567,
+      "sha256": "6567e6087b4399bfce542293f199f04e2b88ee46e3e679f7130def53d24d9689"
+    },
+    {
+      "relative_path": "CLAUDE_PROJECT_INSTRUCTIONS_APPEND.md",
+      "bytes": 1463,
+      "sha256": "e23162abc6220d71db614b24e5d6538fd01436031edc6a79292c7c2fcbaa931f"
+    },
+    {
+      "relative_path": "README_START_HERE.md",
+      "bytes": 3338,
+      "sha256": "5964dffc73d6e7bedcec8122e3a6f839dc2b95d5cc4f0ab8c7cd0387a546fbbf"
+    },
+    {
+      "relative_path": "START_IN_CLAUDE_CODE.txt",
+      "bytes": 1501,
+      "sha256": "968ec05cf2c8c7f8aaf7d0884e0c2b9df168c68ea9dcd2ebb3e0eb49a58f52b1"
+    },
+    {
+      "relative_path": "config/quality_gates.yaml",
+      "bytes": 3313,
+      "sha256": "baeeaed3af6669099d8317a6563da53f56c78636d3c77bee061895104f28fbdf"
+    },
+    {
+      "relative_path": "docs/ACCEPTANCE_TEST_MATRIX.md",
+      "bytes": 12415,
+      "sha256": "c924525b80f82e38fa173963001b94552dd194ba2bb1a3d4c00ce43b6005108a"
+    },
+    {
+      "relative_path": "docs/ARCHITECTURE_AND_DATA_CONTRACTS.md",
+      "bytes": 7023,
+      "sha256": "d94bafc6cd1168754738d0b95b66bd33591797c5084cd65142aeabfdbc5a9502"
+    },
+    {
+      "relative_path": "docs/DECISIONS_AND_REMAINING_INPUTS.md",
+      "bytes": 2457,
+      "sha256": "af31b0256d02285a93b0d421880e61b4675d98826d05dbea43faa8198a7fe1d4"
+    },
+    {
+      "relative_path": "docs/IMPLEMENTATION_ROADMAP.md",
+      "bytes": 7475,
+      "sha256": "24f208bf468d712d4317e82f481c69e3b8e166998bb44c34ccd68affb74c9638"
+    },
+    {
+      "relative_path": "docs/IMPLEMENTATION_TASK_TRACKER.csv",
+      "bytes": 1140,
+      "sha256": "cc34d7fd92eb9d617b836f54d5ff8b0c5495f0bf9a03c9193835e1d6bcdb3c7c"
+    },
+    {
+      "relative_path": "docs/REQUESTED_REPO_INPUTS.md",
+      "bytes": 2203,
+      "sha256": "b140477afe8916138e74daedea403c3037f02a50c8e4f649b6f061f6f48784f5"
+    },
+    {
+      "relative_path": "docs/RESEARCH_AND_SOURCE_NOTES.md",
+      "bytes": 4902,
+      "sha256": "73bfd09f50850ed79e35ed15ab27046ae84379a9c36aab9d49635eed0ea579ef"
+    },
+    {
+      "relative_path": "docs/RUNBOOK_AND_DEPLOYMENT.md",
+      "bytes": 5546,
+      "sha256": "401911c75df1fac4ee2e935aa103771ed4eae813a23ae3e3f587e481220de246"
+    },
+    {
+      "relative_path": "docs/UX_MOTION_SPEC.md",
+      "bytes": 6245,
+      "sha256": "688fda2ed6f315a849c5f0fa786047e60e7dabeaf081ae926876539f50e5479b"
+    },
+    {
+      "relative_path": "examples/example_deal_offer_MOCK_ONLY.json",
+      "bytes": 729,
+      "sha256": "bfe52012b374ab5b622462802fa733ea5990854be20c072133afdf1a08fef013"
+    },
+    {
+      "relative_path": "examples/example_movie_query.json",
+      "bytes": 988,
+      "sha256": "3444ef88f5c7163d3903b40a580afed58e3077bbfe0742c413fe926e67a4929b"
+    },
+    {
+      "relative_path": "examples/example_prediction_response_MOCK_ONLY.json",
+      "bytes": 1802,
+      "sha256": "dd76ee298da7fc93f82d7a659d34357ed7b4c9adc8c27928515ed981bc12ee28"
+    },
+    {
+      "relative_path": "examples/example_recommendation_event.json",
+      "bytes": 436,
+      "sha256": "f8d21f333edc491f09a897a7828d88e6e49a107893ae39e45eb7344f64ac24ea"
+    },
+    {
+      "relative_path": "reference/CINEMACK_V8_README_2026-11-11.md",
+      "bytes": 9382,
+      "sha256": "637b2f19ce7f3c3b4ef2e9f8d11cd6f9547e6e2b69d379a52ab30ad6ff49e1ca"
+    },
+    {
+      "relative_path": "reference/UX_20_PRINCIPLES_SCREENSHOT.jpeg",
+      "bytes": 232353,
+      "sha256": "2dc6581be0e48ee8b74b5453b50e38a4a6e675588d1258b186693da261346908"
+    },
+    {
+      "relative_path": "scripts/preflight_readonly.sh",
+      "bytes": 890,
+      "sha256": "78c17d0d676ba4bcbee7c25382a7c8d364486d23396f1626c0d990f0445d32c5"
+    },
+    {
+      "relative_path": "scripts/validate_kit.py",
+      "bytes": 2931,
+      "sha256": "1420409b94c1ca7ef8ab4a873464aa229481c2ba57173306316321592b4e0ea2"
+    },
+    {
+      "relative_path": "specs/deal_offer.schema.json",
+      "bytes": 2944,
+      "sha256": "dad245edf0b7f5993339e74bc7d9794cc547ccc4823f110aaab4d7999aaa3a6a"
+    },
+    {
+      "relative_path": "specs/movie_query.schema.json",
+      "bytes": 6182,
+      "sha256": "3932e65f1b0e569a082893caa7b1fa59dd51b0f558ddf31137f0b57a7864b4d5"
+    },
+    {
+      "relative_path": "specs/prediction_response.schema.json",
+      "bytes": 6952,
+      "sha256": "d0a0d0027143e99a5a3468578f2592e2ffcd05f8f82fcadb4b3a9ca4644830e2"
+    },
+    {
+      "relative_path": "specs/recommendation_event.schema.json",
+      "bytes": 2191,
+      "sha256": "149a29e55b3d3452cfc43e31c51c4bf77109153c8af50276455e4b93d0f691f3"
+    },
+    {
+      "relative_path": "templates/BOXOFFICE_FEATURE_PROVENANCE_COLUMNS.csv",
+      "bytes": 204,
+      "sha256": "01168e18b284695cfcec65a834609ea30f69f826087dca9c6b76cb7e07f101c5"
+    },
+    {
+      "relative_path": "templates/BOX_OFFICE_MODEL_CARD_TEMPLATE.md",
+      "bytes": 1575,
+      "sha256": "676cbf871a3877b3c64a68c6c095b2c847fe0b4e46e49e48290f9c9723b2700f"
+    },
+    {
+      "relative_path": "templates/EXPERIMENT_REPORT_TEMPLATE.md",
+      "bytes": 1268,
+      "sha256": "c085d8d12802fa25fc000beae73596a38f053d132547810bf4cb793cdf7c099b"
+    },
+    {
+      "relative_path": "templates/RELEASE_CHECKLIST.md",
+      "bytes": 1214,
+      "sha256": "6a57f3d415011028d6d8d8b2c6ef36a34c2d626e45c3a4768c6912754e5e97f2"
+    }
+  ]
+}
