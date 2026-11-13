@@ -48,6 +48,11 @@ Target date given by the user: Thu 19 Nov. Each slice ends as PASS, FAIL (kept o
 - **5.2 benchmark:** `RECS_V2` is a candidate only if NDCG@10 on the held-out last interactions is not lower than the current `personal.rerank` (bootstrap 95% CI of the difference does not lie wholly below 0) and catalogue coverage is not lower. Scores are never shown as probabilities.
 - **Stop-loss:** a slice that makes an earlier gate worse stays off.
 
+## Added 13 Nov ~12:00, before any of these ran
+- **2.2 conformance, reference rule details:** the reference is plain Python from the rule text; certificate choice = theatrical (type 3) first, then ascending type, rows with no type LAST, then table order (this is how SQLite orders the site's query; the first local run on made-up data showed the reference had put no-type rows first). Paths compared: plan_sql (rule: 100%), site `user_prefs.excluded` with GENRE_MAIN off, Home `discovery.match_genres`, chat `retrieve.passes`. Differences in the last three are reported, not fixed in this slice.
+- **4.4 factor study, method details:** every arm = mean of 5 LightGBM fits (seeds 7, 11, 13, 17, 19) with pf4's settings; paired bootstrap of per-film absolute errors (2,000 resamples); two-sided bootstrap p-value; Holm over the 10 drop-groups and, separately, over the 3 add-groups; a group "carries value" if Holm p < 0.05 and the gain is positive. New add-groups: producer track record, writer track record (earlier films only), US rating one-hot. Groups and their inputs are listed in `tools/v81_factor_study.py` (DROP_GROUPS / ADD_GROUPS) as committed before the run.
+- **1.0 identity audit:** counts only (no table created yet); the additive identity table (slice 1.1) is designed from its numbers.
+
 ## Cannot be finished by 19 Nov (stated now)
 - pf5 B (Guardian): fetch limit 500 calls a day; weeks, not days.
 - Domestic / international forecasts: no data yet (audit F1); at best a coverage count from Wikidata this week.
