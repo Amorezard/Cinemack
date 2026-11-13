@@ -1,0 +1,80 @@
+Box-office data inventory (v8.1 slice 4.2) from /home/you/movie-buff/rag-v81/facts.db
+
+1. facts table: rows per field and source (every money figure with its source)
+  box_office                   wikipedia_infobox        13,107 rows, 9 currencies
+  box_office                   wikidata                  2,210 rows, 27 currencies
+  box_office                   wikipedia_infobox_fx        421 rows, 1 currencies
+  box_office                   wikidata_fx                 220 rows, 1 currencies
+  budget                       tmdb                     12,662 rows, 1 currencies
+  budget                       wikipedia_infobox        10,139 rows, 10 currencies
+  budget                       wikidata                  5,152 rows, 39 currencies
+  budget                       wikidata_fx                 721 rows, 1 currencies
+  budget                       wikipedia_infobox_fx        685 rows, 1 currencies
+  revenue                      tmdb                     13,870 rows, 1 currencies
+
+2. money table (one row per film)
+  columns: tmdb_id, budget, budget_src, budget_alt, gross, gross_src, gross_alt, roi, conflict
+  rows: 19,683
+  with budget: 14,832
+  with gross: 17,098
+  with both: 12,247
+  sources disagree (conflict): 1,018
+  gross_src: wikipedia_infobox 12,363, tmdb 4,186, None 2,585, wikidata 321, wikipedia_infobox_fx 166, wikidata_fx 62
+  budget_src: wikipedia_infobox 9,354, None 4,851, tmdb 4,253, wikidata 740, wikipedia_infobox_fx 291, wikidata_fx 194
+
+3. model universe (budget >= $100k, gross > 0) and how complete each factor group is, by period
+                                           <= 1999     2000-2015     2016-2019     2020-2023       2024 on
+  films in the universe                      3,543         5,197         1,487           787           534
+  US release date                              97%           86%           71%           75%           92%
+  release date (any)                          100%          100%          100%          100%          100%
+  runtime                                     100%          100%          100%          100%          100%
+  in a collection (franchise)                  23%           21%           22%           25%           24%
+  production companies                        100%          100%          100%          100%          100%
+  IMDb id                                     100%          100%          100%          100%          100%
+  Wikidata id                                 100%          100%          100%          100%          100%
+  director credit                             100%          100%          100%          100%          100%
+  writing credit                              100%           99%           99%           99%          100%
+  producer credit                              99%           98%           97%           98%          100%
+  cast credit                                 100%          100%          100%          100%          100%
+  certificate                                  95%           83%           79%           88%           95%
+  trailer / video                              96%           92%           91%           95%           97%
+  keywords                                     98%           94%           92%           92%           98%
+  awards row                                   37%           28%           24%           26%           13%
+  Wikipedia pageviews                           0%            4%           98%           89%           96%
+  Guardian pre-release fetch done               0%           27%          100%          100%          100%
+  people-in-the-news row                      100%          100%          100%          100%           96%
+  Letterboxd row                              100%          100%          100%           90%           61%
+
+4. credits: the 25 most common (kind, department, job) triples
+  cast   Acting               Actor                          423,180
+  crew   Production           Producer                        70,386
+  crew   Production           Executive Producer              60,243
+  crew   Directing            Director                        36,150
+  crew   Editing              Editor                          34,876
+  crew   Camera               Director of Photography         29,372
+  crew   Sound                Original Music Composer         27,962
+  crew   Writing              Writer                          26,511
+  crew   Writing              Screenplay                      25,742
+  crew   Writing              Story                            8,895
+  crew   Sound                Music                            5,460
+  crew   Writing              Novel                            4,457
+  crew   Writing              Characters                       2,673
+  crew   Writing              Author                             454
+
+5. tables whose name suggests release or money data, with their columns
+  certifications: tmdb_id, region, certification, release_type, release_date
+  cpi_annual: year, cpi, series
+  fx_annual: currency, year, usd_per_unit, series
+  macro: series, month, value, fetched_at
+  money: tmdb_id, budget, budget_src, budget_alt, gross, gross_src, gross_alt, roi, conflict
+  money_real: tmdb_id, year, base_year, budget_real, gross_real
+  perf_film: tmdb_id, version, in_universe, actual, pre, post, pre_contrib, post_contrib, fold, created_at, context_json
+  perf_meta: key, value
+  perf_reasons: tmdb_id, category, direction, sentence, section, url
+
+6. films table: release-date fields filled, by period (all films, not only the universe)
+  <= 1999    films   7,235 | release date   7,235 | US date   5,701 | TMDB budget  3,531 | TMDB revenue  3,734
+  2000-2015  films  11,123 | release date  11,123 | US date   7,722 | TMDB budget  5,257 | TMDB revenue  5,721
+  2016-2019  films   4,793 | release date   4,793 | US date   2,162 | TMDB budget  1,490 | TMDB revenue  1,844
+  2020-2023  films   3,438 | release date   3,438 | US date   1,412 | TMDB budget    882 | TMDB revenue  1,270
+  2024 on    films   4,696 | release date   4,696 | US date   1,443 | TMDB budget    982 | TMDB revenue    847

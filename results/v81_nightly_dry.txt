@@ -1,0 +1,29 @@
+=== nightly 2026-11-12 19:49  dry=1
+--- wikipedia reception (changed pages) (19:49)
+  (dry) python v7_data.py reception --again
+--- youtube purge (19:49)
+  (dry) python -
+--- critic statements (19:49)
+  (dry) python critics.py run
+--- sentiment (19:49)
+  (dry) python sentiment.py run
+--- flags (19:49)
+  (dry) python sentiment.py flags
+--- aspects (<= 1 h) (19:49)
+  (dry) timeout 1h python reviews_analyze.py --kinds audience,critic --films 40000
+--- aspects aggregate (19:49)
+  (dry) python reviews_analyze.py aggregate
+--- money table (19:49)
+  (dry) python tools.py build
+--- youtube match (19:49)
+  (dry) python youtube_analysis.py match
+--- reception cards (19:49)
+  (dry) python reception_cards.py build
+--- evidence index (19:49)
+  (dry) python evidence.py build
+--- summaries (<= 1 h) (19:49)
+  (dry) timeout 1h python reception_cards.py summaries --films 3000
+--- reception cards (19:49)
+  (dry) python reception_cards.py build
+--- touched tonight
+=== nightly done 19:49
