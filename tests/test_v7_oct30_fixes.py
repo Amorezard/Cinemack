@@ -95,3 +95,18 @@ def test_imdb_alias_needs_title_form():
 
 def test_imdb_off_unchanged():
     assert A.expand("is Time Machine the one with John Cusack?", imdb=False) == "is Time Machine the one with John Cusack?"
+
+
+# v8.1 (12 Nov 2026, audit finding F2): the six tests above are pytest-style functions, so `python -m unittest
+# tests.test_v7_oct30_fixes` (how every round runs the tests) collected none of them. The lines below hand them to
+# unittest unchanged (the module's own set-up and tear-down around each); pytest still works as before.
+import unittest  # noqa: E402
+
+
+def load_tests(_loader, _tests, _pattern):
+    suite = unittest.TestSuite()
+    for name, fn in sorted(globals().items()):
+        if name.startswith("test_") and callable(fn):
+            suite.addTest(unittest.FunctionTestCase(fn, setUp=lambda: setup_module(None),
+                                                    tearDown=lambda: teardown_module(None), description=name))
+    return suite
