@@ -1,0 +1,23 @@
+Worldwide box-office forecast (v8.1 slice 4.5), 2026-11-14 19:33, model v81-pf4bt-cqr-1
+target log(worldwide gross / budget); point: 5-seed LightGBM on <= 2015; ranges: CQR fit <= 2011, calibrated 2012-2015
+2016-2019 = test (NOT blind); 2020-2023 = late (less seen). Rule: test 80% coverage 75-85% AND 50% coverage 45-55%.
+
+[d90] 52 inputs | train 8,740 | test 1,487 | late 787 | films with a trailer before the cutoff (test): 642
+  test 2016-19: MAE 1.218 (x3.38) RMSE 1.716 median 0.848 bias +0.304 | 50%: cov 47.6% width x5.9 | 80%: cov 78.2% (below 12.1%, above 9.7%) width x41.6
+  late 2020-23: MAE 1.421 (x4.14) RMSE 2.116 median 0.949 bias +0.817 | 50%: cov 43.5% width x5.9 | 80%: cov 75.7% (below 18.9%, above 5.3%) width x41.6
+  calibration (2012-15): raw 50% 43.9% -> widen +0.108; raw 80% 71.7% -> widen +0.317 log units
+  RULE PASS
+[d7] 52 inputs | train 8,740 | test 1,487 | late 787 | films with a trailer before the cutoff (test): 1,147
+  test 2016-19: MAE 1.202 (x3.33) RMSE 1.695 median 0.844 bias +0.333 | 50%: cov 47.3% width x5.7 | 80%: cov 79.0% (below 12.8%, above 8.2%) width x39.1
+  late 2020-23: MAE 1.429 (x4.18) RMSE 2.114 median 0.965 bias +0.872 | 50%: cov 43.1% width x5.7 | 80%: cov 74.2% (below 21.0%, above 4.8%) width x38.5
+  calibration (2012-15): raw 50% 43.5% -> widen +0.094; raw 80% 70.3% -> widen +0.364 log units
+  RULE PASS
+[d0] 52 inputs | train 8,740 | test 1,487 | late 787 | films with a trailer before the cutoff (test): 1,163
+  test 2016-19: MAE 1.194 (x3.30) RMSE 1.688 median 0.842 bias +0.337 | 50%: cov 46.9% width x5.7 | 80%: cov 77.6% (below 13.5%, above 8.9%) width x36.1
+  late 2020-23: MAE 1.432 (x4.19) RMSE 2.119 median 0.958 bias +0.884 | 50%: cov 41.4% width x5.4 | 80%: cov 72.9% (below 22.4%, above 4.7%) width x35.2
+  calibration (2012-15): raw 50% 44.9% -> widen +0.092; raw 80% 70.4% -> widen +0.318 log units
+  RULE reference (pf4 timing; not a pre-release horizon)
+
+example responses: 20, failing the response checks: 0 []
+
+24 s
