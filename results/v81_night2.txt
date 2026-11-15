@@ -61,3 +61,5 @@
     genre Romance              n   181  MAE 1.171  (x3.23 typical miss)
     genre Science Fiction      n   147  MAE 1.176  (x3.24 typical miss)
     genre Thriller             n   358  MAE 1.388  (x4.01 typical miss)
+  committed 0e856ae
+=== v8.1 night 2 done Fri Nov 13 12:02:18 PM EST 2026
