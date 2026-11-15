@@ -1,0 +1,15 @@
+Identity build (v8.1 slice 1.1) on /home/you/movie-buff/rag-v81/facts.db, version v81.1
+  films 33,041 | shows 8,043 | identities 41,084 | outside ids 125,484 | 1 s
+  outside ids by source: tmdb 41,084, imdb 39,101, wikidata 37,482, tvdb 7,817
+  IMDb id quality, movie: ok 30,429, stale 22, wrong_type 519, year_gap 137
+  IMDb id quality, tv: ok 7,972, stale 9, wrong_type 13
+  R1 identities = films + shows, unique      PASS
+  R2 one tmdb id each, round-trips           PASS
+  R3 no film-show media id clash             PASS
+  R4 films / tv_shows untouched              PASS
+  R5 trusted IMDb lookup is single-valued    PASS
+  RULE (R1-R5): PASS
+  audit check: films whose IMDb id is a TV title      519 vs audit 519 -> MATCH
+  audit check: films with a stale IMDb id             22 vs audit 22 -> MATCH
+  audit check: IMDb ids shared by a film and a show   8 vs audit 8 -> MATCH
+  (a shared id is labelled shared only when IMDb's own type does not say which title it belongs to)
