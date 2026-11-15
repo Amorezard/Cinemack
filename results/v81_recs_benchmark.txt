@@ -1,0 +1,30 @@
+Recommendation benchmark (v8.1 slice 5.2a) on MovieLens 32M - measures the METHOD on MovieLens users, not Cinemack users
+ratings mapped to facts.db films: 31,343,593 | train (< 2020): 26,851,555 | test positives (2020): 847,940
+train-only neighbours: 13,872 films with >= 30 train ratings (74 s)
+eligible users: 5,569; sampled 3,000 (seed 13)
+
+[uniform negatives] report half: 1,510 users; v2 weights chosen on the select half: content 2, neighbours 4, popularity 0
+  method              NDCG@10 Recall@10  coverage diversity
+  popularity            0.387     0.393     0.082     0.825
+  content               0.468     0.469     0.305     0.624
+  neighbours_train      0.631     0.649     0.217     0.790
+  current_live          0.605     0.676     0.135     0.799
+  current_timesafe      0.627     0.644     0.198     0.780
+  v2                    0.653     0.670     0.256     0.748
+  v2 - current_timesafe: NDCG +0.0262 [+0.0210, +0.0314]
+  v2 - current_live: NDCG +0.0480 [+0.0369, +0.0589]
+  RULE (vs current_timesafe: NDCG CI not wholly below 0 AND coverage not lower): PASS (candidate)
+
+[popular negatives] report half: 1,510 users; v2 weights chosen on the select half: content 2, neighbours 0.5, popularity 0
+  method              NDCG@10 Recall@10  coverage diversity
+  popularity            0.092     0.088     0.027     0.798
+  content               0.420     0.417     0.277     0.612
+  neighbours_train      0.278     0.281     0.123     0.782
+  current_live          0.185     0.190     0.094     0.810
+  current_timesafe      0.276     0.275     0.118     0.776
+  v2                    0.442     0.441     0.255     0.670
+  v2 - current_timesafe: NDCG +0.1654 [+0.1525, +0.1782]
+  v2 - current_live: NDCG +0.2570 [+0.2412, +0.2729]
+  RULE (vs current_timesafe: NDCG CI not wholly below 0 AND coverage not lower): PASS (candidate)
+
+162 s
