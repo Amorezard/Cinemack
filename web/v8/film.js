@@ -75,6 +75,18 @@ export async function pageFilm(id, params) {
   view.append(h('div', { class: 'detail-hero' }, h('div', { class: 'bd', style: d.backdrop ? `background-image:url("${d.backdrop}")` : '' })), head, scores,
     h('div', { class: 'actions' }, want, watched, choice('liked', I.up, 'Liked it'), choice('not', I.down, 'Not for me'), rate), h('div', { class: 'detail-body' }, main, side));
   if (params?.get?.('go') === 'watch') requestAnimationFrame(() => { where.scrollIntoView({ block: 'center' }); where.focus({ preventScroll: true }); });
+  // v8.1 round 47: Guardian articles for this film (stored first, a live lookup only when none are stored). The server
+  // answers 404 while GUARDIAN_LIVE is off, and then nothing is shown. Text nodes only; every link opens the Guardian.
+  api(`/api/v8/film/${d.id}/press`).then(p => {
+    const arts = (p.articles || []).filter(a => a.url && /^https:\/\/(www\.)?theguardian\.com\//.test(a.url));
+    if (!arts.length) return;
+    const stars = (n) => n ? ` \u00b7 ${'\u2605'.repeat(Math.round(n))}${'\u2606'.repeat(5 - Math.round(n))}` : '';
+    main.append(h('section', { class: 'press', 'aria-label': 'In the Guardian' }, h('h2', { style: 'margin:24px 0 8px' }, 'In the Guardian'),
+      h('ul', { class: 'press-list' }, arts.slice(0, 6).map(a => h('li', {}, h('a', { href: a.url, target: '_blank', rel: 'noopener' }, a.headline || 'Article'),
+        h('div', { class: 'small' }, [a.kind === 'review' ? 'Review' : 'Article', a.published, a.byline].filter(Boolean).join(' \u00b7 ') + stars(a.stars)),
+        a.summary ? h('p', { class: 'small' }, a.summary) : null))),
+      h('p', { class: 'small' }, p.credit || 'From the Guardian')));
+  }).catch(() => {});
   const sim = h('div', {}, skelShelf()); view.append(sim);
   try { const s = await api(`/api/v8/similar/${d.id}`); sim.innerHTML = ''; if (s.items?.length) sim.append(section('If you like this', { sub: 'MovieLens ratings' }, shelf(s.items, 'If you like this'))); }
   catch { sim.innerHTML = ''; }

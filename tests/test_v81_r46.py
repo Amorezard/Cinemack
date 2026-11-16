@@ -95,11 +95,13 @@ class TestGuardianQuota(unittest.TestCase):
         self.assertIn("no reply carried", G.report([]))
 
     def test_how_much_a_top_up_spends(self):
-        self.assertEqual(G.plan_topup(100), 60)                         # 40 always stay unspent
+        self.assertEqual(G.plan_topup(100), 60)                         # the plan helper's own default reserve
         self.assertEqual(G.plan_topup(100, reserve=10), 90)
         self.assertEqual(G.plan_topup(59), 0)                           # under 20 to spend: not worth a run
+        self.assertEqual(G.plan_topup(3, reserve=2, min_spend=1), 1)    # round 47: before the reset every call counts
         self.assertEqual(G.plan_topup(0), 0)
         self.assertEqual(G.plan_topup(None), 0)
+        self.assertEqual(G.RESET_RESERVE, 2)
 
     def test_top_up_is_off_by_default_and_makes_no_call_while_off(self):
         seen, ran = [], []
@@ -117,22 +119,26 @@ class TestGuardianQuota(unittest.TestCase):
             self.assertEqual((seen, ran), ([], []))
         self.assertIsNone(G.busy("init\npython tools/v81_guardian_quota.py topup\nsshd\n"))   # itself does not count
 
-    def test_top_up_runs_the_nightly_command_with_the_spare_calls(self):
-        ran = []
+    def test_top_up_spends_every_call_left_reviews_first(self):
+        ran, left = [], [300, 288]
 
         class Done:
-            returncode, stdout = 0, "press: 600 films done\n  reached 260 calls"
+            returncode, stdout = 0, "press: 600 films done\n  reached 286 calls"
 
         def runner(cmd, **kw):
             ran.append((cmd, kw.get("cwd")))
             return Done()
-        msg = G.topup(KEY, enabled=True, opener=opener(300), ps="", runner=runner, path=self.log)
-        self.assertEqual(ran, [(["python", "pf5_data.py", "press", "--max", "260"], G.LIVE)])
-        self.assertIn("ran press --max 260 (exit 0)", msg)
+
+        def op(req, timeout=0):                                         # 300 left, then 288 after the review fetch
+            return opener(left.pop(0) if left else 0)(req, timeout)
+        msg = G.topup(KEY, enabled=True, opener=op, ps="", runner=runner, path=self.log)
+        self.assertEqual(ran, [(["python", "fetch_free_data.py", "guardian"], G.LIVE),
+                               (["python", "pf5_data.py", "press", "--max", "286"], G.LIVE)])
+        self.assertIn("ran press --max 286 (exit 0)", msg)
         self.assertNotIn(KEY, msg)
         ran.clear()
         self.assertIn("would run", G.topup(KEY, enabled=True, dry=True, opener=opener(300), ps="", runner=runner, path=self.log))
-        self.assertIn("nothing to spend", G.topup(KEY, enabled=True, opener=opener(45), ps="", runner=runner, path=self.log))
+        self.assertIn("nothing to spend", G.topup(KEY, enabled=True, opener=opener(2), ps="", runner=runner, path=self.log))
         self.assertEqual(ran, [])
 
 

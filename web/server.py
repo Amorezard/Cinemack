@@ -1097,6 +1097,12 @@ try:
     v8routes.install(app, user_of=user_of, account_of=account_of, gate=_gate)
 except Exception as _e:  # noqa: BLE001  - the classic page keeps working if v8 fails to load
     print(f"[cinemack] v8 routes not loaded: {_e!r}", flush=True)
+# v8.1 round 47: Guardian articles for one film (web/guardian_live.py). 404 for everything while GUARDIAN_LIVE is off.
+try:
+    import guardian_live
+    guardian_live.install(app, _gate, user_of)
+except Exception as _e:  # noqa: BLE001
+    print(f"[cinemack] guardian lookups not loaded: {_e!r}", flush=True)
 
 
 if __name__ == "__main__":

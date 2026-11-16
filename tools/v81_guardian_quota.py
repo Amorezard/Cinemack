@@ -34,6 +34,7 @@ UA = "Cinemack/1.0 (university research project; quota probe)"
 MAX_PROBES = 120            # 10 days at one probe every 2 hours
 RESERVE = 40                # calls always left unspent (the next review fetch, any later live lookup)
 MIN_SPEND = 20              # not worth starting a fetch for fewer calls than this
+RESET_RESERVE = 2           # round 47 (user, 16 Nov): just before the reset every call is spent; 2 stay as a margin
 BUSY = ("nightly.sh", "pf5_data.py press", "run_final_v", "eval_v3.py", "stage_scores.py", "fetch_free_data.py guardian")
 
 
@@ -162,8 +163,11 @@ def plan_topup(remaining, reserve=RESERVE, min_spend=MIN_SPEND):
     return n if n >= min_spend else 0
 
 
-def topup(key, reserve=RESERVE, dry=False, enabled=None, opener=urllib.request.urlopen, ps=None, runner=subprocess.run,
+def topup(key, reserve=RESET_RESERVE, dry=False, enabled=None, opener=urllib.request.urlopen, ps=None, runner=subprocess.run,
           path=None):
+    """Round 47 (user decision 16 Nov): run shortly BEFORE the daily reset and spend every call left - first the
+    new-review fetch (a few calls), then the pre-release / news articles with whatever remains. Calls not spent now
+    would be lost at the reset anyway. Off unless GUARDIAN_TOPUP=1; no cron line until the reset time is known."""
     on = (os.environ.get("GUARDIAN_TOPUP", "0") == "1") if enabled is None else enabled
     if not on:
         return "top-up is switched off (GUARDIAN_TOPUP is not 1): nothing done, no call made"
@@ -171,14 +175,23 @@ def topup(key, reserve=RESERVE, dry=False, enabled=None, opener=urllib.request.u
     if b:
         return f"another job is running ({b}): nothing done"
     rec = probe(key, path, opener, cap=10 ** 9)
-    n = plan_topup(rec.get("remaining_day"), reserve)
-    if not n:
-        return f"{rec.get('remaining_day')} calls left (reserve {reserve}): nothing to spend"
+    if plan_topup(rec.get("remaining_day"), reserve, min_spend=1) == 0:
+        return f"{rec.get('remaining_day')} calls left (margin {reserve}): nothing to spend"
     if dry:
-        return f"{rec['remaining_day']} calls left: would run `python pf5_data.py press --max {n}` in {LIVE}"
+        return (f"{rec['remaining_day']} calls left: would run `python fetch_free_data.py guardian`, then "
+                f"`python pf5_data.py press --max <calls left - {reserve}>` in {LIVE}")
+    out = [f"{rec['remaining_day']} calls left before the reset"]
+    r1 = runner(["python", "fetch_free_data.py", "guardian"], cwd=LIVE, capture_output=True, text=True, timeout=3600)
+    out.append(f"new reviews: exit {r1.returncode}")
+    rec2 = probe(key, path, opener, cap=10 ** 9)
+    n = plan_topup(rec2.get("remaining_day"), reserve, min_spend=1)
+    if not n:
+        out.append(f"{rec2.get('remaining_day')} calls left after the reviews: no articles fetched")
+        return "\n".join(out)
     r = runner(["python", "pf5_data.py", "press", "--max", str(n)], cwd=LIVE, capture_output=True, text=True, timeout=7200)
     tail = "\n".join((r.stdout or "").strip().splitlines()[-4:])
-    return f"{rec['remaining_day']} calls left: ran press --max {n} (exit {r.returncode})\n{tail}"
+    out.append(f"{rec2['remaining_day']} calls left: ran press --max {n} (exit {r.returncode})\n{tail}")
+    return "\n".join(out)
 
 
 def main(argv=None):
