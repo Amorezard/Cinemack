@@ -1,0 +1,102 @@
+=== v8.1 night 4  Sun Nov 15 11:35:12 PM EST 2026  (5a1f9e6 v8.1 round 45 frontend: slices 6.1 / 6.2 / 8.1 motion tokens ()
+--- v81_tv_conformance (log logs/v81_tv_conformance.log)
+  exit 0 after 1 s
+  TV plan conformance (v8.1 slice 2.3), 8,043 shows from /home/you/movie-buff/rag-v81/facts.db, 24 cases
+  
+  shows with a missing fact: no first year 6 (0.1%); no episode length 2,259 (28.1%); no genres 16 (0.2%); no US TV rating 2,122 (26.4%); no US subscription / free listing 1,700 (21.1%)
+  
+    no_limits                  reference  8,043 | plan  8,043 OK
+    year_from_2015             reference  4,872 | plan  4,872 OK
+    year_1990_1999_strict      reference    479 | plan    479 OK
+    episodes_30_min            reference  4,973 | plan  4,973 OK
+    episodes_30_min_strict     reference  2,714 | plan  2,714 OK
+    comedy                     reference  2,864 | plan  2,864 OK
+    action_any                 reference  1,915 | plan  1,915 OK
+    scifi_and_fantasy_all      reference  2,154 | plan  2,154 OK
+    action_and_drama_all       reference    833 | plan    833 OK
+    crime_or_mystery           reference  2,189 | plan  2,189 OK
+    never_family               reference  7,110 | plan  7,110 OK
+    never_war_strict           reference  7,806 | plan  7,806 OK
+    drama_never_crime          reference  3,502 | plan  3,502 OK
+    rated_g                    reference  2,793 | plan  2,793 OK
+    rated_pg_strict            reference  1,497 | plan  1,497 OK
+    rated_pg13                 reference  5,722 | plan  5,722 OK
+    rated_r_strict             reference  5,921 | plan  5,921 OK
+    on_netflix                 reference  1,785 | plan  1,785 OK
+    on_max_or_hulu             reference  1,079 | plan  1,079 OK
+    services_none_picked       reference  6,343 | plan  6,343 OK
+    family_night               reference  1,004 | plan  1,004 OK
+    everything                 reference    331 | plan    331 OK
+    documentary_strict         reference    440 | plan    440 OK
+    western_or_war             reference    297 | plan    297 OK
+    mixed plan {"min_year": 2010, "only_genres": ["Comedy"]}: 6,272 films + 1,978 shows = 8,250 media ids OK
+    mixed plan {"max_cert": "PG", "strict": true}: 3,891 films + 1,497 shows = 5,388 media ids OK
+    mixed plan {}: 33,041 films + 8,043 shows = 41,084 media ids OK
+  
+  RULE plan = reference on every case AND mixed plans = films + shows: PASS
+  Not compared (choices of the Pick Tonight TV list, not limits): under-40-vote shows, News / Talk / Soap / Reality, followed shows, the GENRE_MAIN main-genre rule.
+  1 s
+  committed 1602e5c
+--- v81_motion_audit (log logs/v81_motion_audit.log)
+  exit 1 after 0 s
+  Motion audit (v8.1 slice 6.1) of web/v8/app.css
+  
+  tokens: --motion-instant 100 ms (kit 100 ms); --motion-select 150 ms (kit 150 ms); --motion-card 220 ms (kit 220 ms); --motion-panel 300 ms (kit 300 ms)
+  transitions / animations found: 43 (37 use only tokens, 6 carry a plain number, 4 loop)
+  reduced-motion block covering animations and transitions for every element: yes
+  transitions on a layout property: 1
+      .hh-dots button::before: width
+  
+  plain-number durations (to convert to tokens later, with screenshots):
+      .btn.busy::after: animation spin .8s linear infinite
+      .pl:has(> img.ld), .pp:has(> img.ld): animation shimmer 1.4s linear infinite
+      .pc .bm.pop: animation pop .3s var(--ease)
+      .skel: animation shimmer 1.4s linear infinite
+      .status .dot: animation pulse 1.2s ease-in-out infinite
+      .hh-bd: transition opacity .7s var(--ease)
+  
+  RULE 1 tokens ok | 2 reduced motion ok | 3 no layout transitions FAIL -> FAIL
+  committed 111f3ef
+--- v81_forecast_store (log logs/v81_forecast_store.log)
+  exit 0 after 29 s
+  Forecast store and candidate (v8.1 slice 4.6), 2026-11-15 23:35
+  v1 v81-pf4bt-cqr-1 | v2 v81-pf4bt-pr-cqr-1 = v1 + producer track record (d90, d7) + US rating (d7 only)
+  Rule per horizon: v2 only if test MAE lower with CI excluding 0 AND its ranges pass the 4.5 rule AND late MAE not worse.
+  2016-2019 is NOT blind.
+  
+  [d90] test 1,487 | late 787 | 2024+ films with a budget 677
+    v1 test: MAE 1.218 (x3.38) bias +0.304 | 50% cov 47.6% | 80% cov 78.2% width x41.6
+    v1 late: MAE 1.421 (x4.14) bias +0.817 | 50% cov 43.5% | 80% cov 75.7% width x41.6
+    v2 test: MAE 1.191 (x3.29) bias +0.283 | 50% cov 48.4% | 80% cov 76.9% width x35.1
+    v2 late: MAE 1.378 (x3.97) bias +0.774 | 50% cov 46.0% | 80% cov 74.8% width x34.6
+    v2 - v1 MAE: test -0.0270 [-0.0431, -0.0110] | late -0.0437 [-0.0664, -0.0211]
+    RULE a test better True | b ranges pass True | c late not worse True -> stored model: v81-pf4bt-pr-cqr-1
+    stored 2,951 forecasts
+  [d7] test 1,487 | late 787 | 2024+ films with a budget 677
+    v1 test: MAE 1.202 (x3.33) bias +0.333 | 50% cov 47.3% | 80% cov 79.0% width x39.1
+    v1 late: MAE 1.429 (x4.18) bias +0.872 | 50% cov 43.1% | 80% cov 74.2% width x38.5
+    v2 test: MAE 1.148 (x3.15) bias +0.301 | 50% cov 48.0% | 80% cov 78.6% width x35.5
+    v2 late: MAE 1.377 (x3.96) bias +0.821 | 50% cov 44.1% | 80% cov 74.0% width x33.6
+    v2 - v1 MAE: test -0.0537 [-0.0725, -0.0353] | late -0.0525 [-0.0790, -0.0259]
+    RULE a test better True | b ranges pass True | c late not worse True -> stored model: v81-pf4bt-pr-cqr-1
+    stored 2,951 forecasts
+  
+  store /home/you/movie-buff/rag-v81/logs/forecast.db: 2,951 films (of them not yet released: 30); responses failing the checks and not stored: 0
+  29 s
+  committed 729f5fb
+--- v81_recs_single (log logs/v81_recs_single.log)
+  exit 0 after 150 s
+  One weight set for the film ranking (v8.1 slice 5.2) on MovieLens 32M - MovieLens users, not Cinemack users
+  chosen on the select half: content 2, neighbours 1, popularity 0 (mean share of each protocol's best NDCG: 0.959)
+  
+  [uniform negatives] report half 1,510 users: v2 NDCG@10 0.611 vs current 0.627 (-0.0155 [-0.0262, -0.0054]) | coverage 0.285 vs 0.198 | variety 0.695 vs 0.780 -> NOT ok
+  [popular negatives] report half 1,510 users: v2 NDCG@10 0.428 vs current 0.276 (+0.1521 [+0.1414, +0.1626]) | coverage 0.225 vs 0.118 | variety 0.701 vs 0.776 -> ok
+  
+  RULE (both protocols: NDCG CI not wholly below 0 AND coverage not lower): FAIL
+  Second look at the same report half as 14 Nov. Variety (genre spread inside a list) is reported, not part of the rule.
+  149 s
+  committed 1251138
+--- page modules under Node (tests/js/test_v81_frontend.mjs)
+  node v18.19.1
+  exit 0 | # tests 9 # pass 9 # fail 0 
+=== v8.1 night 4 done Sun Nov 15 11:38:12 PM EST 2026
