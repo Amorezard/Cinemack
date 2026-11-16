@@ -1,0 +1,91 @@
+=== v8.1 night 5  Mon Nov 16 09:33:37 AM EST 2026  (b1f411c v8.1 round 46 dots: slice 6.1 home banner dots animate clip-pa)
+--- v81_review_coverage (log logs/v81_review_coverage.log)
+  exit 0 after 1 s
+  Review material per film (v8.1 round 46), 33,041 films in /home/you/movie-buff/rag-v81/facts.db
+  
+  source                                   all films      5,000+ votes       1,000-4,999           300-999         under 300
+  films in the group                          33,041             1,073             3,952             6,471            21,545
+  Wikipedia critic statements           22,400 (68%)      1,073 (100%)       3,871 (98%)       5,581 (86%)      11,875 (55%)
+    ... with a named outlet             22,007 (67%)      1,073 (100%)       3,863 (98%)       5,536 (86%)      11,535 (54%)
+  Wikipedia reception text              22,410 (68%)      1,073 (100%)       3,871 (98%)       5,582 (86%)      11,884 (55%)
+  Guardian review                        8,680 (26%)         868 (81%)       2,386 (60%)       2,313 (36%)       3,113 (14%)
+  NYT review                             5,316 (16%)         422 (39%)       1,284 (32%)       1,452 (22%)       2,158 (10%)
+  OMDb scores (RT or Metacritic)         3,254 (10%)         120 (11%)         881 (22%)       2,107 (33%)          146 (1%)
+  TMDB audience reviews                 12,632 (38%)       1,043 (97%)       3,180 (80%)       3,459 (53%)       4,950 (23%)
+  YouTube review / essay video            2,567 (8%)         773 (72%)       1,257 (32%)          537 (8%)            0 (0%)
+  ANY of the sources above              24,223 (73%)      1,073 (100%)       3,908 (99%)       5,934 (92%)      13,308 (62%)
+  
+  where more could be had:
+    a. films with 300+ votes whose Wikipedia reception was never requested: 363
+    b. films with reception text but no critic statement extracted: 10
+    c. guardian reviews matched to no film: 9,678 of 25,032 fetched
+    c. nyt reviews matched to no film: 3,782 of 9,220 fetched
+    d. films with 300+ votes and an IMDb id but no OMDb row: 7,015 (OMDb allows 1,000 requests a day)
+  Inventory only: nothing was fetched or changed.
+  committed 57b38c8
+--- v81_yt_match (log logs/v81_yt_match.log)
+  exit 0 after 60 s
+  YouTube video-film matches, second opinion (v8.1 round 46): 12,248 videos, 6,816 confident first-pass matches (score >= 0.6)
+    kept 5,557 (81.5%) | switched to another film 178 | dropped 1,081
+    changed, by rule: F 521, G 312, N 94, S 144, W 61, Y 127
+  
+  seen sample (the 50 rows the rules were written from - NOT a test): of 35 right matches 35 kept; of 15 wrong matches 10 dropped, 5 switched, 0 unchanged; 0 rows not found
+    rule part 2 (>= 32 of the 35 right matches kept): ok
+  
+  new sample to grade: 60 matches after the rules + 20 dropped ones -> results/v81_yt_match_check2.csv
+  RULE part 1 (right film >= 90% on the new sample): not known until that file is graded
+  
+  examples of each rule:
+    F drop   'How A Christmas Carol Perfectly Demonstrates Five-Act Structure': A Christmas Carol (2009) -> (none)
+    F drop   'Iron Man vs. Captain America — The 11-Year Character Arc': Captain America (1990) -> (none)
+    F drop   'The Hidden Structure of Before Sunset': The Hidden (1987) -> (none)
+    G drop   'An American Tail: Fievel Goes to Video Game Hell': An American Tail (1986) -> (none)
+    G drop   "Assassin's Creed VLOG: A Good Bad Addition to the Awful Video Game Mov": Assassin's Creed (2016) -> (none)
+    G drop   'Star Wars Episode VII Plot Rumors!! - CineFix Now': Star Wars (1977) -> (none)
+    N drop   'Superman 2: What Happens When You Change Directors Mid-Movie': Superman (2025) -> (none)
+    N drop   'Batman v Superman: The Fundamental Flaw': Batman (1989) -> (none)
+    N drop   'Die Hard 3 is better than Die Hard (and here’s why)': Die Hard (1988) -> (none)
+    S drop   'The Matrix — Exposition in Action': The Matrix (1999) -> (none)
+    S drop   'Searching — Reformatting a Thriller': Searching (2018) -> (none)
+    S switch 'Annihilation —\xa0The Art of Self-Destruction': Annihilation (2018) -> The Art of Self-Defense (2019)
+    W drop   'Akira Kurosawa - Composing Movement': Akira (1988) -> (none)
+    W drop   'Jackie Chan - How to Do Action Comedy': Jackie (2016) -> (none)
+    W drop   'Michael Bay - What is Bayhem?': Michael (2026) -> (none)
+    Y switch "Mulan's Terrible Editing -  A Breakdown": Mulan (1998) -> Mulan (2020)
+    Y switch 'Ghostbusters: A Movie About Nothing': Ghostbusters (1984) -> Ghostbusters (2016)
+    Y switch 'From Shaun of the Dead to The Running Man | Edgar Wright Breaks Down H': The Running Man (1987) -> The Running Man (2025)
+  committed b5d75ae
+--- v81_motion_audit (log logs/v81_motion_audit.log)
+  exit 0 after 0 s
+  Motion audit (v8.1 slice 6.1) of web/v8/app.css
+  
+  tokens: --motion-instant 100 ms (kit 100 ms); --motion-select 150 ms (kit 150 ms); --motion-card 220 ms (kit 220 ms); --motion-panel 300 ms (kit 300 ms)
+  transitions / animations found: 43 (37 use only tokens, 6 carry a plain number, 4 loop)
+  reduced-motion block covering animations and transitions for every element: yes
+  transitions on a layout property: 0
+  
+  plain-number durations (to convert to tokens later, with screenshots):
+      .btn.busy::after: animation spin .8s linear infinite
+      .pl:has(> img.ld), .pp:has(> img.ld): animation shimmer 1.4s linear infinite
+      .pc .bm.pop: animation pop .3s var(--ease)
+      .skel: animation shimmer 1.4s linear infinite
+      .status .dot: animation pulse 1.2s ease-in-out infinite
+      .hh-bd: transition opacity .7s var(--ease)
+  
+  RULE 1 tokens ok | 2 reduced motion ok | 3 no layout transitions ok -> PASS
+  committed bdda045
+--- v81_recs_fresh (log logs/v81_recs_fresh.log)
+  exit 0 after 119 s
+  The film ranking's single weight set on fresh MovieLens users (v8.1 slice 5.2) - MovieLens users, not Cinemack users
+  weights fixed on 15 Nov: content 2.0, neighbours 1.0, popularity 0.0; 2,569 users drawn (seed 29) from 2,569 eligible users outside the earlier sample of 3,000
+  
+  [uniform negatives] 2,569 users: v2 NDCG@10 0.606 vs current 0.617 (-0.0108 [-0.0188, -0.0027]) | coverage 0.346 vs 0.240 | variety 0.695 vs 0.779 -> NOT ok
+      reported only - same weights without the variety step: -0.0132 [-0.0215, -0.0051] vs current
+  [popular negatives] 2,569 users: v2 NDCG@10 0.418 vs current 0.271 (+0.1467 [+0.1383, +0.1552]) | coverage 0.256 vs 0.138 | variety 0.698 vs 0.775 -> ok
+      reported only - same weights without the variety step: +0.1450 [+0.1365, +0.1536] vs current
+  
+  RULE (both protocols: NDCG CI not wholly below 0 AND coverage not lower): FAIL
+  One look at fresh users with nothing chosen on them. A FAIL ends this weight set; a PASS still needs a separate step to enable anything.
+  118 s
+  committed 05fca98
+=== v8.1 night 5 done Mon Nov 16 09:36:37 AM EST 2026
