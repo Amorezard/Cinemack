@@ -1,0 +1,15 @@
+Unmatched stored reviews, proposed links (v8.1 round 47) - no API calls, no table changed
+  guardian: 9,678 unmatched -> 271 proposed (3%): 215 by title + year, 56 as the only film with the title
+  nyt: 3,782 unmatched -> 31 proposed (1%): 15 by title + year, 16 as the only film with the title
+  sample to grade: 50 rows -> results/v81_review_relink_check.csv
+RULE (>= 90% right on that sample before anything is written): not known until it is graded
+
+examples:
+  guardian 2022-12-07 'The Bishop’s Wife review – Cary Grant and David Niven shine ' -> The Bishop's Wife (1947) [only film with the title]
+  guardian 2013-02-08 'Promised Land – first look review' -> Promised Land (2012) [title + year window]
+  guardian 2024-08-19 'Noah’s Ark review – Old Testament’s got talent in biblical k' -> Noah's Ark (2024) [title + year window]
+  nyt      2022-06-02 '‘Miracle’ Review: A Spiritual Investigation' -> Miracle (2004) [only film with the title]
+  guardian 2025-02-19 'I’m Still Here review – Fernanda Torres’s stoic maternal mas' -> I'm Still Here (2024) [title + year window]
+  nyt      2018-11-27 '‘Rams’ Review: The Man Who Made Our Machines Beautiful' -> Rams (2015) [title + year window]
+  guardian 2022-11-24 'Casque d’Or review – Jacques Becker’s gripping tragic drama ' -> Casque d'Or (1952) [only film with the title]
+  guardian 2021-08-18 'Jakob’s Wife review – fun and gore in splatterfest with fema' -> Jakob's Wife (2021) [title + year window]
