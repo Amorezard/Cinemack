@@ -3,8 +3,7 @@ Motion audit (v8.1 slice 6.1) of web/v8/app.css
 tokens: --motion-instant 100 ms (kit 100 ms); --motion-select 150 ms (kit 150 ms); --motion-card 220 ms (kit 220 ms); --motion-panel 300 ms (kit 300 ms)
 transitions / animations found: 43 (37 use only tokens, 6 carry a plain number, 4 loop)
 reduced-motion block covering animations and transitions for every element: yes
-transitions on a layout property: 1
-    .hh-dots button::before: width
+transitions on a layout property: 0
 
 plain-number durations (to convert to tokens later, with screenshots):
     .btn.busy::after: animation spin .8s linear infinite
@@ -14,4 +13,4 @@ plain-number durations (to convert to tokens later, with screenshots):
     .status .dot: animation pulse 1.2s ease-in-out infinite
     .hh-bd: transition opacity .7s var(--ease)
 
-RULE 1 tokens ok | 2 reduced motion ok | 3 no layout transitions FAIL -> FAIL
+RULE 1 tokens ok | 2 reduced motion ok | 3 no layout transitions ok -> PASS
