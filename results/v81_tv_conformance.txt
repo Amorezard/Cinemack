@@ -1,0 +1,35 @@
+TV plan conformance (v8.1 slice 2.3), 8,043 shows from /home/you/movie-buff/rag-v81/facts.db, 24 cases
+
+shows with a missing fact: no first year 6 (0.1%); no episode length 2,259 (28.1%); no genres 16 (0.2%); no US TV rating 2,122 (26.4%); no US subscription / free listing 1,700 (21.1%)
+
+  no_limits                  reference  8,043 | plan  8,043 OK
+  year_from_2015             reference  4,872 | plan  4,872 OK
+  year_1990_1999_strict      reference    479 | plan    479 OK
+  episodes_30_min            reference  4,973 | plan  4,973 OK
+  episodes_30_min_strict     reference  2,714 | plan  2,714 OK
+  comedy                     reference  2,864 | plan  2,864 OK
+  action_any                 reference  1,915 | plan  1,915 OK
+  scifi_and_fantasy_all      reference  2,154 | plan  2,154 OK
+  action_and_drama_all       reference    833 | plan    833 OK
+  crime_or_mystery           reference  2,189 | plan  2,189 OK
+  never_family               reference  7,110 | plan  7,110 OK
+  never_war_strict           reference  7,806 | plan  7,806 OK
+  drama_never_crime          reference  3,502 | plan  3,502 OK
+  rated_g                    reference  2,793 | plan  2,793 OK
+  rated_pg_strict            reference  1,497 | plan  1,497 OK
+  rated_pg13                 reference  5,722 | plan  5,722 OK
+  rated_r_strict             reference  5,921 | plan  5,921 OK
+  on_netflix                 reference  1,785 | plan  1,785 OK
+  on_max_or_hulu             reference  1,079 | plan  1,079 OK
+  services_none_picked       reference  6,343 | plan  6,343 OK
+  family_night               reference  1,004 | plan  1,004 OK
+  everything                 reference    331 | plan    331 OK
+  documentary_strict         reference    440 | plan    440 OK
+  western_or_war             reference    297 | plan    297 OK
+  mixed plan {"min_year": 2010, "only_genres": ["Comedy"]}: 6,272 films + 1,978 shows = 8,250 media ids OK
+  mixed plan {"max_cert": "PG", "strict": true}: 3,891 films + 1,497 shows = 5,388 media ids OK
+  mixed plan {}: 33,041 films + 8,043 shows = 41,084 media ids OK
+
+RULE plan = reference on every case AND mixed plans = films + shows: PASS
+Not compared (choices of the Pick Tonight TV list, not limits): under-40-vote shows, News / Talk / Soap / Reality, followed shows, the GENRE_MAIN main-genre rule.
+1 s
