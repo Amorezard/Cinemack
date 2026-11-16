@@ -1,0 +1,29 @@
+YouTube video-film matches, second opinion (v8.1 round 46): 12,248 videos, 6,816 confident first-pass matches (score >= 0.6)
+  kept 5,557 (81.5%) | switched to another film 178 | dropped 1,081
+  changed, by rule: F 521, G 312, N 94, S 144, W 61, Y 127
+
+seen sample (the 50 rows the rules were written from - NOT a test): of 35 right matches 35 kept; of 15 wrong matches 10 dropped, 5 switched, 0 unchanged; 0 rows not found
+  rule part 2 (>= 32 of the 35 right matches kept): ok
+
+new sample to grade: 60 matches after the rules + 20 dropped ones -> results/v81_yt_match_check2.csv
+RULE part 1 (right film >= 90% on the new sample): not known until that file is graded
+
+examples of each rule:
+  F drop   'How A Christmas Carol Perfectly Demonstrates Five-Act Structure': A Christmas Carol (2009) -> (none)
+  F drop   'Iron Man vs. Captain America — The 11-Year Character Arc': Captain America (1990) -> (none)
+  F drop   'The Hidden Structure of Before Sunset': The Hidden (1987) -> (none)
+  G drop   'An American Tail: Fievel Goes to Video Game Hell': An American Tail (1986) -> (none)
+  G drop   "Assassin's Creed VLOG: A Good Bad Addition to the Awful Video Game Mov": Assassin's Creed (2016) -> (none)
+  G drop   'Star Wars Episode VII Plot Rumors!! - CineFix Now': Star Wars (1977) -> (none)
+  N drop   'Superman 2: What Happens When You Change Directors Mid-Movie': Superman (2025) -> (none)
+  N drop   'Batman v Superman: The Fundamental Flaw': Batman (1989) -> (none)
+  N drop   'Die Hard 3 is better than Die Hard (and here’s why)': Die Hard (1988) -> (none)
+  S drop   'The Matrix — Exposition in Action': The Matrix (1999) -> (none)
+  S drop   'Searching — Reformatting a Thriller': Searching (2018) -> (none)
+  S switch 'Annihilation —\xa0The Art of Self-Destruction': Annihilation (2018) -> The Art of Self-Defense (2019)
+  W drop   'Akira Kurosawa - Composing Movement': Akira (1988) -> (none)
+  W drop   'Jackie Chan - How to Do Action Comedy': Jackie (2016) -> (none)
+  W drop   'Michael Bay - What is Bayhem?': Michael (2026) -> (none)
+  Y switch "Mulan's Terrible Editing -  A Breakdown": Mulan (1998) -> Mulan (2020)
+  Y switch 'Ghostbusters: A Movie About Nothing': Ghostbusters (1984) -> Ghostbusters (2016)
+  Y switch 'From Shaun of the Dead to The Running Man | Edgar Wright Breaks Down H': The Running Man (1987) -> The Running Man (2025)
