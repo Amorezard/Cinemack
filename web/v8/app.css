@@ -17,7 +17,9 @@
   --fs-xs: 12px;  --fs-sm: 13px;  --fs-md: 14px;  --fs-base: 15px;  --fs-lg: 17px;  --fs-xl: 20px;  --fs-2xl: 24px;  --fs-3xl: 30px;  --fs-4xl: 36px;
   --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px;  --sp-4: 16px;  --sp-5: 20px;  --sp-6: 24px;  --sp-8: 32px;  --sp-10: 40px;
   --gutter: 16px;  --hdr: 56px;  --tab: 64px;  --maxw: 1480px;
-  --t-fast: 150ms;  --t-med: 220ms;  --ease: cubic-bezier(.2, .7, .2, 1);
+  /* v8.1 slice 6.1: the kit's motion tokens (docs/UX_MOTION_SPEC.md). --t-fast / --t-med keep their values. */
+  --motion-instant: 100ms;  --motion-select: 150ms;  --motion-card: 220ms;  --motion-panel: 300ms;
+  --t-fast: var(--motion-select);  --t-med: var(--motion-card);  --ease: cubic-bezier(.2, .7, .2, 1);
   --safe-b: env(safe-area-inset-bottom, 0px);
   color-scheme: dark;
 }
