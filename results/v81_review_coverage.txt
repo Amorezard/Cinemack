@@ -1,0 +1,21 @@
+Review material per film (v8.1 round 46), 33,041 films in /home/you/movie-buff/rag-v81/facts.db
+
+source                                   all films      5,000+ votes       1,000-4,999           300-999         under 300
+films in the group                          33,041             1,073             3,952             6,471            21,545
+Wikipedia critic statements           22,400 (68%)      1,073 (100%)       3,871 (98%)       5,581 (86%)      11,875 (55%)
+  ... with a named outlet             22,007 (67%)      1,073 (100%)       3,863 (98%)       5,536 (86%)      11,535 (54%)
+Wikipedia reception text              22,410 (68%)      1,073 (100%)       3,871 (98%)       5,582 (86%)      11,884 (55%)
+Guardian review                        8,680 (26%)         868 (81%)       2,386 (60%)       2,313 (36%)       3,113 (14%)
+NYT review                             5,316 (16%)         422 (39%)       1,284 (32%)       1,452 (22%)       2,158 (10%)
+OMDb scores (RT or Metacritic)         3,254 (10%)         120 (11%)         881 (22%)       2,107 (33%)          146 (1%)
+TMDB audience reviews                 12,632 (38%)       1,043 (97%)       3,180 (80%)       3,459 (53%)       4,950 (23%)
+YouTube review / essay video            2,567 (8%)         773 (72%)       1,257 (32%)          537 (8%)            0 (0%)
+ANY of the sources above              24,223 (73%)      1,073 (100%)       3,908 (99%)       5,934 (92%)      13,308 (62%)
+
+where more could be had:
+  a. films with 300+ votes whose Wikipedia reception was never requested: 363
+  b. films with reception text but no critic statement extracted: 10
+  c. guardian reviews matched to no film: 9,678 of 25,032 fetched
+  c. nyt reviews matched to no film: 3,782 of 9,220 fetched
+  d. films with 300+ votes and an IMDb id but no OMDb row: 7,015 (OMDb allows 1,000 requests a day)
+Inventory only: nothing was fetched or changed.
