@@ -1,0 +1,9 @@
+One weight set for the film ranking (v8.1 slice 5.2) on MovieLens 32M - MovieLens users, not Cinemack users
+chosen on the select half: content 2, neighbours 1, popularity 0 (mean share of each protocol's best NDCG: 0.959)
+
+[uniform negatives] report half 1,510 users: v2 NDCG@10 0.611 vs current 0.627 (-0.0155 [-0.0262, -0.0054]) | coverage 0.285 vs 0.198 | variety 0.695 vs 0.780 -> NOT ok
+[popular negatives] report half 1,510 users: v2 NDCG@10 0.428 vs current 0.276 (+0.1521 [+0.1414, +0.1626]) | coverage 0.225 vs 0.118 | variety 0.701 vs 0.776 -> ok
+
+RULE (both protocols: NDCG CI not wholly below 0 AND coverage not lower): FAIL
+Second look at the same report half as 14 Nov. Variety (genre spread inside a list) is reported, not part of the rule.
+149 s
