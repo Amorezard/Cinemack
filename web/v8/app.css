@@ -899,8 +899,8 @@ body.kb .chat-shell { height: calc(100dvh - var(--hdr)); }
 .hh-nav { display: flex; align-items: center; gap: 10px; }
 .hh-dots { display: flex; gap: 2px; }
 .hh-dots button { width: 32px; height: 32px; border: 0; background: none; padding: 0; display: grid; place-items: center; }
-.hh-dots button::before { content: ""; width: 8px; height: 8px; border-radius: 4px; background: rgba(255, 255, 255, .4); transition: width var(--t-med) var(--ease), background var(--t-med); }
-.hh-dots button[aria-current="true"]::before { width: 24px; background: var(--accent); }
+.hh-dots button::before { content: ""; width: 24px; height: 8px; background: rgba(255, 255, 255, .4); clip-path: inset(0 8px round 4px); transition: clip-path var(--t-med) var(--ease), background var(--t-med); }
+.hh-dots button[aria-current="true"]::before { clip-path: inset(0 0 round 4px); background: var(--accent); }
 /* phones: no room for six 44 px dots, so prev / next buttons and a counter instead */
 .hh-step, .hh-count { display: none; }
 @media (max-width: 1023px) {
