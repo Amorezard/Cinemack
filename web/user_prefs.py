@@ -287,6 +287,8 @@ def filter_tag(settings):
                                       "max_year", "only_genres", "services_only", "mood")}
     if settings.get("genres_all"):                    # round 27 (only when on, so older cache keys stay the same)
         f["genres_all"] = True
+    if settings.get("strict"):                        # v8.1 slice 3.4 (only when on): unknown facts fail in strict mode,
+        f["strict"] = True                            # so a search stored without it must not be replayed with it
     # hiding money / critic lines changes the tool blocks inside the cached prompt, so it is part of the key too
     f.update({k: False for k in ("money", "critics") if settings.get(k) is False})
     if not any(v not in (None, [], "") for v in f.values()):
