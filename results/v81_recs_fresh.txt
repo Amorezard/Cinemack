@@ -1,0 +1,11 @@
+The film ranking's single weight set on fresh MovieLens users (v8.1 slice 5.2) - MovieLens users, not Cinemack users
+weights fixed on 15 Nov: content 2.0, neighbours 1.0, popularity 0.0; 2,569 users drawn (seed 29) from 2,569 eligible users outside the earlier sample of 3,000
+
+[uniform negatives] 2,569 users: v2 NDCG@10 0.606 vs current 0.617 (-0.0108 [-0.0188, -0.0027]) | coverage 0.346 vs 0.240 | variety 0.695 vs 0.779 -> NOT ok
+    reported only - same weights without the variety step: -0.0132 [-0.0215, -0.0051] vs current
+[popular negatives] 2,569 users: v2 NDCG@10 0.418 vs current 0.271 (+0.1467 [+0.1383, +0.1552]) | coverage 0.256 vs 0.138 | variety 0.698 vs 0.775 -> ok
+    reported only - same weights without the variety step: +0.1450 [+0.1365, +0.1536] vs current
+
+RULE (both protocols: NDCG CI not wholly below 0 AND coverage not lower): FAIL
+One look at fresh users with nothing chosen on them. A FAIL ends this weight set; a PASS still needs a separate step to enable anything.
+118 s
