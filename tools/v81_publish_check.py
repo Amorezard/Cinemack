@@ -29,7 +29,7 @@ import sys
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BIG = 5 * 1024 * 1024
-ALLOWED_MAIL = ("@example.com", "@example.org", ".invalid", "@x.edu", "noreply@anthropic.com", "@users.noreply.github.com")
+ALLOWED_MAIL = ("@example.com", "@example.org", "@example.edu", "@example.net", ".invalid", "@x.edu", "noreply@anthropic.com", "@users.noreply.github.com", "git@github.com")
 R_SECRET_FILE = re.compile(r"(^|/)(keys\.env|\.env(\..*)?|.*secret.*|.*\.pem|id_rsa.*|id_ed25519.*|credentials.*|.*\.p12)$", re.I)
 R_KEY = re.compile(r"""(?ix)(api[_-]?key|apikey|token|secret|passwd|password|client[_-]?secret|bearer)[a-z0-9_]*["']?\s*[=:]\s*
                        ["']((?=[^"']*[0-9])[A-Za-z0-9_\-./+]{16,})["']""")
