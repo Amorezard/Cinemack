@@ -1175,3 +1175,16 @@ label.check input { width: 20px; height: 20px; margin-top: 1px; flex: none; acce
 .cal-note .tvm { color: inherit; text-decoration: underline; }
 /* round 27: visually hidden file input (the label is the button) */
 .sr-only { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+/* v8.1 round 50: follow a person (film page list, Home row). Shown only while FOLLOW_PEOPLE is on. */
+.follow-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: var(--sp-2); }
+.fp { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); padding: var(--sp-2) var(--sp-3); border: 1px solid var(--line); border-radius: var(--r-md); background: var(--s1); }
+.fp-n { display: grid; min-width: 0; }
+.fp-n b, .fp-n span { overflow-wrap: anywhere; }
+.fp .btn { flex: none; }
+.fp .btn[aria-pressed="true"] { border-color: var(--accent-line); color: var(--accent); }
+.follow-feed { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--sp-3); }
+.ff { padding: var(--sp-4); border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--s1); display: grid; gap: var(--sp-3); align-content: start; }
+.ff h3 { margin: 0; font-size: var(--fs-md); }
+.ff ul { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 4px; font-size: var(--fs-sm); }
+.ff a { color: inherit; }
+.ff-k { font-size: var(--fs-xs); color: var(--faint); text-transform: uppercase; letter-spacing: .06em; }

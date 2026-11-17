@@ -87,6 +87,28 @@ export async function pageFilm(id, params) {
         a.summary ? h('p', { class: 'small' }, a.summary) : null))),
       h('p', { class: 'small' }, p.credit || 'From the Guardian')));
   }).catch(() => {});
+  // v8.1 round 50: follow the director or the cast (FOLLOW_PEOPLE). The server answers 404 while the switch is off,
+  // and then nothing is shown. Following is private; Home then shows their next films and stored Guardian pieces.
+  api(`/api/v8/film/${d.id}/people`).then(r => {
+    const ppl = (r.people || []).slice(0, 9);
+    if (!ppl.length) return;
+    const row = (p) => {
+      const b = h('button', { class: 'btn secondary sm', type: 'button' });
+      const paint = () => { b.setAttribute('aria-pressed', String(!!p.following)); b.setAttribute('aria-label', `${p.following ? 'Unfollow' : 'Follow'} ${p.name}`);
+        b.innerHTML = p.following ? I.check : I.plus; b.append(h('span', {}, p.following ? 'Following' : 'Follow')); };
+      paint();
+      b.addEventListener('click', async () => {
+        b.disabled = true;
+        try { const j = await post('/api/v8/follows', { person_id: p.person_id, on: !p.following }); p.following = !!j.following; paint();
+          toast(p.following ? `Following ${p.name}. Their new films show on Home.` : `Stopped following ${p.name}.`); emit('cm:follow-person', { id: p.person_id, on: p.following }); }
+        catch (e) { toast(e.message, null, true); } finally { b.disabled = false; }
+      });
+      return h('div', { class: 'fp' }, h('div', { class: 'fp-n' }, h('b', {}, p.name), h('span', { class: 'small muted' }, p.role || '')), b);
+    };
+    main.append(h('section', { class: 'people-follow', 'aria-label': 'Follow the people behind it' }, h('h2', { style: 'margin:24px 0 4px' }, 'Follow the people behind it'),
+      h('p', { class: 'small muted', style: 'margin:0 0 12px' }, 'See their next films on Home. Only you see who you follow.'),
+      h('div', { class: 'follow-list' }, ppl.map(row))));
+  }).catch(() => {});
   // v8.1 round 48: the box-office forecast panel. The server answers 404 while FORECAST_PANEL is off (and for films
   // with no stored forecast); then nothing is loaded and nothing is shown. The panel code is fetched only on a 200.
   api(`/api/v8/forecast/movie:${d.id}?horizon=d7`).then(async r => {

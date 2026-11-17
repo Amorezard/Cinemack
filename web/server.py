@@ -1109,6 +1109,18 @@ try:
     forecast_api.install(app, _gate)
 except Exception as _e:  # noqa: BLE001
     print(f"[cinemack] forecast route not loaded: {_e!r}", flush=True)
+# v8.1 round 49: follow a person (web/follows.py). 404 for everything while FOLLOW_PEOPLE is off.
+try:
+    import follows
+    follows.install(app, _gate, user_of)
+except Exception as _e:  # noqa: BLE001
+    print(f"[cinemack] follows not loaded: {_e!r}", flush=True)
+# v8.1 round 50: anonymous shown / opened / saved events from the page (web/events_api.py). 404 while REC_EVENTS is off.
+try:
+    import events_api
+    events_api.install(app, _gate)
+except Exception as _e:  # noqa: BLE001
+    print(f"[cinemack] events route not loaded: {_e!r}", flush=True)
 
 
 if __name__ == "__main__":

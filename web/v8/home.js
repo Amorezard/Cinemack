@@ -96,6 +96,27 @@ export async function pageHome() {
   }
   on('cm:filters', () => drawChips(), panelEl);
   sync();
+  followRow(view);
+}
+
+// v8.1 round 50: "People you follow" (FOLLOW_PEOPLE). The server answers 404 while the switch is off: then nothing is
+// drawn. Each person: the next dated films, the latest one, and stored Guardian pieces that name them in full.
+async function followRow(view) {
+  let r;
+  try { r = await api('/api/v8/follows'); } catch { return; }
+  const people = (r.people || []).filter(p => p.coming?.length || p.latest?.length || p.articles?.length);
+  if (!people.length || !view.isConnected) return;
+  const film = (x, when) => h('li', {}, h('a', { href: `#/film/${x.id}` }, x.title), h('span', { class: 'small muted' }, ` \u00b7 ${when} \u00b7 ${x.role}`));
+  const card = (p) => h('article', { class: 'ff' }, h('h3', {}, p.name),
+    p.coming?.length ? h('div', {}, h('div', { class: 'ff-k' }, 'Coming'), h('ul', {}, p.coming.slice(0, 3).map(x => film(x, fmtDate(x.date))))) : null,
+    p.latest?.length ? h('div', {}, h('div', { class: 'ff-k' }, 'Latest'), h('ul', {}, p.latest.slice(0, 2).map(x => film(x, x.date.slice(0, 4))))) : null,
+    p.articles?.length ? h('div', {}, h('div', { class: 'ff-k' }, 'In the Guardian'), h('ul', {}, p.articles.slice(0, 2)
+      .filter(a => /^https:\/\/www\.theguardian\.com\//.test(a.url || ''))
+      .map(a => h('li', {}, h('a', { href: a.url, target: '_blank', rel: 'noopener' }, a.headline || 'Article'), h('span', { class: 'small muted' }, ` \u00b7 ${a.published}`))))) : null);
+  const sec = section('People you follow', { sub: `${people.length} ${people.length === 1 ? 'person' : 'people'} \u00b7 from stored release dates and Guardian articles` },
+    h('div', { class: 'follow-feed' }, people.map(card)));
+  const rails = view.querySelector('#home-rails');
+  if (rails) rails.after(sec); else view.append(sec);
 }
 
 function skelSection(title) {

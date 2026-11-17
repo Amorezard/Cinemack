@@ -60,6 +60,12 @@ def _wrap_accounts():
                 moved["tv_progress"] = True
             except Exception as e:  # noqa: BLE001
                 print(f"[cinemack] v8 progress move failed: {e!r}", flush=True)
+            try:                                       # v8.1 round 49: follows made before signing in
+                import follows
+                follows.move_user(old_key, new_key)
+                moved["follows"] = True
+            except Exception as e:  # noqa: BLE001
+                print(f"[cinemack] v8 follows move failed: {e!r}", flush=True)
         return moved
 
     def delete_data(key):
@@ -88,6 +94,12 @@ def _wrap_accounts():
             gone["email"] = True
         except Exception as e:  # noqa: BLE001
             print(f"[cinemack] v8 delete email failed: {e!r}", flush=True)
+        try:                                           # v8.1 round 49: people the person follows
+            import follows
+            follows.delete_user(key)
+            gone["follows"] = True
+        except Exception as e:  # noqa: BLE001
+            print(f"[cinemack] v8 delete follows failed: {e!r}", flush=True)
         return gone
     move_data._v8 = delete_data._v8 = True
     accounts.move_data, accounts.delete_data = move_data, delete_data

@@ -2,6 +2,7 @@
 // here, so a film saved in the chat, on Pick Tonight or in the Calendar updates the same store and every card that
 // shows it (event "cm:choice"), and TV progress set on Watchlist or Profile goes through one endpoint and one event
 // ("cm:progress"). No build step; plain ES modules.
+import { watchRow } from './events.js';          // v8.1 round 50: anonymous shown / opened / saved events (REC_EVENTS)
 export const $ = (s, el = document) => el.querySelector(s);
 export const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 export const view = $('#view');
@@ -217,7 +218,7 @@ export async function setChoice(f, choice, quiet = false) {
   S.choices[f.id] = choice; syncChoice(f.id);
   try {
     const j = await post('/api/film', { id: f.id, title: f.title || '', choice });
-    emit('cm:choice', { id: f.id, choice, film: f });
+    emit('cm:choice', { id: f.id, choice, prev, film: f });
     if (!quiet) toast(choice === 'want' ? `Saved ${f.title || 'it'} to your watchlist.` : prev === 'want' && !choice ? `Removed ${f.title || 'it'} from your watchlist.` : (j.message || 'Saved.'),
       () => setChoice(f, prev, true));
     return true;
@@ -334,6 +335,7 @@ export function tvCard(x) {
 export function shelf(items, label, mk = (f) => posterCard(f), cls = '') {
   const track = h('div', { class: 'track', tabindex: '0', role: 'list', 'aria-label': label },
     items.map(f => { const c = mk(f); c.setAttribute('role', 'listitem'); return c; }));
+  watchRow(track);                               // sends nothing while REC_EVENTS is off (the first 404 stops it)
   const prev = h('button', { class: 'arrow prev', type: 'button', 'aria-label': `Scroll ${label} back`, html: I.left });
   const next = h('button', { class: 'arrow next', type: 'button', 'aria-label': `Scroll ${label} forward`, html: I.right });
   const smooth = () => (matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth');
