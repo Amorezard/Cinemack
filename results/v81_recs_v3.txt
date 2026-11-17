@@ -1,0 +1,13 @@
+A third candidate for the film ranking (v8.1 slice 5.2) on MovieLens 32M - MovieLens users, not Cinemack users
+
+choice on the 2020 data already seen (5,568 users): the weight set with the largest SMALLER margin over the current ranking
+  chosen: content 2, neighbours 4, popularity 0 | margins there: uniform +0.0267, popular +0.0584
+  for comparison there: the 15 Nov set (2, 1, 0) uniform -0.0146, popular +0.1476; sets with both margins above 0: 57 of 124
+
+test on 2021 (train = ratings before 2021): 5,968 eligible users, 2,831 never used before, 2,831 drawn (seed 31)
+[uniform negatives] 2,831 users: candidate NDCG@10 0.646 vs current 0.653 (-0.0076 [-0.0108, -0.0042]) | coverage 0.314 vs 0.220 | variety 0.745 vs 0.780 -> NOT ok
+[popular negatives] 2,831 users: candidate NDCG@10 0.292 vs current 0.252 (+0.0396 [+0.0368, +0.0426]) | coverage 0.149 vs 0.113 | variety 0.758 vs 0.771 -> ok
+
+RULE (both tests: NDCG CI not wholly below 0 AND coverage not lower): FAIL
+The choice used data seen three times; only the 2021 test is new. A PASS lets web/recs.py use these weights; RECS_V2 stays off until switched on.
+360 s
