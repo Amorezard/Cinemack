@@ -1,0 +1,86 @@
+=== v8.1 night 7  Mon Nov 16 11:22:53 PM EST 2026  (a0da90b v8.1 round 48 code: ranking diagnosis + third candidate, forec)
+--- v81_recs_v3 (log logs/v81_recs_v3.log)
+  exit 0 after 361 s
+  A third candidate for the film ranking (v8.1 slice 5.2) on MovieLens 32M - MovieLens users, not Cinemack users
+  
+  choice on the 2020 data already seen (5,568 users): the weight set with the largest SMALLER margin over the current ranking
+    chosen: content 2, neighbours 4, popularity 0 | margins there: uniform +0.0267, popular +0.0584
+    for comparison there: the 15 Nov set (2, 1, 0) uniform -0.0146, popular +0.1476; sets with both margins above 0: 57 of 124
+  
+  test on 2021 (train = ratings before 2021): 5,968 eligible users, 2,831 never used before, 2,831 drawn (seed 31)
+  [uniform negatives] 2,831 users: candidate NDCG@10 0.646 vs current 0.653 (-0.0076 [-0.0108, -0.0042]) | coverage 0.314 vs 0.220 | variety 0.745 vs 0.780 -> NOT ok
+  [popular negatives] 2,831 users: candidate NDCG@10 0.292 vs current 0.252 (+0.0396 [+0.0368, +0.0426]) | coverage 0.149 vs 0.113 | variety 0.758 vs 0.771 -> ok
+  
+  RULE (both tests: NDCG CI not wholly below 0 AND coverage not lower): FAIL
+  The choice used data seen three times; only the 2021 test is new. A PASS lets web/recs.py use these weights; RECS_V2 stays off until switched on.
+  360 s
+  committed 663475a
+--- v81_publish_check (log logs/v81_publish_check.log)
+  exit 1 after 12 s
+  Publish check: 1,012 tracked files
+  
+  email address: 10
+      V7_DEPLOY.md lines 18, 74
+      archive/old-runs/run_v7_night.sh lines 6
+      connectors/letterboxd.py lines 2
+      fetch_v6_data.py lines 50
+      nightly.sh lines 8
+      sets/sealed_attacks_v2.json lines 160
+      tests/test_v8_r27b.py lines 207
+      v7_data.py lines 7
+      web/RUN.md lines 11
+  model / data file: 44
+      results/stage_scores_2026-09-23_tune_night_all.json
+      results/stage_scores_2026-09-23_tune_night_no_hyde.json
+      results/stage_scores_2026-09-23_tune_night_no_multi.json
+      results/stage_scores_2026-09-23_tune_night_no_unknown.json
+      results/stage_scores_2026-09-24_tune_night_n30.json
+      results/stage_scores_2026-09-24_tune_night_no_guesswide.json
+      results/stage_scores_2026-09-24_tune_night_no_hybrid.json
+      results/stage_scores_2026-09-24_tune_night_rc220.json
+      results/stage_scores_2026-09-24_tune_night_smallplan.json
+      results/stage_scores_2026-09-27_tune_v1base.json
+      results/stage_scores_2026-09-27_tune_wiki.json
+      results/stage_scores_2026-09-28_tune_both20.json
+      results/stage_scores_2026-09-28_tune_e6_cross.json
+      results/stage_scores_2026-09-28_tune_e6_crossllm.json
+      results/stage_scores_2026-09-28_tune_e6_fusion.json
+      results/stage_scores_2026-09-28_tune_e6_planfast.json
+      results/stage_scores_2026-09-28_tune_e7_rc250.json
+      results/stage_scores_2026-09-28_tune_f_auto.json
+      results/stage_scores_2026-09-28_tune_f_wiki50.json
+      results/stage_scores_2026-09-28_tune_norerank.json
+      results/stage_scores_2026-09-28_tune_q_merge_norerank.json
+      results/stage_scores_2026-09-28_tune_q_nohyde.json
+      results/stage_scores_2026-09-28_tune_q_nohyde_norerank.json
+      results/stage_scores_2026-09-28_tune_q_norerank.json
+      results/stage_scores_2026-09-28_tune_q_ss_norerank.json
+      ... and 19 more files
+  sealed test set: 17
+      sets/sealed_attacks_v2.json
+      sets/sealed_attacks_v2.md5
+      sets/sealed_v3_an.json
+      sets/sealed_v3_mt.json
+      sets/sealed_v7_an.json
+      sets/sealed_v7_mt.json
+      sets/sealed_v7_rc.json
+      sets/sealed_v7_ret.json
+      sets/sealed_v7_sh.json
+      sets/sealed_v7_tv.json
+      sets/sealed_v8_an.json
+      sets/sealed_v8_inv.json
+      sets/sealed_v8_long.json
+      sets/sealed_v8_mt.json
+      sets/sealed_v8_rc.json
+      sets/sealed_v8_ret.json
+      sets/sealed_v8_sn.json
+  
+  history: 1,062 file names ever tracked
+    sensitive files that were tracked once and still sit in old commits: 1
+      results/llm_cache.sqlite (database file)
+  
+  README: yes | LICENSE: none - without one, others may read the code but have no right to reuse it
+  
+  NOT ready: see docs/guide/PUBLISHING.md for what to do about each kind
+  committed b6b4f77
+=== v8.1 night 7 done Mon Nov 16 11:29:06 PM EST 2026
