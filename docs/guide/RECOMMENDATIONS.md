@@ -65,7 +65,7 @@ NDCG@10 of each signal alone (14 Nov report half):
   average; it asked to be no worse on both.
 - **The variety step was not the cause:** without it the same weights did no better (-0.013 on fresh users).
 
-## The fix being tested (round 48, `tools/v81_recs_v3.py`)
+## The third try (round 48, `tools/v81_recs_v3.py`): also failed
 
 - **Choice:** for every weight set in the grid, its margin over the current ranking on each test; pick the set whose
   *smaller* margin is largest. This asks the rule's own question directly.
@@ -77,3 +77,18 @@ NDCG@10 of each signal alone (14 Nov report half):
 
 Caveat to say out loud: the choice uses 2020 data already seen three times; only the 2021 test is new, and MovieLens
 users are not Cinemack users.
+
+**Result (16 Nov, 2,831 new users from 2021): FAIL.** The chosen set was content 2, neighbours 4, popularity 0.
+
+| Test | Candidate | Current | Difference (95% range) | Coverage | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| Random wrong answers | 0.646 | 0.653 | -0.0076 (-0.0108 to -0.0042) | 0.314 vs 0.220 | not ok |
+| Popular wrong answers | 0.292 | 0.252 | +0.0396 (+0.0368 to +0.0426) | 0.149 vs 0.113 | ok |
+
+On 2020 the same set looked fine on both tests (+0.027 and +0.058); on new users a year later the smaller margin
+turned negative. That is what choosing on seen data does, and why the 2021 test was the only one that counted.
+
+**What follows.** Three candidates, three fails: no single set of three weights beats the current ranking on both
+tests, so the current ranking stays and this line of work stops on MovieLens data. The next test needs what MovieLens
+cannot give: what Cinemack's own users open, save and skip (`web/rec_events.py`, built, off). See
+[ROADMAP.md](ROADMAP.md), idea 3.

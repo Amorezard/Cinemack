@@ -24,20 +24,35 @@ nothing below is tracked now or in the history.
 | model / data file (`*.gguf`, `*.zip`, large files) | Size, and licences (MovieLens: no redistribution) | Link to the source instead |
 | personal data (`logs/`, chats, accounts) | Real people's data | Never publish |
 
-## The history matters
+## The history matters, so publish a clean copy
 
-A file deleted in a later commit can still be downloaded from GitHub. If the check lists sensitive files in old
-commits, the simplest safe route is a **fresh repository** from the current files:
+A file deleted in a later commit can still be downloaded from GitHub, and the private history holds sealed sets, an
+old cache database and personal email addresses. So the public repository is a **separate clean copy**, made by one
+command; the private repository (the live site runs from it) is never rewritten:
 
 ```bash
-mkdir ../cinemack-public && git archive HEAD | tar -x -C ../cinemack-public
-cd ../cinemack-public && git init && git add . && python tools/v81_publish_check.py && git commit -m "Cinemack"
+python tools/v81_public_export.py --out ~/movie-buff/cinemack-public --keys ~/movie-buff/rag/keys.env \
+    --email <your GitHub noreply address> --holder "Your Name"
 ```
+
+It copies the current files of the `v8.1` branch, applies the table above to every file (removes what must not be
+published, replaces email addresses, home folders and any value from `keys.env`), adds `LICENSE` (MIT),
+`DATA_SOURCES.md` and `docs/HISTORY.md` (every commit message of the private branch with its date, cleaned the
+same way - the record of how it was built), makes one commit, and runs the publish check on the copy. It pushes
+nothing. When the check says READY:
+
+```bash
+cd ~/movie-buff/cinemack-public
+git remote add origin git@github.com:<your-user>/cinemack.git    # an EMPTY repository made on github.com
+git push -u origin main
+```
+
+Run it again with `--replace` to refresh the copy later (it only replaces a folder it made itself).
 
 ## Also decide
 
-- **A licence.** Without a `LICENSE` file, people can read the code but have no right to reuse it. MIT or Apache-2.0
-  are common for research code; check with your supervisor or university first.
-- **Credits.** Keep the data-source credits from the main `README.md` (TMDB, JustWatch, Wikipedia CC BY-SA, MovieLens,
-  Guardian, NYT): their terms require them even when the data itself is not published.
+- **The licence.** The copy uses MIT (chosen 17 Nov: others may copy and reuse the code with credit). It covers the
+  code and documentation only; `DATA_SOURCES.md` says why the data is not included and whose terms apply.
+- **Credits.** Keep the data-source credits (TMDB, JustWatch, Wikipedia CC BY-SA, MovieLens, Guardian, NYT): their
+  terms require them even when the data itself is not published.
 - **Course rules.** If this is coursework, check what may be shared publicly and when.

@@ -12,12 +12,13 @@ you need.
 | # | File | What it explains |
 | --- | --- | --- |
 | 1 | [HOW_IT_WORKS.md](HOW_IT_WORKS.md) | The architecture, the data, and the ten steps from a question to an answer |
-| 2 | [RECOMMENDATIONS.md](RECOMMENDATIONS.md) | How films are ranked for a person, why a "better" ranking failed twice, and the fix being tested |
+| 2 | [RECOMMENDATIONS.md](RECOMMENDATIONS.md) | How films are ranked for a person, why a "better" ranking failed three times, and what would settle it |
 | 3 | [BOX_OFFICE.md](BOX_OFFICE.md) | The box-office forecaster: target, leak-proof inputs, conformal ranges, results |
 | 4 | [EVALUATION_AND_RESULTS.md](EVALUATION_AND_RESULTS.md) | How every number was measured, and every result so far, including the failures |
 | 5 | [ENGINEERING.md](ENGINEERING.md) | How changes reach the server safely, the switches, design choices and why, known limits |
 | 6 | [REPRODUCE.md](REPRODUCE.md) | Rebuilding the system from scratch, step by step |
 | 7 | [PUBLISHING.md](PUBLISHING.md) | What must not go into a public repository, and how to check |
+| 8 | [ROADMAP.md](ROADMAP.md) | What comes after 19 Nov: ideas ranked, what other services do, what each needs |
 
 ## In one picture
 

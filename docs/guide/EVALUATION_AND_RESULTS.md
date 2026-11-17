@@ -45,10 +45,10 @@ Status words: PASS, FAIL, UNRUN (did not run), BLOCKED (needs something not avai
 | Forecast candidate (4.6) | lower error with CI excluding 0, ranges still pass, 2020-23 not worse | d90 -0.027, d7 -0.054 | PASS |
 | Ranking, one weight set | no worse than current on both tests | uniform -0.015 | FAIL |
 | Ranking, fresh users | same | uniform -0.011 | FAIL |
-| Ranking, third candidate | max-min choice, 2021 test | running in round 48 | UNRUN |
+| Ranking, third candidate | max-min choice, 2021 test | random -0.008 (CI below 0), popular +0.040, 2,831 new users | FAIL |
 | Motion | kit tokens, reduced-motion block, no animated layout properties | first failed on the home banner dots; fixed | PASS |
-| YouTube matches | >= 90% right on a new graded sample | 82% of matches kept, rest fixed or dropped; sample awaiting grading | UNRUN |
-| Review relinking | >= 90% right on a graded sample | 302 of 13,460 unmatched reviews proposed; awaiting grading | UNRUN |
+| YouTube matches | >= 90% right on a new graded sample (AI rater) | 55 of 60 kept matches right (91.7%, range 82-96%); but 9 of 20 drops removed a right match | PASS |
+| Review relinking | >= 90% right on a graded sample (AI rater) | 38 of 50 right (76%); new films sharing an old title | FAIL |
 | Retrieval refresh, load tests | - | need the shared GPU | BLOCKED |
 | Real deals | - | no named official source | BLOCKED |
 

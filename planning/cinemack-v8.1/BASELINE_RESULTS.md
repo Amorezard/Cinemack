@@ -56,3 +56,13 @@ Findings: (1) money figures: worldwide box office from the Wikipedia infobox (13
 - **Review coverage (round 46):** some review material for 24,223 of 33,041 films (73%; 100% of 5,000+ vote films); Wikipedia critic statements 68%, Guardian review 26%, YouTube video 8%.
 - **YouTube match rules (round 46):** 6,816 confident matches -> 5,557 kept, 178 switched, 1,081 dropped; new sample of 60 + 20 to grade: UNRUN.
 - **Review relink (round 47):** 302 of 13,460 unmatched reviews proposed; sample of 50 to grade: UNRUN.
+
+## Added 17 Nov (round 48, read from sync\v81_r48 and todo_out.txt of 16 Nov 23:29 EST)
+- **5.2 third candidate (round 48):** chosen on 2020: content 2, neighbours 4, popularity 0 (margins there: uniform +0.027, popular +0.058; 57 of 124 grid sets had both margins above 0). Test on 2021, 2,831 users never used before: uniform NDCG@10 0.646 vs current 0.653 (-0.0076 [-0.0108, -0.0042]), coverage 0.314 vs 0.220: NOT ok; popular 0.292 vs 0.252 (+0.0396 [+0.0368, +0.0426]), coverage 0.149 vs 0.113: ok. RULE: FAIL. Third fail; as written before the run, no further candidate is tried on these data. The current ranking stays; RECS_V2 stays off.
+- **Publish check (round 48):** 1,012 tracked files. Email addresses on 10 lines in 9 files; 17 sealed test sets tracked; 44 result files flagged as data; 1 database (results/llm_cache.sqlite) still in old commits; README yes, LICENSE none. No key found. Verdict: NOT ready.
+- **Guardian allowance (round 48):** 8 single probes read 376, 499, 498, 499, 497, 498, 499, 499 of 500 (14:33 to 03:47 UTC): reset time still unknown. Burst lines installed for 23:40 and 00:10 UTC; first bursts not yet read.
+- **Tests (round 48):** 40 test modules OK, none failing. Live folder 929bbbf unchanged, site 200.
+
+## Added 17 Nov evening (graded samples; rater chosen by the owner: Claude as a recorded AI rater)
+- **YouTube match rules (round 46):** new sample, 55 of 60 kept matches right = 91.7% (95% range 82-96%); 35 of 35 earlier right matches kept: PASS. Not in the rule: 11 of 20 dropped matches were right to drop - rules G ("Half in the Bag Episode N: <film>") and F (deleted scenes / trivia of one film) drop real matches. Grades: results/v81_yt_match_graded.csv.
+- **Review relinking (round 47):** 38 of 50 right = 76% (title + year window 29 of 33; only film with the title 9 of 17): FAIL. Nothing written to critic_reviews. Grades: results/v81_review_relink_graded.csv; summary results/v81_samples_graded.txt.

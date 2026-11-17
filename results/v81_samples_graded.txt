@@ -1,0 +1,26 @@
+Graded samples (v8.1, 17 Nov 2026)
+Rater: Claude (claude-opus-5-5, an AI rater), 17 Nov 2026, from the video title / headline, upload date and proposed film only; no video watched, no article opened.
+The owner chose an AI rater on 17 Nov; every grade and its reason is in the two CSV files next to this one.
+
+YouTube match rules (round 46; rule written before the run: right film >= 90% on a NEW sample of kept matches, AND
+>= 32 of the 35 earlier right matches still kept)
+  kept matches: 55 of 60 right = 91.7% (95% range 82-96%)        part 1: ok
+  earlier right matches still kept: 35 of 35 (round 46)                          part 2: ok
+  RULE: PASS (the range is wide: 60 rows; the lower end is below 90%)
+  wrong kept matches: a common word or phrase taken as a title ("November", "Side by Side", "In the House"),
+    a festival interview, and one remake chosen over the original although the video is 5 years older than the remake.
+  dropped matches (not part of the rule): 11 of 20 drops were right; 9 dropped a correct match.
+    Rule G drops every "Half in the Bag Episode N: <film>" review, and rule F drops videos about one film's deleted
+    scenes or trivia. Both are too broad. Scaled to the 1,081 drops, very roughly 450-500 good matches are lost.
+  next: narrow G and F, and add "a film released more than a year after the upload cannot be the subject";
+    then a new sample, since these 80 rows have now been seen.
+
+Review relinking (round 47; rule: >= 90% right on the sample before anything is written)
+  proposed links: 38 of 50 right = 76% (95% range 63-86%)
+    only film with the title: 9 of 17 right
+    title + year window: 29 of 33 right
+  RULE: FAIL. Nothing is written to critic_reviews.
+  why: most wrong links are NEW films (often documentaries) that share a title with an older film in the database;
+    "only film with the title" picks the old one. Correct "only title" links were re-release reviews of classics.
+  next (not before Thursday): only exact-title links within the year window, and a new sample - choosing the rule
+    after seeing these 50 rows means they cannot test it.
