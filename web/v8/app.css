@@ -897,6 +897,11 @@ body.kb .chat-shell { height: calc(100dvh - var(--hdr)); }
 .hh-acts .btn.secondary { background: rgba(255, 255, 255, .12); border-color: rgba(255, 255, 255, .24); color: #fff; }
 .hh-acts .btn.ghost { color: #fff; }
 .hh-nav { display: flex; align-items: center; gap: 10px; }
+/* v8.1 round 48: forecast panel (shown only while FORECAST_PANEL is on) */
+.fcast { margin: 24px 0; padding: 16px; border: 1px solid var(--line, rgba(128, 128, 128, .3)); border-radius: 12px; }
+.fcast h3 { margin: 0 0 4px; } .fcast h4 { margin: 12px 0 4px; font-size: .95rem; } .fcast ul { margin: 0; padding-left: 20px; }
+.fcast-badge { font-size: .7rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; vertical-align: middle; }
+.fcast-h, .fcast-note, .fcast-warn { font-size: .85rem; opacity: .8; } .fcast-range80 { font-weight: 600; }
 .hh-dots { display: flex; gap: 2px; }
 .hh-dots button { width: 32px; height: 32px; border: 0; background: none; padding: 0; display: grid; place-items: center; }
 .hh-dots button::before { content: ""; width: 24px; height: 8px; background: rgba(255, 255, 255, .4); clip-path: inset(0 8px round 4px); transition: clip-path var(--t-med) var(--ease), background var(--t-med); }

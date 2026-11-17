@@ -1103,6 +1103,12 @@ try:
     guardian_live.install(app, _gate, user_of)
 except Exception as _e:  # noqa: BLE001
     print(f"[cinemack] guardian lookups not loaded: {_e!r}", flush=True)
+# v8.1 round 48: the box-office forecast route (web/forecast_api.py). 404 for everything while FORECAST_PANEL is off.
+try:
+    import forecast_api
+    forecast_api.install(app, _gate)
+except Exception as _e:  # noqa: BLE001
+    print(f"[cinemack] forecast route not loaded: {_e!r}", flush=True)
 
 
 if __name__ == "__main__":

@@ -89,16 +89,27 @@ class TestReasonsAndHiding(unittest.TestCase):
             for bad in ("innerHTML", "outerHTML", "insertAdjacentHTML", "document.write", "eval("):
                 self.assertNotIn(bad, src, f)
 
-    def test_no_existing_page_loads_the_new_modules(self):
+    def test_new_modules_load_only_behind_their_switch(self):
+        """Round 48: the film page fetches the forecast panel and the text layer, but only AFTER the forecast route
+        answered 200 (it answers 404 while FORECAST_PANEL is off). No other page mentions the new modules, and none is
+        a static import."""
         for f in os.listdir(V8):
             if f in NEW_JS or not f.endswith((".js", ".html")):
                 continue
             src = read(V8, f)
             for mod in NEW_JS:
-                self.assertNotIn(mod, src, "%s loads %s" % (f, mod))
+                if f == "film.js" and mod in ("forecast_panel.js", "i18n.js"):
+                    self.assertNotRegex(src, r"(?m)^import[^\n]*%s" % re.escape(mod))          # never a static import
+                    i, j = src.index("/api/v8/forecast/movie:"), src.index("import('./%s')" % mod)
+                    self.assertLess(i, j)
+                    self.assertEqual(src.count(mod), 1)
+                else:
+                    self.assertNotIn(mod, src, "%s loads %s" % (f, mod))
+        srv = read(ROOT, "web", "server.py")
+        self.assertIn("forecast_api.install(app, _gate)", srv)
         for f in ("server.py", "v8routes.py", "v8extra.py"):
             src = read(ROOT, "web", f)
-            for mod in ("forecast_api", "tool_router", "plan_adapter", "plan_sql_tv", "import recs", "recs."):
+            for mod in ("tool_router", "plan_adapter", "plan_sql_tv", "import recs", "recs."):
                 self.assertNotIn(mod, src, "%s uses %s" % (f, mod))
 
 

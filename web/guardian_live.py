@@ -60,7 +60,7 @@ USER_HOURLY_CAP = 5
 FLOOR = 5
 TIMEOUT = 4
 NEW_DAYS = 30
-STALE_H = 6                      # a "calls left" number older than this is not trusted to refuse a call
+STALE_H = 6                      # "calls left" readings older than this are ignored
 MAX_ARTICLES = 12
 CREDIT = "From the Guardian"
 _lock = threading.Lock()
@@ -118,40 +118,29 @@ def record(c, who: str, status, remaining, at=None):
         c.commit()
 
 
-def _probe_last(path=None):
-    p = Path(path) if path else PROBE_LOG
-    last = None
+def calls_left(c, at=None, probe_log=None) -> Optional[int]:
+    """How many Guardian calls are left today, read cautiously. None = unknown.
+    Round 48: the Guardian's "calls left" header is NOT one counter - seven probes on 16 Nov read 376, 499, 498, 499, 497,
+    498, 499 in that order, which only makes sense if each of its servers counts on its own. So one reply cannot be
+    trusted: every reading from the last STALE_H hours is taken, each lowered by the calls made since it, and the
+    LOWEST result is used."""
+    t = at or now()
+    since = iso(t - datetime.timedelta(hours=STALE_H))
+    seen = list(c.execute("select at, remaining from calls where remaining is not null and at > ?", (since,)))
+    p = Path(probe_log) if probe_log else PROBE_LOG
     try:
         for line in open(p, encoding="utf-8"):
             try:
                 r = json.loads(line)
             except ValueError:
                 continue
-            if r.get("remaining_day") is not None:
-                last = (r["at"], int(r["remaining_day"]))
+            if r.get("remaining_day") is not None and str(r.get("at", "")) > since and str(r["at"]) <= iso(t):
+                seen.append((r["at"], int(r["remaining_day"])))
     except OSError:
-        return None
-    return last
-
-
-def calls_left(c, at=None, probe_log=None) -> Optional[int]:
-    """The Guardian's latest 'calls left today' (from any reply we saw), minus the calls made since. None = unknown."""
-    t = at or now()
-    seen = []
-    row = c.execute("select at, remaining from calls where remaining is not null order by at desc, id desc limit 1").fetchone()
-    if row:
-        seen.append(row)
-    p = _probe_last(probe_log)
-    if p:
-        seen.append(p)
+        pass
     if not seen:
         return None
-    when, left = max(seen, key=lambda x: x[0])
-    w = parse(when)
-    if w is None or (t - w).total_seconds() > STALE_H * 3600:
-        return None
-    since = c.execute("select count(*) from calls where at > ?", (when,)).fetchone()[0]
-    return left - since
+    return min(left - c.execute("select count(*) from calls where at > ?", (when,)).fetchone()[0] for when, left in seen)
 
 
 def why_not(c, uhash: str, at=None, probe_log=None) -> Optional[str]:

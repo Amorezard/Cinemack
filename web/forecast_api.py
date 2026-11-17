@@ -143,4 +143,18 @@ def install(app, gate):
             return g
         status, body = handle(media_id, horizon)
         return JSONResponse(body, status_code=status, headers={"Cache-Control": "no-store"})
+
+    @app.get("/api/v8/i18n/{name}")
+    async def locale(name: str, request: Request):
+        """The panel's words (web/v8/locales/en.json, es.json). Round 48: served here because /v8/<file> serves one
+        folder level only. 404 while the switch is off."""
+        if not ENABLED or name not in ("en.json", "es.json"):
+            return JSONResponse({"detail": "Not Found"}, status_code=404)
+        if (g := gate(request)):
+            return g
+        p = Path(__file__).resolve().parent / "v8" / "locales" / name
+        try:
+            return JSONResponse(json.loads(p.read_text(encoding="utf-8")), headers={"Cache-Control": "max-age=300"})
+        except (OSError, ValueError):
+            return JSONResponse({"detail": "Not Found"}, status_code=404)
     return forecast

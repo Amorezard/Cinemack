@@ -87,6 +87,14 @@ export async function pageFilm(id, params) {
         a.summary ? h('p', { class: 'small' }, a.summary) : null))),
       h('p', { class: 'small' }, p.credit || 'From the Guardian')));
   }).catch(() => {});
+  // v8.1 round 48: the box-office forecast panel. The server answers 404 while FORECAST_PANEL is off (and for films
+  // with no stored forecast); then nothing is loaded and nothing is shown. The panel code is fetched only on a 200.
+  api(`/api/v8/forecast/movie:${d.id}?horizon=d7`).then(async r => {
+    const [fp, i18n, en] = await Promise.all([import('./forecast_panel.js'), import('./i18n.js'), api('/api/v8/i18n/en.json')]);
+    i18n.configure('en', { en });               // the words come through api() so the access code travels with the request
+    const box = fp.renderPanel(document, r);
+    if (box) main.append(box);
+  }).catch(() => {});
   const sim = h('div', {}, skelShelf()); view.append(sim);
   try { const s = await api(`/api/v8/similar/${d.id}`); sim.innerHTML = ''; if (s.items?.length) sim.append(section('If you like this', { sub: 'MovieLens ratings' }, shelf(s.items, 'If you like this'))); }
   catch { sim.innerHTML = ''; }

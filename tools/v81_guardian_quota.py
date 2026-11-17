@@ -31,7 +31,7 @@ LOG = os.environ.get("GUARDIAN_QUOTA_LOG", os.path.join(HERE, "logs", "guardian_
 LIVE = os.environ.get("CINEMACK_LIVE", os.path.expanduser("~/movie-buff/rag"))
 G_API = "https://content.guardianapis.com/search"
 UA = "Cinemack/1.0 (university research project; quota probe)"
-MAX_PROBES = 120            # 10 days at one probe every 2 hours
+MAX_PROBES = 400            # about a week: one probe every 2 hours + three bursts of 5 a day (round 48)
 RESERVE = 40                # calls always left unspent (the next review fetch, any later live lookup)
 MIN_SPEND = 20              # not worth starting a fetch for fewer calls than this
 RESET_RESERVE = 2           # round 47 (user, 16 Nov): just before the reset every call is spent; 2 stay as a margin
@@ -103,6 +103,23 @@ def probe(key, path=None, opener=urllib.request.urlopen, at=None, cap=MAX_PROBES
     return rec
 
 
+def burst(key, n=5, path=None, opener=urllib.request.urlopen, pause=1.0, sleep=None):
+    """Round 48: n calls a second apart. The 16 Nov probes read 376, 499, 498, 499, 497, 498, 499 - the Guardian's
+    servers each keep their own count, so one reply says little. Several replies together show the LOWEST count,
+    which is the one that matters. Run just before and just after 00:00 UTC it tests whether the count resets then."""
+    import time as _t
+    out = []
+    for i in range(int(n)):
+        rec = probe(key, path, opener)
+        if "skipped" in rec:
+            break
+        out.append(rec.get("remaining_day"))
+        if i + 1 < int(n):
+            (sleep or _t.sleep)(pause)
+    got = [x for x in out if x is not None]
+    return {"calls": len(out), "lowest": min(got) if got else None, "highest": max(got) if got else None}
+
+
 def resets(rows):
     """[(last probe before, first probe after)] for every time the remaining count went UP."""
     out, prev = [], None
@@ -129,13 +146,22 @@ def report(rows):
     else:
         hours = sorted({(a[11:16], b[11:16]) for a, b in rs})
         L.append(f"  the count went back up {len(rs)} time(s), between (UTC): " + "; ".join(f"{a} and {b}" for a, b in hours))
-        L.append("  -> the top-up belongs shortly before the EARLIEST of those windows")
+        L.append("  (single replies jump about because each Guardian server counts on its own - use the bursts below, not this line)")
     low = min(ok, key=lambda r: r["remaining_day"])
     L.append(f"  lowest seen: {low['remaining_day']} at {low['at']}")
     by_hour = {}
     for r in ok:
-        by_hour.setdefault(r["at"][11:13], []).append(r["remaining_day"])
-    L.append("  median left by hour (UTC): " + " ".join(f"{h}h:{sorted(v)[len(v) // 2]}" for h, v in sorted(by_hour.items())))
+        by_hour.setdefault(r["at"][:13], []).append(r["remaining_day"])
+    L.append("  lowest / highest left in each hour probed (UTC; the servers count separately, so the LOWEST matters):")
+    for h, v in sorted(by_hour.items())[-30:]:
+        L.append(f"    {h[:10]} {h[11:13]}h: {min(v)} / {max(v)} ({len(v)} repl{'y' if len(v) == 1 else 'ies'})")
+    days = sorted({r["at"][:10] for r in ok})
+    for a, b in zip(days, days[1:]):
+        before = [r["remaining_day"] for r in ok if r["at"][:10] == a and r["at"][11:13] == "23"]
+        after = [r["remaining_day"] for r in ok if r["at"][:10] == b and r["at"][11:13] == "00"]
+        if len(before) >= 3 and len(after) >= 3:
+            verdict = "the count resets at 00:00 UTC" if min(after) > min(before) + 20 else "no clear reset at 00:00 UTC"
+            L.append(f"  midnight UTC {a} -> {b}: lowest {min(before)} before, {min(after)} after -> {verdict}")
     return "\n".join(L)
 
 
@@ -196,7 +222,8 @@ def topup(key, reserve=RESET_RESERVE, dry=False, enabled=None, opener=urllib.req
 
 def main(argv=None):
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["probe", "report", "topup"])
+    ap.add_argument("cmd", choices=["probe", "burst", "report", "topup"])
+    ap.add_argument("--n", type=int, default=5, help="calls in a burst")
     ap.add_argument("--reserve", type=int, default=RESERVE)
     ap.add_argument("--dry", action="store_true")
     a = ap.parse_args(argv)
@@ -207,6 +234,10 @@ def main(argv=None):
     if not key:
         print(f"{now()} no GUARDIAN_API_KEY in the environment: nothing done")
         return 1
+    if a.cmd == "burst":
+        r = burst(key, a.n)
+        print(f"{now()} burst: {r['calls']} calls, lowest {r['lowest']}, highest {r['highest']} left today")
+        return 0
     if a.cmd == "probe":
         rec = probe(key)
         print(f"{now()} probe: " + (rec.get("skipped") or f"status {rec['status']}, {rec['remaining_day']} of {rec['limit_day']} left today"))

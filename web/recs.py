@@ -43,6 +43,8 @@ RECS_V2 = os.environ.get("RECS_V2", "0") == "1"
 VERSION = "recs-v2.0"
 FALLBACK_W = (2.0, 2.0, 0.0)
 WEIGHTS_FILE = os.environ.get("RECS_V2_WEIGHTS", os.path.join(_ROOT, "results", "v81_recs_single.json"))
+# round 48: the third candidate (tools/v81_recs_v3.py, tested on 2021) is read first; the 15 Nov file failed its rule
+WEIGHTS_V3 = os.path.join(_ROOT, "results", "v81_recs_v3.json")
 MOVIES_DB = os.environ.get("MOVIES_DB", os.path.expanduser("~/movie-buff/rag/movies.db"))
 MMR_LAMBDA = 0.85
 NB_PER_LIKE, NB_CAP, POPULAR_POOL, MMR_POOL = 30, 2.0, 300, 60
@@ -57,14 +59,18 @@ class Unsupported(ValueError):
 
 def weights() -> Tuple[Tuple[float, float, float], str]:
     """((content, neighbours, popularity), where they came from)."""
-    try:
-        with open(WEIGHTS_FILE) as fh:
-            d = json.load(fh)
-        w = tuple(float(x) for x in d["weights"])
-        if len(w) == 3 and all(x >= 0 and math.isfinite(x) for x in w) and any(w) and d.get("rule") == "PASS":
-            return w, "v81_recs_single"
-    except (OSError, ValueError, KeyError, TypeError):
-        pass
+    files = [(WEIGHTS_FILE, "v81_recs_single")]
+    if "RECS_V2_WEIGHTS" not in os.environ:
+        files.insert(0, (WEIGHTS_V3, "v81_recs_v3"))
+    for path, name in files:
+        try:
+            with open(path) as fh:
+                d = json.load(fh)
+            w = tuple(float(x) for x in d["weights"])
+            if len(w) == 3 and all(x >= 0 and math.isfinite(x) for x in w) and any(w) and d.get("rule") == "PASS":
+                return w, name
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
     return FALLBACK_W, "fallback"
 
 
