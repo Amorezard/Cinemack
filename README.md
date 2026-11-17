@@ -1,4 +1,10 @@
-# Movie Buff
+# Movie Buff (Cinemack)
+
+> **New here? Start with [`docs/guide/`](docs/guide/README.md).** It explains the whole system in plain language:
+> [how it works](docs/guide/HOW_IT_WORKS.md), [recommendations](docs/guide/RECOMMENDATIONS.md),
+> [box-office forecasting](docs/guide/BOX_OFFICE.md), [how everything was measured and every result](docs/guide/EVALUATION_AND_RESULTS.md),
+> [engineering and design choices](docs/guide/ENGINEERING.md), [rebuilding it](docs/guide/REPRODUCE.md) and
+> [publishing safely](docs/guide/PUBLISHING.md). The rest of this file is the running build history and reference.
 
 A movie chatbot that answers questions about films, including "what's that movie where…"
 questions from half-remembered descriptions. A persona model (`movie-buff`, a LoRA on a 27B

@@ -46,3 +46,13 @@ Findings: (1) money figures: worldwide box office from the Wikipedia infobox (13
 - **4.4 factor study (night 2):** dropping trailers +0.060 [0.046, 0.074], genre / film type +0.052, budget +0.017, cast +0.015, franchise +0.014 (all Holm p < .05); adding US rating +0.031 [0.020, 0.042], producer track record +0.022 [0.007, 0.039]; director, writer, timing, competition, source, companies: no clear value. Trailers and genre do not clearly help on 2020-2023. Associations only.
 - **4.5 forecast (night 3, v81-pf4bt-cqr-1, worldwide only):** d90 MAE 1.218, 50% range 47.6%, 80% range 78.2% (median width x41.6): PASS. d7 MAE 1.202, 47.3%, 79.0%: PASS. Late 2020-2023 under-covers (d90 50% 43.5%, 80% 75.7%; bias +0.82). 2016-2019 is NOT blind.
 - **5.2a MovieLens benchmark (night 3; MovieLens users, not Cinemack users):** uniform negatives v2 NDCG@10 0.653 vs current 0.627 (+0.026 [0.021, 0.031]), coverage 0.256 vs 0.198; popular negatives 0.442 vs 0.276 (+0.165 [0.153, 0.178]), coverage 0.255 vs 0.118. Candidate under both. Variety lower (0.748 vs 0.780; 0.670 vs 0.776). The two protocols picked different weights -> one set is fixed in round 45.
+
+## Added 16 Nov (rounds 45-47, read from sync\v81_r45 .. v81_r47)
+- **2.3 TV plans (round 45):** plan = reference on 24 cases x 8,043 shows, 3 mixed plans = films + shows: PASS. Missing facts: episode length 28.1%, US TV rating 26.4%, US listing 21.1%.
+- **3.4 caches (round 45):** 20 negation pairs and the site's near-miss list hold at similarity 1.0; strict mode was missing from the search-cache key - fixed in the worktree: PASS after fix.
+- **4.6 forecast candidate (round 45, producer track record + US rating at d7):** d90 test MAE 1.218 -> 1.191 (-0.027 [-0.043, -0.011]), late -0.044; d7 1.202 -> 1.148 (-0.054 [-0.073, -0.035]), late -0.053; ranges 48.4% / 76.9% and 48.0% / 78.6%: PASS, stored model v81-pf4bt-pr-cqr-1, 2,951 films x 2 horizons, 0 failed checks. 2020-23 still under-covers (80% range 74.0-74.8%).
+- **5.2 single weight set (round 45):** (2, 1, 0): uniform -0.015 [-0.026, -0.005], popular +0.152: FAIL. **Fresh users (round 46, 2,569):** uniform -0.011 [-0.019, -0.003], popular +0.147: FAIL.
+- **6.1 motion (rounds 45-46):** FAIL on the home banner dots (animated width), PASS after the clip-path edit (pictures identical within 1/255).
+- **Review coverage (round 46):** some review material for 24,223 of 33,041 films (73%; 100% of 5,000+ vote films); Wikipedia critic statements 68%, Guardian review 26%, YouTube video 8%.
+- **YouTube match rules (round 46):** 6,816 confident matches -> 5,557 kept, 178 switched, 1,081 dropped; new sample of 60 + 20 to grade: UNRUN.
+- **Review relink (round 47):** 302 of 13,460 unmatched reviews proposed; sample of 50 to grade: UNRUN.
