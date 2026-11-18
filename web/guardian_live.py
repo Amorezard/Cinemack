@@ -22,7 +22,7 @@ Order of work, each step cheaper than the next:
   4. store     every result (or an empty answer) is stored with the time, so the next visit is step 1.
 Every call - live, bulk, probe - is meant to go through record() into one shared ledger (calls table), so the
 parts cannot spend the same calls twice. Nothing here ever raises into the page: a failure answers with what is
-stored. The key comes from GUARDIAN_API_KEY and is never stored, logged or returned.
+stored. The key comes from GUARDIAN_API_KEY (else keys.env; see guardian_key) and is never stored, logged or returned.
 Shown to people: headline, date, critic, star rating, the Guardian's own short summary, and the link - with the
 credit line "From the Guardian". Article text is not fetched or stored.
 """
@@ -103,6 +103,31 @@ def norm(s) -> str:
     s = unicodedata.normalize("NFKD", str(s or ""))
     s = "".join(ch for ch in s if not unicodedata.combining(ch))
     return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9 ]+", " ", s.casefold().replace("&", "and"))).strip()
+
+
+def guardian_key(paths=None) -> str:
+    """The Guardian key: the environment first, else keys.env in the rag folder, else ~/.movie-buff.env.
+    18 Nov (round 51): the site is started by start_site.sh, which reads only the switch files, so the key never
+    reached the site process (the same finding as Trakt in round 38). Never printed, logged or returned."""
+    v = os.environ.get("GUARDIAN_API_KEY", "").strip().strip("'\"")
+    if v:
+        return v
+    for p in paths or (_ROOT / "keys.env", Path.home() / ".movie-buff.env"):
+        try:
+            lines = Path(p).read_text(encoding="utf-8").splitlines()
+        except OSError:
+            continue
+        for line in lines:
+            line = line.strip()
+            if line.startswith("export "):
+                line = line[7:].strip()
+            if line.startswith("#") or "=" not in line:
+                continue
+            k, val = line.split("=", 1)
+            val = val.split(" #")[0].strip().strip("'\"")
+            if k.strip() == "GUARDIAN_API_KEY" and val:
+                return val
+    return ""
 
 
 def user_hash(user_key) -> str:
@@ -306,7 +331,7 @@ def lookup(facts, tmdb_id: int, user_key=None, c=None, key=None, enabled=None, o
         return {"articles": have, "source": "stored", "reason": "looked up before", "credit": CREDIT}
     if not on:
         return {"articles": have, "source": "stored", "reason": "live lookups are switched off", "credit": CREDIT}
-    k = key or os.environ.get("GUARDIAN_API_KEY")
+    k = key or guardian_key()
     if not k:
         return {"articles": have, "source": "stored", "reason": "no Guardian key", "credit": CREDIT}
     uh = user_hash(user_key)
