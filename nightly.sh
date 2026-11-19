@@ -51,9 +51,14 @@ run() {                        # run "label" cmd... : time it, keep its last lin
   echo "  [$label: exit ${PIPESTATUS[0]}, $(( $(date +%s) - t0 ))s]"
 }
 YEAR=$(date +%Y)
+# round 52 (19 Nov, owner's rule of 16 Nov): no Guardian bulk work during the day. When the evening top-up is in the
+# crontab (23:00 UTC, an hour before the daily reset at 00:00 UTC), it does the review fetch and the pre-release
+# articles with every call left, so this job skips both. Remove that crontab line and this job does them again.
+guardian_by_topup() { [ "$(crontab -l 2>/dev/null | grep -c 'v81-guardian-topup$')" != 0 ]; }   # grep -c reads it all (pipefail-safe)
+guardian_by_topup && echo "Guardian reviews and articles: done by the evening top-up before the reset (crontab v81-guardian-topup), not here"
 
 light() {                      # round 34: the steps that run every night, busy or not
-  [ -n "${GUARDIAN_API_KEY:-}" ] && run "guardian pre-release articles (pf5 B)" python pf5_data.py press --max "${PRESS_NIGHT:-400}"
+  [ -n "${GUARDIAN_API_KEY:-}" ] && ! guardian_by_topup && run "guardian pre-release articles (pf5 B)" python pf5_data.py press --max "${PRESS_NIGHT:-400}"
   [ -f logs/tvmaze.db ] && ! tmux has-session -t tvmaze 2>/dev/null && run "tvmaze schedule" python tools/fetch_tvmaze.py schedule
   [ -f logs/tvmaze.db ] && ! tmux has-session -t tvmaze 2>/dev/null && run "tvmaze updates" python tools/fetch_tvmaze.py updates
   [ -f logs/email.db ] && run "email digests" python tools/send_digests.py
@@ -74,7 +79,7 @@ fi
 [ -n "${TMDB_API_KEY:-}" ] && run "tmdb episodes (recent + upcoming seasons)" python tools/fetch_episodes.py recent   # round 19
 [ -n "${TMDB_API_KEY:-}" ] && run "tmdb film artwork, logos, US services (calendar window)" python tools/fetch_film_data.py window   # round 19
 [ -n "${OMDB_API_KEY:-}" ] && run "omdb"          python fetch_free_data.py omdb
-[ -n "${GUARDIAN_API_KEY:-}" ] && run "guardian"  python fetch_free_data.py guardian
+[ -n "${GUARDIAN_API_KEY:-}" ] && ! guardian_by_topup && run "guardian"  python fetch_free_data.py guardian
 # round 27 (11 Nov): pf5 B - Guardian articles before each film's release, ~400 a night after the reviews (the key
 # allows 500 calls a day; the step stops by itself on HTTP 429). About 20 nights to cover the 2000-2015 training films.
 # round 33: Sundays, the prediction model again (pf5_model.py: A/C/D, B by CV, and B on the main split once >= 90% of

@@ -7,7 +7,7 @@ articles for the box-office research after the review fetch, so 50-100 calls go 
            (X-RateLimit-Remaining-day / -Limit-day) to logs/guardian_quota.jsonl. Run by cron every 2 hours for a
            few days, it shows WHEN the daily count resets. It stops by itself after MAX_PROBES entries.
   report   reads that log: remaining calls over the day, and the window in which the count went back up.
-  topup    shortly before the reset: probe, then spend (remaining - RESERVE) calls by running the SAME command the
+  topup    shortly before the reset: probe, then spend (remaining - RESET_RESERVE) calls by running the SAME command the
            nightly job runs, in the live folder: `python pf5_data.py press --max N`. Nothing new touches the data:
            it is the nightly step run a second time. It does nothing unless GUARDIAN_TOPUP=1, and never while the
            nightly job, a press fetch or an evaluation is running.
@@ -193,7 +193,9 @@ def topup(key, reserve=RESET_RESERVE, dry=False, enabled=None, opener=urllib.req
           path=None):
     """Round 47 (user decision 16 Nov): run shortly BEFORE the daily reset and spend every call left - first the
     new-review fetch (a few calls), then the pre-release / news articles with whatever remains. Calls not spent now
-    would be lost at the reset anyway. Off unless GUARDIAN_TOPUP=1; no cron line until the reset time is known."""
+    would be lost at the reset anyway. Off unless GUARDIAN_TOPUP=1. Round 52 (19 Nov): the reset was measured at
+    00:00 UTC (17/18 Nov bursts: 352 left at 23:40, 497 at 00:10), so cron runs this at 23:00 UTC; the nightly job
+    then skips its own Guardian steps (nightly.sh: guardian_by_topup)."""
     on = (os.environ.get("GUARDIAN_TOPUP", "0") == "1") if enabled is None else enabled
     if not on:
         return "top-up is switched off (GUARDIAN_TOPUP is not 1): nothing done, no call made"
@@ -224,7 +226,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("cmd", choices=["probe", "burst", "report", "topup"])
     ap.add_argument("--n", type=int, default=5, help="calls in a burst")
-    ap.add_argument("--reserve", type=int, default=RESERVE)
+    ap.add_argument("--reserve", type=int, default=None, help="calls left unspent (probe: %d, topup: %d)" % (RESERVE, RESET_RESERVE))
     ap.add_argument("--dry", action="store_true")
     a = ap.parse_args(argv)
     if a.cmd == "report":
@@ -242,7 +244,8 @@ def main(argv=None):
         rec = probe(key)
         print(f"{now()} probe: " + (rec.get("skipped") or f"status {rec['status']}, {rec['remaining_day']} of {rec['limit_day']} left today"))
         return 0
-    print(f"{now()} topup: " + topup(key, a.reserve, a.dry))
+    # round 52 (19 Nov): from the command line the top-up kept RESERVE (40) instead of the owner's RESET_RESERVE (2)
+    print(f"{now()} topup: " + topup(key, RESET_RESERVE if a.reserve is None else a.reserve, a.dry))
     return 0
 
 
