@@ -42,3 +42,9 @@ archive/code-backups/
 archive/old-logs/
 archive/web-backups/
 logs/tmux/
+# public copy (v81_public_export.py)
+*.sqlite
+*.env
+!*lock*.env
+facts.db
+sets/sealed_*
