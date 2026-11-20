@@ -112,7 +112,10 @@ export async function pageFilm(id, params) {
       return h('div', { class: 'fp' }, h('div', { class: 'fp-n' }, h('b', {}, p.name), h('span', { class: 'small muted' }, p.role || '')), b);
     };
     main.append(h('section', { class: 'people-follow', 'aria-label': 'Follow the people behind it' }, h('h2', { style: 'margin:24px 0 4px' }, 'Follow the people behind it'),
-      h('p', { class: 'small muted', style: 'margin:0 0 12px' }, 'See their next films on Home. Only you see who you follow.'),
+      h('p', { class: 'small muted', style: 'margin:0 0 12px' }, 'See their next films on Home, and get an alert (and an email, if you added one) when they have a new film or are in the news. Only you see who you follow.'),
+      // round 59: guests are told where their follows live
+      S.me?.account ? null : h('p', { class: 'small notice', style: 'margin:0 0 12px' }, 'You are not signed in, so your follows are kept in this browser only: clearing this site\'s data removes them, and guest follows unused for 4 months are deleted. ',
+        h('a', { href: '#/profile?tab=settings&sec=account' }, 'Sign in or create an account'), ' to keep them on every device; what you follow now moves with you.'),
       h('div', { class: 'follow-list' }, ppl.map(row))));
   }).catch(() => {});
   // v8.1 round 48: the box-office forecast panel. The server answers 404 while FORECAST_PANEL is off (and for films

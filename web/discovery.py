@@ -843,6 +843,36 @@ def refresh_alerts(user):
     return new
 
 
+def _refresh_follow_alerts(user):
+    """v8.1 round 59: new films and Guardian articles about the people this person follows (web/follows.py decides
+    what is new; the unique key (user, film, kind, detail) stops repeats). Nothing while FOLLOW_PEOPLE is off."""
+    import follows
+    # the site has FOLLOW_PEOPLE in its environment; the nightly digest gets ALERTS_FOLLOWS=1 when site.env has it
+    if not (follows.FOLLOW_PEOPLE or os.environ.get("ALERTS_FOLLOWS") == "1"):
+        return 0
+    f = film_info._ro(film_info.FACTS)
+    if f is None:
+        return 0
+    items = follows.new_alerts(user, f)
+    new = 0
+    with _lock:
+        c = _adb()
+        for a in items:
+            new += c.execute("insert or ignore into alerts values (?,?,?,?,?,0)",
+                             (user, a["tmdb_id"], a["kind"], a["detail"], time.strftime("%Y-%m-%dT%H:%M:%S"))).rowcount
+        c.commit()
+    return new
+
+
+def _person_text(kind, detail, today=None):
+    """(text, url) for a people alert. detail: "pid|name|role|date" (film) or "pid|name|url|headline" (article)."""
+    parts = (detail or "").split("|", 3) + ["", "", "", ""]
+    _pid, name, a, b = parts[:4]
+    if kind == "person_article":
+        return f"{name} in the Guardian: {b}", (a if a.startswith("https://www.theguardian.com/") else None)
+    return None, None
+
+
 def alerts(user, refresh=True):
     if not user:
         return {"alerts": [], "unseen": 0}
@@ -852,9 +882,13 @@ def alerts(user, refresh=True):
             _refresh_tv_alerts(user)
         except Exception as e:  # noqa: BLE001
             print(f"[cinemack] tv alerts failed: {e!r}", flush=True)
+        try:
+            _refresh_follow_alerts(user)
+        except Exception as e:  # noqa: BLE001
+            print(f"[cinemack] follow alerts failed: {e!r}", flush=True)
     rows = _adb().execute("select tmdb_id, kind, detail, created_at, seen from alerts where user_key = ? "
                           "order by created_at desc limit 100", (user,)).fetchall()
-    cs = {c["id"]: c for c in cards(list({r[0] for r in rows if not r[1].startswith("tv_")}), user)}
+    cs = {c["id"]: c for c in cards(list({r[0] for r in rows if not r[1].startswith("tv_") and r[0]}), user)}
     tv = {x["id"]: x for x in tv_following(user)}
     out = []
     for fid, kind, detail, at, seen in rows:
@@ -869,9 +903,18 @@ def alerts(user, refresh=True):
                 text = f"{sh['title']}: season {detail} is out"
             out.append({"film": dict(sh), "kind": kind, "detail": detail, "text": text, "at": at, "seen": bool(seen)})
             continue
+        if kind == "person_article":
+            text, url = _person_text(kind, detail)
+            out.append({"film": None, "kind": kind, "detail": detail, "text": text, "url": url, "at": at, "seen": bool(seen)})
+            continue
         c = cs.get(fid, {"id": fid, "title": ""})
-        text = (f"{c.get('title')} is now streaming on {detail}" if kind == "now_streaming"
-                else f"{c.get('title')} is out now")
+        if kind == "person_film":
+            _pid, name, role, date = ((detail or "").split("|", 3) + ["", "", "", ""])[:4]
+            when = "comes out " + date if date > _today() else "came out " + date
+            text = f"{name}: {c.get('title')} ({role}) {when}"
+        else:
+            text = (f"{c.get('title')} is now streaming on {detail}" if kind == "now_streaming"
+                    else f"{c.get('title')} is out now")
         out.append({"film": c, "kind": kind, "detail": detail, "text": text, "at": at, "seen": bool(seen)})
     return {"alerts": out, "unseen": sum(1 for a in out if not a["seen"])}
 

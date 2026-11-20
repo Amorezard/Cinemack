@@ -482,10 +482,18 @@ const SET = {
     try {
       const [u, o] = await Promise.all([api('/api/v8/watchlist/upcoming'), api('/api/v8/watchlist/overview')]);
       card.innerHTML = '';
-      card.append(h('h3', {}, 'What sends an alert'), h('p', { class: 'sub' }, 'A saved film comes out or starts streaming on a new service; a followed show gets a dated new season or a season starts.'));
+      card.append(h('h3', {}, 'What sends an alert'), h('p', { class: 'sub' }, 'A saved film comes out or starts streaming on a new service; a followed show gets a dated new season or a season starts; someone you follow gets a new dated film or is named in a Guardian article.'));
       const rows = [...(o.shows || []).map(sh => ({ tv: true, id: sh.id, title: sh.title, notify: sh.notify, line: 'Followed show' })),
         ...u.items.filter(x => x.media === 'movie').map(x => ({ tv: false, id: x.id, title: x.film.title, notify: x.notify, line: x.date ? `Saved · ${x.badge} ${fmtDate(x.date)}` : 'Saved · date not announced' }))];
       if (!rows.length) card.append(h('p', { class: 'muted' }, 'Nothing to alert you about yet. Save upcoming films or follow shows.'));
+      // round 59: one switch for alerts about people you follow (the route answers 404 while following is off)
+      try {
+        const fn = await api('/api/v8/follows/notify');
+        const box = h('input', { type: 'checkbox', checked: fn.on });
+        box.addEventListener('change', async () => { try { await post('/api/v8/follows/notify', { on: box.checked }); toast(`People you follow: alerts ${box.checked ? 'on' : 'off'}.`); } catch (e) { box.checked = !box.checked; toast(e.message, null, true); } });
+        card.append(h('div', { class: 'pv-row' }, h('div', {}, h('b', {}, 'People you follow'), h('div', { class: 'small muted' }, `${fn.count} followed · a new dated film or a Guardian article that names them`)),
+          h('label', { class: 'switch' }, box, h('span', { class: 'sr' }, 'Alerts about people you follow'))));
+      } catch { /* following is switched off */ }
       rows.forEach(r => { const box = h('input', { type: 'checkbox', checked: r.notify });
         box.addEventListener('change', async () => { try { if (r.tv) await post('/api/v8/tv/follow', { id: r.id, on: true, notify: box.checked }); else await post('/api/v8/alerts/mute', { id: r.id, muted: !box.checked }); toast(`${r.title}: alerts ${box.checked ? 'on' : 'off'}.`); } catch (e) { box.checked = !box.checked; toast(e.message, null, true); } });
         card.append(h('div', { class: 'pv-row' }, h('div', {}, h('b', {}, r.title), h('div', { class: 'small muted' }, r.line)), h('label', { class: 'switch' }, box, h('span', { class: 'sr' }, `Alerts for ${r.title}`)))); });

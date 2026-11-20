@@ -16,6 +16,19 @@ by web/guardian_live.py. No outside call is made here, and nothing is guessed: a
 simply has an empty "coming" list. Follows are private: no route shows one person's follows to anyone else.
 
 Tables in logs/follows.db (FOLLOWS_DB overrides): follows(user_key, person_id, created_at).
+
+Round 59 (owner, 20 Nov 11:41): alerts and emails about the people you follow, a note for guests, and cleanup.
+  new_alerts(user, facts)   -> what is NEW since the last look for each followed person: a film of theirs with a
+                               date (to come, or out in the last 30 days) and stored Guardian articles that name them
+                               in full. The first look at a person only remembers what is there (no flood of old
+                               items); from then on each new item makes ONE alert (discovery.py puts it under the bell
+                               and the daily email digest sends it to people who added a verified address).
+  notify_on / set_notify    -> one switch per person: alerts about people you follow (on unless turned off).
+  touch(user)               -> remembers when a browser or account last used follows (any follows request).
+  cleanup(days)             -> guests (keys that are not "acct...") not seen for `days` lose their follows and
+                               everything kept for them here; accounts are never touched. nightly.sh runs it (120 days).
+More tables: follow_seen(user_key, kind, item, first_seen), follow_notify(user_key, on_, updated_at),
+follow_last_seen(user_key, at).
 """
 from __future__ import annotations
 
@@ -34,8 +47,11 @@ try:                                   # at module top: a route's type hints are
     class FollowBody(BaseModel):
         person_id: int
         on: bool = True
+
+    class NotifyBody(BaseModel):
+        on: bool = True
 except Exception:  # noqa: BLE001  - the functions work without the web framework (tests, tools)
-    Request = JSONResponse = FollowBody = None
+    Request = JSONResponse = FollowBody = NotifyBody = None
 
 _ROOT = Path(__file__).resolve().parent.parent
 DB = Path(os.environ.get("FOLLOWS_DB", str(_ROOT / "logs" / "follows.db")))
@@ -48,7 +64,13 @@ MAX_CAST = 8
 
 DDL = """
 create table if not exists follows(user_key text, person_id integer, created_at text, primary key (user_key, person_id));
+create table if not exists follow_seen(user_key text, kind text, item text, first_seen text, primary key (user_key, kind, item));
+create table if not exists follow_notify(user_key text primary key, on_ integer, updated_at text);
+create table if not exists follow_last_seen(user_key text primary key, at text);
 """
+RECENT_DAYS = 30           # a film out within this many days still counts as news
+MAX_NEW_PER_LOOK = 10      # at most this many new alerts from one look (the rest wait for the next)
+CLEANUP_DAYS = 120
 
 
 class FollowError(Exception):
@@ -239,12 +261,110 @@ def search(facts, q: str, limit: int = 10) -> List[Dict]:
     return [{"person_id": pid, "name": name, "films": n} for pid, name, n in rows]
 
 
+def touch(user: str, db=None, at: Optional[str] = None) -> None:
+    if not user:
+        return
+    c = connect(db)
+    try:
+        c.execute("insert or replace into follow_last_seen values (?,?)", (user, at or _now()))
+        c.commit()
+    finally:
+        c.close()
+
+
+def notify_on(user: str, db=None) -> bool:
+    if not user or not Path(db or DB).exists():
+        return True
+    c = connect(db)
+    try:
+        r = c.execute("select on_ from follow_notify where user_key = ?", (user,)).fetchone()
+        return True if r is None else bool(r[0])
+    finally:
+        c.close()
+
+
+def set_notify(user: str, on: bool, db=None) -> bool:
+    if not user:
+        raise FollowError("no user")
+    c = connect(db)
+    try:
+        c.execute("insert or replace into follow_notify values (?,?,?)", (user, 1 if on else 0, _now()))
+        c.commit()
+    finally:
+        c.close()
+    return bool(on)
+
+
+def new_alerts(user: str, facts, today: Optional[datetime.date] = None, db=None, guardian_db=None) -> List[Dict]:
+    """New items about the people this user follows, each returned once (see the module text). [] when the switch
+    for people alerts is off for this user."""
+    if not user or not Path(db or DB).exists() or not notify_on(user, db):
+        return []
+    t = today or datetime.date.today()
+    lo = (t - datetime.timedelta(days=RECENT_DAYS)).isoformat()
+    out = []
+    c = connect(db)
+    try:
+        for pid, _at in c.execute("select person_id, created_at from follows where user_key = ?", (user,)).fetchall():
+            name = _name(facts, pid)
+            if not name:
+                continue
+            first = c.execute("select 1 from follow_seen where user_key = ? and kind = 'scan' and item = ?",
+                              (user, str(pid))).fetchone() is None
+            items = []
+            for x in _credits(facts, pid):
+                if x["date"] >= lo:
+                    items.append(("film", str(x["id"]), {"tmdb_id": x["id"], "kind": "person_film",
+                                                          "detail": "%d|%s|%s|%s" % (pid, name, x["role"], x["date"])}))
+            for a in articles_about(name, guardian_db, limit=10):
+                items.append(("article", a["url"], {"tmdb_id": 0, "kind": "person_article",
+                                                    "detail": "%d|%s|%s|%s" % (pid, name, a["url"], (a["headline"] or "")[:200])}))
+            now = _now()
+            for kind, item, alert in items:
+                key = "%d:%s" % (pid, item)
+                if c.execute("select 1 from follow_seen where user_key = ? and kind = ? and item = ?", (user, kind, key)).fetchone():
+                    continue
+                if not first and len(out) >= MAX_NEW_PER_LOOK:
+                    continue                                    # not marked: it comes with the next look
+                c.execute("insert or ignore into follow_seen values (?,?,?,?)", (user, kind, key, now))
+                if not first:
+                    out.append(alert)
+            c.execute("insert or ignore into follow_seen values (?,?,?,?)", (user, "scan", str(pid), now))
+        c.commit()
+    finally:
+        c.close()
+    return out
+
+
+def cleanup(days: int = CLEANUP_DAYS, db=None, now: Optional[datetime.datetime] = None) -> Dict:
+    """Guests not seen for `days`: their follows and everything kept here for them go. Accounts are never touched."""
+    if not Path(db or DB).exists():
+        return {"guests_removed": 0, "follows_removed": 0}
+    cut = ((now or datetime.datetime.now(datetime.timezone.utc)) - datetime.timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%S")
+    c = connect(db)
+    try:
+        users = [u for (u,) in c.execute(
+            "select f.user_key from follows f left join follow_last_seen s on s.user_key = f.user_key "
+            "group by f.user_key having max(coalesce(s.at, '')) < ? and max(f.created_at) < ?", (cut, cut)) if not str(u).startswith("acct")]
+        n = 0
+        for u in users:
+            n += c.execute("delete from follows where user_key = ?", (u,)).rowcount
+            for tbl in ("follow_seen", "follow_notify", "follow_last_seen"):
+                c.execute("delete from %s where user_key = ?" % tbl, (u,))
+        c.commit()
+        return {"guests_removed": len(users), "follows_removed": n}
+    finally:
+        c.close()
+
+
 def delete_user(user: str, db=None) -> int:
     if not user or not Path(db or DB).exists():      # nothing was ever stored: do not create the file
         return 0
     c = connect(db)
     try:
         n = c.execute("delete from follows where user_key = ?", (user,)).rowcount
+        for tbl in ("follow_seen", "follow_notify", "follow_last_seen"):
+            c.execute("delete from %s where user_key = ?" % tbl, (user,))
         c.commit()
         return n
     finally:
@@ -260,6 +380,11 @@ def move_user(old: str, new: str, db=None) -> int:
         n = c.execute("insert or ignore into follows(user_key, person_id, created_at) "
                       "select ?, person_id, created_at from follows where user_key = ?", (new, old)).rowcount
         c.execute("delete from follows where user_key = ?", (old,))
+        for tbl in ("follow_seen", "follow_notify"):           # round 59: what was already alerted moves too
+            c.execute("insert or ignore into %s select ?, %s from %s where user_key = ?"
+                      % (tbl, "kind, item, first_seen" if tbl == "follow_seen" else "on_, updated_at", tbl), (new, old))
+            c.execute("delete from %s where user_key = ?" % tbl, (old,))
+        c.execute("delete from follow_last_seen where user_key = ?", (old,))
         c.commit()
         return n
     finally:
@@ -288,7 +413,28 @@ def install(app, gate, user_of, facts_path=None):
             return g
         uk = user_of(request)
         out = await asyncio.to_thread(with_facts, lambda f: feed(uk, f))
-        return JSONResponse({"people": out, "max": MAX_FOLLOWS}, headers={"Cache-Control": "no-store"})
+        await asyncio.to_thread(touch, uk)
+        return JSONResponse({"people": out, "max": MAX_FOLLOWS, "notify": notify_on(uk)}, headers={"Cache-Control": "no-store"})
+
+    @app.get("/api/v8/follows/notify")
+    async def follows_notify_get(request: Request):
+        if not FOLLOW_PEOPLE:
+            return off()
+        if (g := gate(request)):
+            return g
+        uk = user_of(request)
+        return JSONResponse({"on": notify_on(uk), "count": len(_ids(uk))}, headers={"Cache-Control": "no-store"})
+
+    @app.post("/api/v8/follows/notify")
+    async def follows_notify_post(body: NotifyBody, request: Request):
+        if not FOLLOW_PEOPLE:
+            return off()
+        if (g := gate(request)):
+            return g
+        uk = user_of(request)
+        if not uk:
+            return JSONResponse({"error": "No browser id."}, status_code=400)
+        return JSONResponse({"on": await asyncio.to_thread(set_notify, uk, body.on)})
 
     @app.post("/api/v8/follows")
     async def follows_post(body: FollowBody, request: Request):
@@ -304,6 +450,7 @@ def install(app, gate, user_of, facts_path=None):
                 out = await asyncio.to_thread(with_facts, lambda f: follow(uk, body.person_id, f))
             else:
                 out = await asyncio.to_thread(unfollow, uk, body.person_id)
+            await asyncio.to_thread(touch, uk)
         except FollowError as e:
             return JSONResponse({"error": str(e)}, status_code=400)
         return JSONResponse(out)

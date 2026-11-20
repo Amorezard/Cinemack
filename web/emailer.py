@@ -331,9 +331,10 @@ def digest_all(alerts_fn, limit_users=None):
         if not new:
             done["skipped_nothing_new"] += 1
             continue
-        body = ("New on your Cinemack watchlist:\n\n" + "\n".join(f"- {a['text']}" for a in new[:20])
+        body = ("New for you on Cinemack (your watchlist, shows and people you follow):\n\n"
+                + "\n".join(f"- {a['text']}" + (f" ({a['url']})" if a.get("url") else "") for a in new[:20])
                 + (f"\n...and {len(new) - 20} more." if len(new) > 20 else "")
-                + f"\n\nSee them: {SITE_URL}/#/watchlist\nStop these emails: {SITE_URL}/email/unsubscribe?t={unsub}\n")
+                + f"\n\nSee them: {SITE_URL}/#/watchlist\nPeople alerts on or off: {SITE_URL}/#/profile?tab=settings&sec=notifications\nStop these emails: {SITE_URL}/email/unsubscribe?t={unsub}\n")
         try:
             send(email, f"Cinemack: {len(new)} new alert{'s' if len(new) != 1 else ''}", body)
         except RuntimeError as e:                     # round 31: nothing marked sent; tried again next night

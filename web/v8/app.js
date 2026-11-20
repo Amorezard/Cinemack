@@ -122,8 +122,10 @@ function alertsPop(btn) {
   box.append(h('div', { class: 'pop-h' }, 'Alerts'), h('p', { class: 'muted small', style: 'padding:8px 12px' }, 'Loading…'));
   api('/api/v8/alerts').then(a => {
     box.innerHTML = ''; box.append(h('div', { class: 'pop-h' }, 'Alerts'));
-    if (!a.alerts.length) box.append(h('p', { class: 'muted small', style: 'padding:6px 12px 12px' }, 'No alerts yet. Save films and follow shows; you get an alert here when one comes out, starts streaming, or gets a new-season date.'));
-    a.alerts.slice(0, 20).forEach(x => box.append(h(x.film?.media === 'tv' ? 'div' : 'a', { class: `alert-row${x.seen ? '' : ' new'}`, href: x.film?.media === 'tv' ? null : `#/film/${x.film?.id}`, onclick: () => closePops() },
+    if (!a.alerts.length) box.append(h('p', { class: 'muted small', style: 'padding:6px 12px 12px' }, 'No alerts yet. Save films, follow shows and people; you get an alert here when a film comes out or starts streaming, a show gets a new-season date, or someone you follow gets a new film or is in the news.'));
+    // round 59: people alerts - a Guardian article opens the Guardian; a film opens its page
+    a.alerts.slice(0, 20).forEach(x => box.append(h(x.film?.media === 'tv' ? 'div' : 'a', { class: `alert-row${x.seen ? '' : ' new'}`,
+      href: x.film?.media === 'tv' ? null : (x.url || (x.film?.id ? `#/film/${x.film.id}` : null)), target: x.url ? '_blank' : null, rel: x.url ? 'noopener noreferrer' : null, onclick: () => closePops() },
       h('span', { class: 'pp' }, x.film ? posterImg(x.film, 'poster', 40) : ''), h('span', {}, h('span', { class: 't', style: 'display:block' }, x.text), h('span', { class: 'm' }, ago(x.at))))));
     box.append(h('hr', { style: 'border:0;border-top:1px solid var(--line);margin:6px 0' }),
       h('a', { role: 'menuitem', href: '#/watchlist?tab=coming', onclick: () => closePops() }, 'Upcoming from your watchlist'),

@@ -63,7 +63,9 @@ light() {                      # round 34: the steps that run every night, busy 
   [ -f logs/tvmaze.db ] && ! tmux has-session -t tvmaze 2>/dev/null && run "tvmaze updates" python tools/fetch_tvmaze.py updates
   # round 55 (owner yes, 20 Nov): connected Trakt accounts - history, and ratings / watchlist only where missing
   [ -f logs/trakt.db ] && [ -f tools/v81_trakt_autosync.py ] && run "trakt sync (history + missing only)" env TRAKT_AUTOSYNC=1 timeout 20m python tools/v81_trakt_autosync.py --run
-  [ -f logs/email.db ] && run "email digests" python tools/send_digests.py
+  # round 59: guests' follows unused for 120 days are removed (accounts are never touched)
+  [ -f logs/follows.db ] && run "follows cleanup (guests unseen 120 days)" python -c "import sys; sys.path.insert(0, 'web'); import follows; print(follows.cleanup())"
+  [ -f logs/email.db ] && run "email digests" env ALERTS_FOLLOWS=$(grep -c '^FOLLOW_PEOPLE=1$' site.env 2>/dev/null) python tools/send_digests.py
   return 0
 }
 if [ "$BUSY" = 1 ]; then
