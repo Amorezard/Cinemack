@@ -14,7 +14,7 @@ twice changes nothing. Ratings and watchlist stay with the button until an "only
 Order: the account synced longest ago first. Accounts synced in the last MIN_HOURS are skipped. A pause between
 accounts; the run stops after MAX_ERRORS failures in a row (Trakt down or the app's access withdrawn).
 The log (logs/trakt_autosync.jsonl) holds a salted hash of the account, counts and the error text - never a token,
-never the account key. This tool is not in any crontab: adding it to the nightly job needs the owner's yes.
+never the account key. Round 55: the owner said yes (20 Nov); nightly.sh runs it with TRAKT_AUTOSYNC=1, history + "only add what is missing".
 """
 import argparse
 import datetime
@@ -139,7 +139,14 @@ def main(argv=None):
     if not T.enabled():
         print("NOT run: Trakt is not set up on this server (no client id).")
         return 2
-    out = run(due, lambda u: history_only(T, u), log=_write)
+    # round 55 (owner yes, 20 Nov): history + ratings / watchlist "only add what is missing" (web/trakt_missing.py);
+    # TRAKT_AUTOSYNC_HISTORY_ONLY=1 keeps the round-49 behaviour.
+    if os.environ.get("TRAKT_AUTOSYNC_HISTORY_ONLY", "0") == "1":
+        fn = lambda u: history_only(T, u)  # noqa: E731
+    else:
+        import trakt_missing
+        fn = lambda u: trakt_missing.sync_missing(T, u)  # noqa: E731
+    out = run(due, fn, log=_write)
     print("done: %(done)d | failed: %(failed)d | stopped early: %(stopped_early)s" % out)
     return 0 if not out["failed"] else 1
 

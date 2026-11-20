@@ -1122,6 +1122,13 @@ try:
 except Exception as _e:  # noqa: BLE001
     print(f"[cinemack] events route not loaded: {_e!r}", flush=True)
 
+# v8.1 round 55: stored news and reviews next to search results (web/news_search.py). 404 while SEARCH_NEWS is off.
+try:
+    import news_search
+    news_search.install(app, _gate)
+except Exception as _e:  # noqa: BLE001
+    print(f"[cinemack] news search not loaded: {_e!r}", flush=True)
+
 
 if __name__ == "__main__":
     import uvicorn

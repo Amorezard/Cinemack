@@ -24,6 +24,44 @@ from email.message import EmailMessage
 from pathlib import Path
 
 RAG = Path(__file__).resolve().parent.parent
+
+
+# Round 55 (20 Nov): the website process gets its switches from start_site.sh, which does not read keys.env, so the
+# site stayed in the sandbox even when keys.env said EMAIL_SANDBOX=0 (the nightly digests read keys.env; the 6-digit
+# codes come from the site). Email settings missing from the environment are now read from keys.env, else
+# ~/.movie-buff.env - the same rule as the Guardian and Trakt keys. Values are never printed.
+_EMAIL_NAMES = ("EMAIL_SANDBOX", "EMAIL_PROVIDER", "EMAIL_FROM", "SMTP_FROM", "SITE_URL", "BREVO_API_KEY", "RESEND_API_KEY",
+                "SENDGRID_API_KEY", "MAILGUN_API_KEY", "MAILGUN_DOMAIN", "MAILGUN_BASE", "SMTP_HOST", "SMTP_PORT",
+                "SMTP_USER", "SMTP_PASS")
+
+
+def _settings_from_files(paths=None, names=_EMAIL_NAMES, env=None):
+    env = os.environ if env is None else env
+    found = {}
+    for p in paths or (RAG / "keys.env", Path.home() / ".movie-buff.env"):
+        try:
+            lines = Path(p).read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            continue
+        for line in lines:
+            m = re.match(r"\s*(?:export\s+)?([A-Z_][A-Z0-9_]*)\s*=\s*(.*)$", line)
+            if not m or m.group(1) not in names or m.group(1) in env or m.group(1) in found:
+                continue
+            v = m.group(2).strip()
+            if len(v) >= 2 and v[0] == v[-1] and v[0] in "'\"":
+                v = v[1:-1]
+            elif " #" in v:
+                v = v.split(" #", 1)[0].strip()
+            found[m.group(1)] = v
+    for k, v in found.items():
+        env.setdefault(k, v)
+    return sorted(found)
+
+
+import sys as _sys
+# never under a test run: a test that relies on the sandbox default must not pick up EMAIL_SANDBOX=0 from keys.env
+if os.environ.get("EMAIL_FILES", "1") == "1" and "unittest" not in _sys.modules and "pytest" not in _sys.modules:
+    _settings_from_files()
 DB = Path(os.environ.get("EMAIL_DB", RAG / "logs" / "email.db"))
 OUTBOX = Path(os.environ.get("EMAIL_OUTBOX", RAG / "logs" / "email_outbox"))
 SANDBOX = os.environ.get("EMAIL_SANDBOX", "1") != "0"

@@ -61,6 +61,8 @@ light() {                      # round 34: the steps that run every night, busy 
   [ -n "${GUARDIAN_API_KEY:-}" ] && ! guardian_by_topup && run "guardian pre-release articles (pf5 B)" python pf5_data.py press --max "${PRESS_NIGHT:-400}"
   [ -f logs/tvmaze.db ] && ! tmux has-session -t tvmaze 2>/dev/null && run "tvmaze schedule" python tools/fetch_tvmaze.py schedule
   [ -f logs/tvmaze.db ] && ! tmux has-session -t tvmaze 2>/dev/null && run "tvmaze updates" python tools/fetch_tvmaze.py updates
+  # round 55 (owner yes, 20 Nov): connected Trakt accounts - history, and ratings / watchlist only where missing
+  [ -f logs/trakt.db ] && [ -f tools/v81_trakt_autosync.py ] && run "trakt sync (history + missing only)" env TRAKT_AUTOSYNC=1 timeout 20m python tools/v81_trakt_autosync.py --run
   [ -f logs/email.db ] && run "email digests" python tools/send_digests.py
   return 0
 }
@@ -126,8 +128,9 @@ else
   run "sentiment"         python sentiment.py run
 fi
 run "flags"               python sentiment.py flags
-run "aspects (<= 1 h)"    timeout 1h python reviews_analyze.py --kinds audience,critic --films 40000
+run "aspects (<= 1 h)"    timeout 1h python reviews_analyze.py --kinds audience,critic --films 40000 --minutes 50   # round 55: stops itself, exit 0
 run "aspects aggregate"   python reviews_analyze.py aggregate
+[ -f tools/v81_event_report.py ] && run "event-log baseline report" python tools/v81_event_report.py   # round 55: pre-registered 2-week baseline
 run "money table"         python tools.py build
 run "youtube match"       python youtube_analysis.py match
 run "reception cards"     python reception_cards.py build

@@ -175,17 +175,43 @@ function reasonsOf(f, res) {
   return out;
 }
 const plain = (s) => s.replace(/\*\*|__|\*|_/g, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').trim();
-function noteFor(f, answer) {
-  if (!answer || !f.title) return null;
-  const text = splitSources(answer).text;
-  const t = f.title.toLowerCase();
-  for (const line of text.split(/\n+/)) if (plain(line).toLowerCase().includes(t)) {
-    const s = plain(line).replace(/^\s*(?:[-*]|\d+[.)])\s*/, '');
-    const i = s.toLowerCase().indexOf(t);
-    const rest = s.slice(i + t.length).replace(/^\s*(\(\d{4}\))?\s*[:,.–—-]*\s*/, '');
-    return rest.length > 12 ? rest : s;
+const norm = (s) => (s || '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+// Round 55 (20 Nov): the note for one film is made of whole sentences of Cinemack's answer that name THAT film and no
+// other film. A sentence that also names a film the search found but the page does not show, or carries a second
+// "Title (year)", is left out. Before, the first line that mentioned the title was cut after the title, so a
+// one-paragraph answer put the rest of the paragraph (other films included) under the card.
+export function sentencesOf(text) {
+  const out = [];
+  for (const para of (text || '').split(/\n+/)) {
+    const p = plain(para).replace(/^\s*(?:[-*•]|\d+[.)])\s*/, '');
+    if (!p) continue;
+    // split after . ! ? followed by a space and a capital letter, a quote or a digit; keeps "Dr. No" style breaks rare
+    for (const x of p.split(/(?<=[.!?])\s+(?=["“'(A-Z0-9])/)) if (x.trim()) out.push(x.trim());
   }
-  return null;
+  return out;
+}
+export function noteFor(f, answer, others = []) {
+  if (!answer || !f.title) return null;
+  const t = norm(f.title);
+  if (!t) return null;
+  const otherT = others.map(norm).filter(o => o && o !== t && !t.includes(o));
+  const keep = [];
+  for (const s of sentencesOf(splitSources(answer).text)) {
+    const n = ` ${norm(s)} `;
+    if (!n.includes(` ${t} `)) continue;
+    if (otherT.some(o => n.includes(` ${o} `))) continue;
+    const years = s.match(/\((?:19|20)\d{2}\)/g) || [];
+    if (years.length > 1) continue;                       // two "(year)"s = two films in one sentence
+    keep.push(s);
+    if (keep.length === 2) break;
+  }
+  return keep.length ? keep.join(' ') : null;
+}
+// What is known about a film, as one sentence, for when the answer has no clean sentence about it.
+export function factLine(reasons) {
+  if (!reasons.length) return null;
+  const r = reasons.map((x, i) => (i ? x.charAt(0).toLowerCase() + x.slice(1) : x));
+  return r.join('; ') + '.';
 }
 
 // ---------------------------------------------------------------- results
@@ -193,12 +219,6 @@ function rankCard(f, n, res) {
   const best = n === 1;
   const name = `${f.title}${f.year ? ` (${f.year})` : ''}`;
   const gs = firstGenre(f.genres).slice(0, 2).map(shortGenre).join(', ');
-  const reasons = reasonsOf(f, res), note = noteFor(f, res.answer);
-  const why = best
-    ? h('div', { class: 'whyx' }, h('div', { class: 'reasons', 'aria-label': 'Why this pick' }, reasons.map(r => h('span', { class: 'tag y' }, r))),
-        note ? h('p', { class: 'note', style: 'margin-top:8px' }, h('b', {}, 'Cinemack: '), note) : res.pending ? h('p', { class: 'muted small', style: 'margin-top:8px' }, 'Cinemack is writing a note on this pick…') : null)
-    : h('details', { class: 'whyx' }, h('summary', {}, 'Why this pick', h('span', { html: I.chev })), h('div', { class: 'box' },
-        h('div', { class: 'reasons' }, reasons.map(r => h('span', { class: 'tag' }, r))), note ? h('p', { class: 'note' }, note) : null));
   const acts = h('div', { class: 'acts' },
     h('a', { class: `btn ${best ? 'primary' : 'outline'} sm`, href: `#/film/${f.id}?go=watch`, html: I.play + 'Where to watch' }),
     f.in_theatres ? h('button', { class: 'btn secondary sm', type: 'button', html: I.ticket + 'Showtimes', onclick: () => showtimesSheet(f) }) : null,
@@ -211,7 +231,7 @@ function rankCard(f, n, res) {
     h('div', { class: 'in' }, h('a', { class: 'tt', href: `#/film/${f.id}` }, f.title, f.year ? h('span', { class: 'yr' }, ` (${f.year})`) : null),
       h('div', { class: 'mm' }, ratingEl(f) || null, f.runtime ? h('span', {}, rt(f.runtime)) : null, gs ? h('span', {}, gs) : null, f.cert ? h('span', {}, f.cert) : null),
       f.overview ? h('p', { class: 'syn' }, f.overview) : h('div', { class: 'skel', style: 'height:38px;width:90%', 'aria-hidden': 'true' }),
-      why, acts));
+      acts));
 }
 const skelRank = (best) => h('div', { class: `rk${best ? ' rk1' : ''}`, 'aria-hidden': 'true' }, h('span', { class: 'num' }), h('div', { class: 'skel', style: 'aspect-ratio:2/3' }),
   h('div', { style: 'display:grid;gap:10px;align-content:start' }, h('div', { class: 'skel', style: 'height:22px;width:60%' }), h('div', { class: 'skel', style: 'height:14px;width:40%' }), h('div', { class: 'skel', style: 'height:44px;width:92%' })));
@@ -245,9 +265,15 @@ function drawResult(out, res) {
   if (res.limits.services) sum.push('on your services');
   const box = h('div', { class: 'pick-sum' }, h('span', { html: I.sparkle }), h('div', {}, h('h3', {}, 'Why these picks?'),
     h('p', { class: 'muted small' }, sum.join(', ') + `. ${res.sel.novelty === 'different' ? 'You wanted something less obvious.' : 'You wanted something well loved.'} Ranked by how well each matches, best first.`)));
-  if (res.answer && !res.pending) box.lastChild.append(h('details', { class: 'whyx', style: 'margin-top:6px' }, h('summary', {}, "Cinemack's full note", h('span', { html: I.chev })),
-    h('div', { class: 'box md', html: md(splitSources(res.answer).text) })));
-  if (res.pending) box.lastChild.append(h('p', { class: 'tiny faint', style: 'margin-top:6px' }, 'Cinemack is still writing its notes on these films.'));
+  // Round 55: the explanation lives here only - one short line per film on the page, best first.
+  const shown = new Set(res.picks.map(p => p.id));
+  const others = [...(res.candidates || []), ...(res.removed || [])].filter(x => !shown.has(x.id)).map(x => x.title).filter(Boolean);
+  const list = h('ol', { class: 'pick-notes' }, res.picks.map((f) => {
+    const note = noteFor(f, res.answer, others) || (res.pending ? null : factLine(reasonsOf(f, res)));
+    return h('li', {}, h('a', { href: `#/film/${f.id}` }, h('b', {}, f.title)), f.year ? h('span', { class: 'faint' }, ` (${f.year})`) : null, ': ',
+      note ? h('span', {}, note) : h('span', { class: 'faint' }, 'Cinemack is writing a note on this pick…'));
+  }));
+  box.lastChild.append(list);
   out.append(box);
   const unsaved = res.picks.filter(p => !isWant(p.id));
   out.append(h('div', { class: 'pick-actions' },
@@ -286,15 +312,12 @@ function tvCardRank(x, n, res) {
   const paint = () => { fol.innerHTML = (x.following ? I.check : I.plus) + `<span>${x.following ? 'Following' : 'Follow'}</span>`; fol.setAttribute('aria-pressed', String(!!x.following)); };
   paint();
   fol.addEventListener('click', async () => { try { await post('/api/v8/tv/follow', { id: x.id, on: !x.following }); x.following = !x.following; paint(); toast(x.following ? `Following ${x.title}.` : `Stopped following ${x.title}.`); emit('cm:follow', { id: x.id, on: x.following }); } catch (e) { toast(e.message, null, true); } });
-  const reasons = x.reasons || [];
-  const why = best ? h('div', { class: 'whyx' }, h('div', { class: 'reasons', 'aria-label': 'Why this pick' }, reasons.map(r => h('span', { class: 'tag y' }, r))))
-    : h('details', { class: 'whyx' }, h('summary', {}, 'Why this pick', h('span', { html: I.chev })), h('div', { class: 'box' }, h('div', { class: 'reasons' }, reasons.map(r => h('span', { class: 'tag' }, r)))));
   const mm = [x.rating ? `★ ${x.rating} ${x.rating_src}` : null, x.episode_runtime ? `${x.episode_runtime}-min episodes` : null, x.seasons ? `${x.seasons} season${x.seasons === 1 ? '' : 's'}` : null, x.cert, x.network].filter(Boolean);
   return h('article', { class: `rk${best ? ' rk1' : ''}`, 'aria-label': `Rank ${n}: ${x.title}${best ? ', best match' : ''}` },
     best ? h('span', { class: 'best', html: I.trophy + 'Best Match' }) : null, h('span', { class: 'num', 'aria-hidden': 'true' }, String(n)),
     h('a', { class: 'pp', href, tabindex: '-1', 'aria-hidden': 'true' }, posterImg(x, 'poster_lg', best ? 200 : 96)),
     h('div', { class: 'in' }, h('a', { class: 'tt', href }, x.title, x.year ? h('span', { class: 'yr' }, ` (${x.year})`) : null, h('span', { class: 'tag tvk', style: 'margin-left:8px' }, 'TV')),
-      h('div', { class: 'mm' }, mm.map(t => h('span', {}, t))), x.overview ? h('p', { class: 'syn' }, x.overview) : null, why,
+      h('div', { class: 'mm' }, mm.map(t => h('span', {}, t))), x.overview ? h('p', { class: 'syn' }, x.overview) : null,
       h('div', { class: 'acts' }, h('a', { class: `btn ${best ? 'primary' : 'outline'} sm`, href, html: I.play + 'Episodes and where to watch' }), fol,
         h('a', { class: 'btn ghost sm', href: `#/ask?ask=${encodeURIComponent(`Tell me more about the TV series ${x.title}: why is it a good pick for tonight?`)}`, html: I.bubble + 'Ask about it' }))));
 }
@@ -310,7 +333,8 @@ function drawTv(out, res) {
   out.append(h('div', { class: 'ranks' }, res.picks.map((x, i) => tvCardRank(x, i + 1, res))));
   if (res.picks.length < 3) out.append(h('div', { class: 'notice pick-limits' }, h('b', {}, `Only ${res.picks.length} show${res.picks.length === 1 ? '' : 's'} fit every limit`), left ? ` (left out: ${left})` : '', '. Loosen one?', h('div', { class: 'chips' }, relaxButtons(res))));
   out.append(h('div', { class: 'pick-sum' }, h('span', { html: I.sparkle }), h('div', {}, h('h3', {}, 'How these were picked'),
-    h('p', { class: 'muted small' }, `Ranked in code from ${Number(res.considered || 0).toLocaleString()} shows you have not followed or watched: IMDb rating weighted by votes${res.sel.novelty === 'different' ? ', among less-voted shows (something different)' : ', with a little weight on popularity'}. ${left ? `Left out by your limits: ${left}.` : ''} Episode length, US TV rating and services are hard limits; a show whose fact is unknown is left out.`))));
+    h('p', { class: 'muted small' }, `Ranked in code from ${Number(res.considered || 0).toLocaleString()} shows you have not followed or watched: IMDb rating weighted by votes${res.sel.novelty === 'different' ? ', among less-voted shows (something different)' : ', with a little weight on popularity'}. ${left ? `Left out by your limits: ${left}.` : ''} Episode length, US TV rating and services are hard limits; a show whose fact is unknown is left out.`),
+    h('ol', { class: 'pick-notes' }, res.picks.map(x => h('li', {}, h('a', { href: `#/show/${x.id}` }, h('b', {}, x.title)), ': ', factLine(x.reasons || []) || 'ranked by rating and votes.'))))));
   out.append(h('div', { class: 'pick-actions' },
     h('button', { class: 'btn secondary', type: 'button', html: I.sparkle + 'Try different shows', onclick: () => {
       const seen = [...new Set([...(res.exclude || []), ...res.picks.map(p => p.id)])];

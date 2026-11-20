@@ -164,10 +164,16 @@ def verified(text, items):
 
 
 def work_items(conn, films, kinds, per_film, critic_passages, ok=None):
+    return list(iter_work_items(conn, films, kinds, per_film, critic_passages, ok))
+
+
+def iter_work_items(conn, films, kinds, per_film, critic_passages, ok=None):
+    """Round 55 (20 Nov): the same items as work_items, made one film at a time, so a time-limited night run starts
+    analysing at once instead of first listing the whole 40,000-film backlog."""
     done = {r[0] for r in conn.execute("select review_id from review_done where version = ?", (VERSION,))}
     ids = [r[0] for r in conn.execute("select tmdb_id from films order by vote_count desc limit ?", (films,))]
-    items = []
     for fid in ids:
+        items = []
         if "audience" in kinds:
             n = 0
             for rid, content in conn.execute("select review_id, content from reviews where tmdb_id = ? "
@@ -204,7 +210,7 @@ def work_items(conn, films, kinds, per_film, critic_passages, ok=None):
             key = f"ytc:{fid}"
             if len(cs) >= 5 and key not in done:
                 items.append(("ytc", fid, key, " | ".join(" ".join(c.split()) for c in cs)[:1800]))
-    return items
+        yield from items
 
 
 def aggregate(conn, fids=None):
@@ -249,6 +255,9 @@ def main():
     ap.add_argument("--kinds", default="audience,critic")
     ap.add_argument("--model", default="llama3.2")
     ap.add_argument("--ollama", default="http://localhost:11434")
+    ap.add_argument("--minutes", type=float, default=0,
+                    help="round 55: stop cleanly after this many minutes (work is saved every 50 texts; the next run "
+                         "continues). The nightly job uses 50 inside its 1 h timeout, so the step ends with exit 0.")
     a = ap.parse_args()
     conn = F.connect(a.facts)
     if a.cmd == "aggregate":
@@ -267,6 +276,8 @@ def main():
     cap = int(os.environ.get("REVIEW_FILMS_MAX", "0"))
     films = min(a.films, cap) if cap else a.films
     ok = usable()
+    if a.minutes > 0:
+        return run_timed(conn, a, films, ok)
     items = work_items(conn, films, a.kinds.split(","), a.per_film, a.critic_passages, ok)
     print(f"{len(items):,} texts to analyse with {a.model} (version {VERSION}; "
           f"{'review filter on: ' + format(len(ok), ',') + ' usable reviews' if ok is not None else 'no review filter'}, "
@@ -294,6 +305,43 @@ def main():
     print(f"film_aspects rows: {aggregate(conn)}")
     F.set_meta(conn, "reviews_analyzed_at", F.now())
     conn.commit()
+
+
+def run_timed(conn, a, films, ok, clock=time.time, caller=None):
+    """Round 55: analyse texts until a.minutes have passed, committing and re-aggregating every 50, then stop with
+    exit 0. Before, the nightly step listed the whole backlog and was killed by its 1 h timeout (exit 124) on
+    18 and 19 Nov; the work done was kept, but the night report showed a failure every night."""
+    caller = caller or call
+    t0, kept, touched, i = clock(), 0, set(), 0
+    stop = t0 + a.minutes * 60
+    timed_out = False
+    print(f"analysing with {a.model} (version {VERSION}) for at most {a.minutes:g} min", flush=True)
+    for st, fid, rid, text in iter_work_items(conn, films, a.kinds.split(","), a.per_film, a.critic_passages, ok):
+        if clock() >= stop:
+            timed_out = True
+            break
+        system = {"audience": SYSTEM_AUDIENCE, "critic": SYSTEM_CRITIC, "pro": SYSTEM_PRO, "ytc": SYSTEM_COMMENTS}[st]
+        good = verified(text, caller(a.ollama, a.model, system, text))
+        conn.execute("delete from review_aspects where review_id = ?", (rid,))
+        conn.executemany("insert into review_aspects values (?,?,?,?,?,?,?,?)",
+                         [(rid, fid, st, asp, sen, q, a.model, VERSION) for asp, sen, q in good])
+        conn.execute("insert or replace into review_done values (?,?,?)", (rid, VERSION, len(good)))
+        kept += len(good)
+        touched.add(fid)
+        i += 1
+        if i % 50 == 0:
+            conn.commit()
+            aggregate(conn, touched)
+            touched = set()
+    conn.commit()
+    if touched:
+        aggregate(conn, touched)
+    F.set_meta(conn, "reviews_analyzed_at", F.now())
+    conn.commit()
+    mins = (clock() - t0) / 60
+    print(f"analysed {i:,} texts in {mins:.0f} min, aspects kept {kept:,}; "
+          + ("stopped at the time limit - the rest continues next night" if timed_out else "backlog finished"), flush=True)
+    return {"done": i, "kept": kept, "timed_out": timed_out}
 
 
 if __name__ == "__main__":

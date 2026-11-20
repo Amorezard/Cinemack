@@ -73,6 +73,25 @@ function searchBox(input, pop, onPick) {
       h('span', { html: I.sparkle, style: 'width:22px;height:22px;color:var(--accent);justify-self:center' }), h('span', {}, h('span', { class: 't' }, `Ask Cinemack: "${q}"`), h('span', { class: 'm', style: 'display:block' }, 'Describe a scene, a plot, or what you are in the mood for'))));
     items.push(pop.lastChild);
     pop.hidden = false; input.setAttribute('aria-expanded', 'true');
+    news(r, q);
+  };
+  // Round 55: stored news and reviews about the films found (SEARCH_NEWS; no live call; the first 404 = off for this visit)
+  const news = async (r, q) => {
+    const ids = (r.films || []).slice(0, 3).map(f => f.id).filter(i => i > 0);
+    if (!ids.length || searchBox.newsOff) return;
+    const my = seq;
+    let j;
+    try { j = await api('/api/v8/news?ids=' + ids.join(',')); } catch (e) { if (e?.status === 404) searchBox.newsOff = true; return; }
+    if (my !== seq || pop.hidden || input.value.trim() !== q || !(j.articles || []).length) return;
+    pop.append(h('div', { class: 'grp', role: 'presentation' }, 'News and reviews'));
+    for (const a of j.articles) {
+      const el = h('a', { class: 'sr-item sr-news', role: 'option', id: `sr-${items.length}`, href: a.url, target: '_blank', rel: 'noopener noreferrer', onclick: () => { close(); onPick?.(); } },
+        h('span', { html: I.bubble, style: 'width:20px;height:20px;color:var(--muted);justify-self:center' }),
+        h('span', {}, h('span', { class: 't' }, a.headline), h('span', { class: 'm', style: 'display:block' },
+          [a.kind === 'review' ? `${a.outlet} review` : a.outlet, a.published, a.film].filter(Boolean).join(' · '))));
+      items.push(el); pop.append(el);
+    }
+    pop.append(h('div', { class: 'tiny faint', role: 'presentation', style: 'padding:4px 12px 8px' }, j.credit || ''));
   };
   input.addEventListener('input', () => {
     clearTimeout(t); const q = input.value.trim();

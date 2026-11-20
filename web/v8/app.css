@@ -1188,3 +1188,10 @@ label.check input { width: 20px; height: 20px; margin-top: 1px; flex: none; acce
 .ff ul { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 4px; font-size: var(--fs-sm); }
 .ff a { color: inherit; }
 .ff-k { font-size: var(--fs-xs); color: var(--faint); text-transform: uppercase; letter-spacing: .06em; }
+
+/* round 55: Pick Tonight - one line per film in "Why these picks?" (the cards no longer carry their own) */
+.pick-notes{margin:8px 0 0;padding-left:1.3em;display:grid;gap:6px;font-size:.95em;line-height:1.45}
+.pick-notes a{color:inherit;text-decoration:none}
+.pick-notes a:hover b,.pick-notes a:focus-visible b{text-decoration:underline}
+.sr-news{grid-template-columns:36px 1fr}
+.sr-news .t{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:normal}
