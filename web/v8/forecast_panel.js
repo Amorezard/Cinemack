@@ -18,7 +18,8 @@ export function panelModel(r) {
     return rows;                                    // no range -> no number at all: a lone point would look certain
   };
   const m = { title: t('forecast.title'), badge: r.status === 'experimental' ? t('forecast.experimental') : null,
-              horizon: r.horizon === 'd90' || r.horizon === 'd7' ? t(`forecast.horizon.${r.horizon}`) : null,
+              horizon: r.horizon === 'd90' || r.horizon === 'd7' ? t(`forecast.horizon.${r.horizon}`)
+                : r.horizon === 'opening_weekend_update' ? t('forecast.horizon.update') : null,
               sections: [], notes: [], warnings: [...(r.warnings || [])] };
   const ww = block(r.worldwide_gross, v => money(v, cur));
   if (ww.length) m.sections.push({ heading: t('forecast.worldwide'), rows: ww });
@@ -29,6 +30,10 @@ export function panelModel(r) {
   if (r.domestic_gross?.point == null && r.international_gross?.point == null) m.notes.push(t('forecast.territories'));
   return m;
 }
+
+// Round 57: the words the film page adds around the panel (kept here so every forecast word lives with the panel).
+export const runningNote = (value) => t('forecast.running', { value });
+export const beforeLabel = () => t('forecast.before');
 
 export function renderPanel(doc, r) {
   const m = panelModel(r);

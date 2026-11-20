@@ -1,5 +1,8 @@
 {
-  "_meta": { "language": "Español", "locale": "es-US" },
+  "_meta": {
+    "language": "Español",
+    "locale": "es-US"
+  },
   "why.title": "Por qué la elegí",
   "why.similar_to_liked": "A quienes les gustó {title} también les suele gustar esta.",
   "why.similar_to_liked.untitled": "A quienes les gustó una película que valoraste bien también les suele gustar esta.",
@@ -21,6 +24,15 @@
   "forecast.budget": "Presupuesto declarado: {value}",
   "forecast.territories": "No hay estimación separada para EE. UU. o internacional: los datos solo tienen totales mundiales.",
   "forecast.none": "No hay pronóstico para esta película.",
-  "count.films": { "one": "{count} película", "other": "{count} películas" },
-  "count.releases": { "one": "{count} estreno", "other": "{count} estrenos" }
+  "count.films": {
+    "one": "{count} película",
+    "other": "{count} películas"
+  },
+  "count.releases": {
+    "one": "{count} estreno",
+    "other": "{count} estrenos"
+  },
+  "forecast.horizon.update": "Actualizado tras el estreno con las primeras críticas y valoraciones",
+  "forecast.before": "Lo que decía 7 días antes del estreno",
+  "forecast.running": "Aún en cines o recién estrenada: los {value} registrados hasta ahora son un total parcial, no el resultado final."
 }

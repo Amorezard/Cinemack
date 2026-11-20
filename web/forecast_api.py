@@ -31,7 +31,8 @@ except ImportError:                     # pragma: no cover
 
 ENABLED = os.environ.get("FORECAST_PANEL", "0") == "1"
 DB = Path(os.environ.get("FORECAST_DB", Path(__file__).resolve().parent.parent / "logs" / "forecast.db"))
-HORIZONS = ("d90", "d7")
+HORIZONS = ("d90", "d7", "update")       # round 57: "update" = after the first week (horizon opening_weekend_update)
+_RESP_H = {"d90": "d90", "d7": "d7", "update": "opening_weekend_update"}
 _MEDIA = re.compile(r"^movie:[1-9][0-9]{0,9}$")
 _KEYS = ("schema_version", "prediction_id", "media_id", "model_version", "status", "horizon", "as_of", "currency", "budget",
          "domestic_gross", "international_gross", "worldwide_gross", "gross_to_budget_multiple", "source_notes", "warnings")
@@ -113,7 +114,7 @@ def get(media_id: str, horizon: str = "d7", db_path=None) -> Optional[Dict]:
         d = json.loads(row[0])
     except (sqlite3.Error, ValueError):
         return None
-    if check(d) or d.get("media_id") != media_id or d.get("horizon") != horizon:
+    if check(d) or d.get("media_id") != media_id or d.get("horizon") != _RESP_H[horizon]:
         return None
     return d
 
@@ -126,7 +127,7 @@ def handle(media_id: str, horizon: str = "d7", db_path=None, enabled=None) -> Tu
     if not isinstance(media_id, str) or not _MEDIA.match(media_id):
         return 400, {"error": "media_id must look like movie:<tmdb id>"}
     if horizon not in HORIZONS:
-        return 400, {"error": "horizon must be d90 or d7"}
+        return 400, {"error": "horizon must be d90, d7 or update"}
     d = get(media_id, horizon, db_path)
     if d is None:
         return 404, {"error": "No forecast for this film."}

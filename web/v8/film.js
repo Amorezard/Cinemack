@@ -1,5 +1,6 @@
 // Film page (carried over from v8, restyled): facts, scores, where to watch, showtimes, rate, similar films.
 import { S, h, I, rt, api, post, view, toast, sheet, setChoice, isWant, zip, showtimesSheet, section, shelf, posterCard, skelShelf, emit } from './core.js';
+const RUNNING_DAYS = 120;                      // round 57: younger than this = probably still earning
 
 
 export async function pageFilm(id, params) {
@@ -66,9 +67,14 @@ export async function pageFilm(id, params) {
     p[k].slice(0, 6).map(n => h('span', { class: `tag${mine.some(s => n.toLowerCase().includes(s)) ? ' on' : ''}` }, n))))),
     h('p', { class: 'tiny faint', style: 'margin-top:8px' }, 'Listings from JustWatch via TMDB; they change often.'));
   else side.append(h('p', { class: 'muted small' }, 'No US streaming, rental or purchase listing on record.'));
+  // round 57: a film out for less than RUNNING_DAYS is usually still earning - its reported gross is a running total
+  const days = d.release_date ? (Date.now() - Date.parse(d.release_date)) / 864e5 : null;
+  const running = days != null && days >= 0 && days < RUNNING_DAYS;
   if (d.money?.budget || d.money?.gross) {
     const m = (v) => v >= 1e9 ? `$${(v / 1e9).toFixed(2)} billion` : `$${(v / 1e6).toFixed(1)} million`;
-    side.append(h('h2', { style: 'margin:24px 0 12px' }, 'Box office'), h('p', { class: 'small' }, d.money.budget ? `Budget ${m(d.money.budget)}. ` : '', d.money.gross ? `Worldwide gross ${m(d.money.gross)}.` : ''));
+    side.append(h('h2', { style: 'margin:24px 0 12px' }, 'Box office'), h('p', { class: 'small' }, d.money.budget ? `Budget ${m(d.money.budget)}. ` : '',
+      d.money.gross ? (running ? `Worldwide gross so far ${m(d.money.gross)}.` : `Worldwide gross ${m(d.money.gross)}.`) : ''),
+      running && d.money.gross ? h('p', { class: 'tiny faint' }, 'Still in cinemas or just released: a running total, not the final result.') : null);
   }
   const links = [d.imdb_url && ['IMDb', d.imdb_url], d.wiki && ['Wikipedia', d.wiki.url], ['TMDB', d.tmdb_url]].filter(Boolean);
   side.append(h('p', { class: 'small', style: 'margin-top:16px;display:flex;gap:14px' }, links.map(([t, u]) => h('a', { href: u, target: '_blank', rel: 'noopener' }, t))));
@@ -111,11 +117,35 @@ export async function pageFilm(id, params) {
   }).catch(() => {});
   // v8.1 round 48: the box-office forecast panel. The server answers 404 while FORECAST_PANEL is off (and for films
   // with no stored forecast); then nothing is loaded and nothing is shown. The panel code is fetched only on a 200.
-  api(`/api/v8/forecast/movie:${d.id}?horizon=d7`).then(async r => {
+  // Round 57: a released film may also have an update made after its first week (first reviews and ratings): shown
+  // first, with the before-release forecast folded underneath. A film still earning gets a "running total" note.
+  Promise.allSettled([api(`/api/v8/forecast/movie:${d.id}?horizon=update`), api(`/api/v8/forecast/movie:${d.id}?horizon=d7`)]).then(async ([u, b]) => {
+    const upd = u.status === 'fulfilled' ? u.value : null, pre = b.status === 'fulfilled' ? b.value : null;
+    if (!upd && !pre) return;
     const [fp, i18n, en] = await Promise.all([import('./forecast_panel.js'), import('./i18n.js'), api('/api/v8/i18n/en.json')]);
     i18n.configure('en', { en });               // the words come through api() so the access code travels with the request
-    const box = fp.renderPanel(document, r);
-    if (box) main.append(box);
+    const box = fp.renderPanel(document, upd || pre);
+    if (!box) return;
+    if (running && d.money?.gross) {
+      const m = (v) => v >= 1e9 ? `$${(v / 1e9).toFixed(2)} billion` : `$${(v / 1e6).toFixed(1)} million`;
+      box.insertBefore(h('p', { class: 'fcast-note fcast-running' }, fp.runningNote(m(d.money.gross))), box.children[1] || null);
+    }
+    if (upd && pre) {
+      const old = fp.renderPanel(document, pre);
+      if (old) box.append(h('details', { class: 'fcast-before' }, h('summary', {}, fp.beforeLabel()), old));
+    }
+    main.append(box);
+  }).catch(() => {});
+  // v8.1 round 57: rent / buy prices (DEALS; 404 while off = nothing shown). Each price says where and when it was
+  // checked; nothing is compared or called a deal.
+  api(`/api/v8/film/${d.id}/prices`).then(p => {
+    if (!(p?.rent?.length || p?.buy?.length)) return;
+    const tag = (x) => { const txt = `${x.service}${x.format ? ' ' + x.format : ''} $${Number(x.price).toFixed(2)}`;
+      return x.url ? h('a', { class: 'tag', href: x.url, target: '_blank', rel: 'noopener noreferrer' }, txt) : h('span', { class: 'tag' }, txt); };
+    const row = (k, label) => p[k]?.length ? h('div', { class: 'row' }, h('span', { class: 'k' }, label), p[k].slice(0, 4).map(tag)) : null;
+    side.append(h('section', { class: 'prices', 'aria-label': 'Rent or buy' }, h('h2', { style: 'margin:24px 0 12px' }, 'Rent or buy (US)'),
+      h('div', { class: 'providers' }, row('rent', 'Rent'), row('buy', 'Buy')),
+      h('p', { class: 'tiny faint', style: 'margin-top:8px' }, `Checked ${p.checked || 'recently'}. ${p.credit || ''}`)));
   }).catch(() => {});
   const sim = h('div', {}, skelShelf()); view.append(sim);
   try { const s = await api(`/api/v8/similar/${d.id}`); sim.innerHTML = ''; if (s.items?.length) sim.append(section('If you like this', { sub: 'MovieLens ratings' }, shelf(s.items, 'If you like this'))); }

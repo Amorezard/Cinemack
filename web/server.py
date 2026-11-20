@@ -1129,6 +1129,13 @@ try:
 except Exception as _e:  # noqa: BLE001
     print(f"[cinemack] news search not loaded: {_e!r}", flush=True)
 
+# v8.1 round 57: rent and buy prices on the film page (web/watch_prices.py, Watchmode + Apple). 404 while DEALS is off.
+try:
+    import watch_prices
+    watch_prices.install(app, _gate)
+except Exception as _e:  # noqa: BLE001
+    print(f"[cinemack] prices not loaded: {_e!r}", flush=True)
+
 
 if __name__ == "__main__":
     import uvicorn

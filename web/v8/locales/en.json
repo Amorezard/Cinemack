@@ -1,5 +1,8 @@
 {
-  "_meta": { "language": "English", "locale": "en-US" },
+  "_meta": {
+    "language": "English",
+    "locale": "en-US"
+  },
   "why.title": "Why I picked this",
   "why.similar_to_liked": "People who liked {title} often liked this too.",
   "why.similar_to_liked.untitled": "People who liked a film you rated highly often liked this too.",
@@ -21,6 +24,15 @@
   "forecast.budget": "Reported budget: {value}",
   "forecast.territories": "No separate US or international estimate: the data has worldwide totals only.",
   "forecast.none": "No forecast for this film.",
-  "count.films": { "one": "{count} film", "other": "{count} films" },
-  "count.releases": { "one": "{count} release", "other": "{count} releases" }
+  "count.films": {
+    "one": "{count} film",
+    "other": "{count} films"
+  },
+  "count.releases": {
+    "one": "{count} release",
+    "other": "{count} releases"
+  },
+  "forecast.horizon.update": "Updated after release with the first reviews and ratings",
+  "forecast.before": "What it said 7 days before release",
+  "forecast.running": "Still in cinemas or just released: the {value} reported so far is a running total, not the final result."
 }
