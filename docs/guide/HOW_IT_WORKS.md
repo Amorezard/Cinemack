@@ -93,13 +93,20 @@ Pages: home, chat, film and show pages, Pick Tonight, Release Calendar, watchlis
 `MOVIE_BUFF_MOCK=1` answers with a fake model and fixture data, so the whole site can be tested without a GPU;
 Playwright scripts in `tools/` click through it at phone and desktop widths.
 
-Built in v8.1 and switched off (each answers 404 until its switch is on):
+Every v8.1 feature has its own switch; a route whose switch is off answers 404. State on 20 Nov 2026:
 
-| Switch | What it adds |
-| --- | --- |
-| `FORECAST_PANEL` | A box-office forecast panel on the film page (range first, middle estimate after, every warning) |
-| `GUARDIAN_LIVE` | "In the Guardian" on the film page: stored reviews first; a live search only for films with none, about 20 a day |
-| `RECS_V2` | The new ranking (`web/recs.py`) with one reason per film - only if its test passes |
-| `QUERY_PLAN_SHADOW` | Logs where the query plan and an older filter path disagree |
-| `TOOL_ROUTER` | Four typed tools the chat model may call: `lookup`, `search`, `recommend`, `forecast` |
-| `I18N` | English and Spanish text layer (Spanish machine-written, not yet reviewed) |
+| Switch | What it adds | State |
+| --- | --- | --- |
+| `FORECAST_PANEL` | A box-office forecast panel on the film page (range first, middle estimate after, every warning) | on since 18 Nov |
+| `FOLLOW_PEOPLE` | Follow an actor or director from the film page | on since 18 Nov |
+| `REC_EVENTS` | Anonymous shown / opened / saved events for testing rankings | on since 18 Nov |
+| `GUARDIAN_LIVE` | "In the Guardian" on the film page: stored reviews first; a live search only for films with none, about 20 a day | on since 18 Nov |
+| `SEARCH_NEWS` | Stored Guardian / NYT articles under the search results (no API call) | on with round 55 |
+| `RECS_V2` | The new ranking (`web/recs.py`) with one reason per film | off: failed three tests |
+| `QUERY_PLAN_SHADOW` | Logs where the query plan and an older filter path disagree | off: not wired into the live filters yet |
+| `TOOL_ROUTER` | Four typed tools the chat model may call: `lookup`, `search`, `recommend`, `forecast` | off: needs a GPU test |
+| `DEALS` | Rental and purchase prices (Watchmode pilot) | off: being built |
+| `I18N` | English and Spanish text layer (Spanish machine-written, not yet reviewed) | off |
+
+Diagrams of every step (how a chat becomes searches, how retrieval fuses its lists, Pick Tonight, forecasting, the
+nightly refresh and the release process) are in the top-level [README](../../README.md).

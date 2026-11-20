@@ -1,287 +1,395 @@
-# Movie Buff (Cinemack)
+# Cinemack
 
-> **New here? Start with [`docs/guide/`](docs/guide/README.md).** It explains the whole system in plain language:
-> [how it works](docs/guide/HOW_IT_WORKS.md), [recommendations](docs/guide/RECOMMENDATIONS.md),
-> [box-office forecasting](docs/guide/BOX_OFFICE.md), [how everything was measured and every result](docs/guide/EVALUATION_AND_RESULTS.md),
-> [engineering and design choices](docs/guide/ENGINEERING.md), [rebuilding it](docs/guide/REPRODUCE.md) and
-> [publishing safely](docs/guide/PUBLISHING.md). The rest of this file is the running build history and reference.
+**A film and TV assistant that runs on one university GPU with open models.** It answers questions about films and
+shows, finds a film from a half-remembered description ("the one where a family of con artists gets jobs with a rich
+family"), recommends films within a person's hard limits, explains its picks, and forecasts box office with honest
+ranges. Code name in the source: *Movie Buff*.
 
-A movie chatbot that answers questions about films, including "what's that movie where…"
-questions from half-remembered descriptions. A persona model (`movie-buff`, a LoRA on a 27B
-Qwen model, served by Ollama) answers from a retrieval pipeline over ~30,000 TMDB films and
-their Wikipedia plot text.
+It was built so that **every claim about it can be checked**: each feature sits behind its own switch, the rule for
+keeping a feature is written down before it is tested, and the failures are reported next to the successes.
 
-How a question is answered:
+> **Start here:** this README is the overview, with diagrams. For more detail, read [`docs/guide/`](docs/guide/README.md)
+> in order. To see how the project was built, read [`docs/HISTORY.md`](docs/HISTORY.md) (every commit) and
+> [`docs/BUILD_NOTES.md`](docs/BUILD_NOTES.md) (versions 3 to 7).
 
-1. **Plan**: the chat model reads the question: which film is named, is it a description,
-   a recommendation, a follow-up? For descriptions it also writes a guessed plot (HyDE).
-2. **Search**: vector search over TMDB records, TMDB plots, Wikipedia intro and plot
-   passages, and generated "tip of the tongue" descriptions, plus keyword search. The lists
-   are fused with reciprocal rank fusion (RRF).
-3. **Re-rank**: when the search isn't confident, the chat model reads the top 50 films'
-   Wikipedia passages and picks the match.
-4. **Answer**: the chat model answers from the top films' records and Wikipedia details.
+## Contents
 
-## v3 (branch `v3`, from tag `v2.0-lock`)
+1. [Versions and branches](#versions-and-branches)
+2. [What it does](#what-it-does)
+3. [The system in one picture](#the-system-in-one-picture)
+4. [How a chat becomes searches](#how-a-chat-becomes-searches)
+5. [How retrieval works](#how-retrieval-works)
+6. [How the answer is written and checked](#how-the-answer-is-written-and-checked)
+7. [Recommendations and Pick Tonight](#recommendations-and-pick-tonight)
+8. [Box-office forecasting](#box-office-forecasting)
+9. [The data and the nightly refresh](#the-data-and-the-nightly-refresh)
+10. [The website and its switches](#the-website-and-its-switches)
+11. [How it is tested](#how-it-is-tested)
+12. [How changes reach the server](#how-changes-reach-the-server)
+13. [Running it](#running-it)
+14. [Repository map](#repository-map)
+15. [Data and licences](#data-and-licences)
 
-v3 keeps the v2 tip-of-the-tongue pipeline as it is and adds what it couldn't do. Every part has its
-own switch in `config.yaml`, and each starts **off** until its experiment says to turn it on
-(`run_v3a.sh`, `run_v3b.sh`; decision rules are written at the top of each script).
+## Versions and branches
 
-| Switch | File | What it adds |
-|---|---|---|
-| `CONV` | `conv.py` | The planner sees the conversation: earlier questions, every film so far (in order, with turn numbers, rejected ones marked), the start of the last answer, and stated tastes. It resolves "the one from earlier", "compare that with Barbie", "their budgets" and "no, it's Korean". A first question gets exactly the v2 prompt. |
-| `TOOLS` | `tools.py`, `chat.py` | A rule-based router picks tools per question: structured facts (budget/gross from 3 sources with conflicts shown, crew, runtime, awards, ratings), side-by-side comparisons, market context (release window, genre-year baseline, director record, franchise), Wikipedia Production/Reception/Box office passages, review analysis, careers and rankings (SQL from a small LLM spec), and now playing/upcoming. "Why" questions get an answer format that keeps evidence and interpretation apart. |
-| `PERSONAL` | `personal.py` | Film likes/dislikes (card buttons, kept apart from answer feedback) and stated tastes become an interpretable profile. Recommendations are re-ranked for the person, with a "why it fits you" line each. |
-| `PARALLEL` | `retrieve.py` | The question's own searches run while the planner writes. Results are the same. |
-| `RERANK_MODEL` | `retrieve.py` | A smaller re-ranker model (latency experiment). |
+`main` is the **current best working version**: the newest code that passed every test. Each earlier version has its
+own branch at the point it was locked, so any version can be checked out and compared.
 
-New data lives in `facts.db` (`facts_db.py`). `movies.db` and `wiki.db` are unchanged.
+| Branch | Dates (2026) | What that version is |
+| --- | --- | --- |
+| **`main`** | now | **v8.1 as it runs today**: everything below, plus the round-55 fixes (20 Nov) |
+| `v8.1` | 12-20 Nov | One id per title, hard limits compiled to SQL, box-office forecast panel, follow people, anonymous event log, Guardian articles on film pages, news in search, the nightly Trakt sync |
+| `v8` | 6-12 Nov | Locked at the sealed v8 test. The **Cinemack** redesign (home, Pick Tonight, calendar, watchlist, profile), same-name and invented-title honesty, memory of earlier chats, filters per chat |
+| `v7` | 23 Oct-5 Nov | Critic reception from Wikipedia citations, TV shows and episodes, people, safety guard, fast paths and caches, a licence register |
+| `v6` | 16-22 Oct | The site as a product: accounts, onboarding, settings, memory notes, posters, more free data (OMDb, Guardian, NYT, YouTube, Netflix, MovieLens) |
+| `v5` | 14-16 Oct | Why a film succeeded: a box-office model with release context, budgets and grosses in every currency, critic scores, nicknames ("T2"), about 2,000 recent films added, news at release, the first nightly model-adapter rebuild (includes the v4 work) |
+| `v3` | late Sep-14 Oct | Conversation-aware planner, tools for facts, comparisons and careers, personal re-ranking |
+| `v2` | late Sep | The tip-of-the-tongue pipeline: Wikipedia passages, HyDE, fusion, re-ranker |
+| `v1` | 23 Sep | The baseline: TMDB records only |
 
-```bash
-export TMDB_API_KEY=...
-python fetch_tmdb.py catalog && python fetch_tmdb.py current   # TMDB details, credits, reviews, current films
-python fetch_wikidata.py                                        # awards, box office, cost
-python wiki_sections.py build --corpus <corpus.jsonl.zip>       # Production / Reception / ... passages
-python wiki_sections.py infobox && python wiki_sections.py embed
-python tools.py build                                           # best money figure per film, MovieLens stats
-python reviews_analyze.py --films 800                           # audience + critic aspects (llama3.2)
-python fetch_tmdb.py refresh                                    # later: only what is stale (daily/weekly/monthly)
-python tools.py try "why did Jaws do so well?"                  # show the route and the data, no answer
+There is no `v4` branch: the v4 work (contextual chunks, filtering liked answers, nightly adapter rebuilds, news at
+release) is in the `v5` branch's history. See [`docs/BUILD_NOTES.md`](docs/BUILD_NOTES.md).
+
+## What it does
+
+- **Answers about any film or show:** facts, cast and crew, money, reception, where to watch, "why did it do well",
+  side-by-side comparisons. Answers are written from stored records, and the sources are credited.
+- **Identifies a film from a vague description**, including follow-ups like "no, it's older and Korean".
+- **Recommends within hard limits:** age rating, length, years, genres to avoid, and "only my streaming services".
+  These are enforced in code before the model sees any film.
+- **Pick Tonight:** five quick choices give three ranked films or shows, each with a short reason.
+- **Release calendar, watchlist, alerts and email digests, TV progress, friends, Trakt import.**
+- **Box-office forecasts:** a range first, a middle estimate after it, and every warning.
+- **News and reviews:** Guardian and New York Times articles under search results and on film pages.
+
+## The system in one picture
+
+```mermaid
+flowchart LR
+  subgraph Sources["Licensed sources, refreshed nightly"]
+    S1[TMDB] & S2[Wikipedia / Wikidata] & S3[IMDb / OMDb] & S4[MovieLens] & S5[Guardian / NYT] & S6[YouTube / TVmaze]
+  end
+  Sources --> DB[("facts.db<br/>films, shows, people,<br/>money, reviews")]
+  Sources --> WK[("wiki.db<br/>Wikipedia passages<br/>+ vectors")]
+  Sources --> MV[("movies.db<br/>film vectors,<br/>MovieLens neighbours")]
+  DB & WK & MV --> P["Answer pipeline<br/>retrieve.py · chat.py · tools.py"]
+  P <--> LLM["Local models via Ollama<br/>27B persona model · embedder · guard"]
+  P --> WEB["Website<br/>FastAPI + plain JavaScript"]
+  WEB --> U[("Per-person stores<br/>accounts, chats, likes,<br/>watchlists, events")]
+  U --> P
 ```
 
-Evaluation: `stage_scores.py` (retrieval, now also multi-turn `sets/multiturn.json` with `expect_absent`)
-and `eval_v3.py` (`sets/analytic.json`: route, data in context, answers + judge). Feedback:
-`python feedback.py stats|list|review|export` (`logs/feedback.db`; only reviewed rows are ever exported).
-Experiments: `summarize.py eval` (flat passages vs summary-first) and `personal.py eval` (MovieLens leave-out).
+**The key design choice:** code decides which films may be discussed, and the language model only writes once that
+decision has been made. A film that breaks a person's limit is removed before the model sees it, so it can never be
+recommended "by accident".
 
-## v4 (from 14 Oct; GPU free again)
+## How a chat becomes searches
 
-`run_v4.sh` runs everything below with decision rules written before the results; every new
-behaviour is a switch in `config.yaml` (`v4:`), off until its rule passes.
+A chat message is never searched as it is. A **planner** reads it together with the conversation so far and writes
+a small structured plan. The rest of the pipeline follows that plan.
 
-| Piece | File | What it does |
-|---|---|---|
-| Contextual chunks | `chunk_context.py` | Jackson Higgins' method: llama3.2 writes a context line, topics and keywords for every Wikipedia passage; the passage is embedded and keyword-indexed with them (`WIKI_KINDS=plot_c,lead_c`, `WIKI_CTX_KW=1`). The text shown to the models is unchanged. A sample test (per-retriever hit@k / MRR, plain vs contextual) decides whether the full ~25k-call run happens. |
-| Liked-answer filter | `like_filter.py` | Screens thumbs-up answers before they can become training data: relevance to the question, grounding in the answer's own context, numbers not in the context, the user's next message correcting it, duplicates, contradicting thumbs-down, one browser's share, optional llama3.2 check. `auto_accept` / `needs_review` / `auto_reject`; thresholds calibrated on judged answers (`calibrate`). |
-| Nightly adapter rebuild | `rebuild_adapter.sh`, `adapter_data.py`, `train_adapter.py` | Each night: filter likes, build the training set (persona + written + liked + corrected + distilled, minus anything older than 90 days or overlapping an evaluation set), skip unless 50+ new examples, train the LoRA, `ollama create movie-buff-aYYYYMMDD`, test against the live model (analytic answers + judge, retrieval check set), promote through `live_model.yaml` only if it wins, keep the newest 3 adapters and remove the rest. Settings in `adapter.env`. |
-| News at release | `news.py` | NYT Archive front pages + Wikipedia event lists around each film's release; related headlines, topic overlap vs control windows, news themes, links the film's own Wikipedia text states, and a corpus-wide test of whether on-topic news goes with box-office return relative to similar films (`NEWS=1`). |
-| Success measures | `tools.py` | Money / reception / recognition measured against films of the same genre and year, plus a thin-evidence line under 10 analysed reviews (`SUCCESS=1`). |
-| Route fix | `tools.py` | Comparison wording finds both films even when retrieval returned one (`ROUTE_FIX=1`). |
-| Review pipeline | `review_filter.py`, `reviews_analyze.py` | Small-model troll/spam check after the rule checks; review analysis uses only usable reviews and no longer truncates its JSON (`REVIEW_NUM_PREDICT`). |
-| Mock client | `mock_llm.py` | `MOCK=replay` replays recorded model calls from `results/llm_cache.sqlite`, `MOCK=fake` fakes the rest, so the pipeline runs on a laptop without Ollama. |
-
-```bash
-python news.py fetch --source wiki --from 1925 && python news.py embed && python news.py films && python news.py analyze
-python news.py show "Jaws"                         # the block the answer model sees
-python like_filter.py run && python like_filter.py report
-bash rebuild_adapter.sh dry                        # the nightly steps without training
-bash rebuild_adapter.sh list | rollback            # adapters built, and going back one
-MOCK=fake python mb.py ask "that movie with the shark"
+```mermaid
+flowchart TB
+  M["New message<br/>'what about their budgets?'"] --> SAFE{"Safety check<br/>Llama Guard 3 1B"}
+  SAFE -- unsafe --> REF[Fixed refusal]
+  SAFE -- ok --> CACHE{"Answer cache<br/>same question, films,<br/>taste and limits?"}
+  CACHE -- hit --> OUT[Cached answer]
+  CACHE -- miss --> CONV["Conversation state · conv.py<br/>earlier turns, every film so far in order,<br/>rejected films, stated tastes"]
+  CONV --> PLAN["Planner · the chat model, JSON only"]
+  PLAN --> J["Plan<br/>intent · films · guesses · search_query ·<br/>guessed_plot · rejected · ambiguous · preferences"]
+  J --> I{intent}
+  I -- named_film --> NF["Look up each named film<br/>aliases ('T2', 'LOTR'), same-name rules,<br/>'I can't find that film' when it doesn't exist"]
+  I -- identify --> ID["Search the WHOLE description so far<br/>+ a guessed plot (HyDE)<br/>+ one search per separate detail"]
+  I -- recommend --> RC["Hard limits from settings and the chat<br/>→ validated query plan → SQL<br/>+ personal re-rank"]
+  I -- other --> OT["People, careers, rankings,<br/>now playing: tool router"]
+  NF & ID & RC & OT --> R[Retrieval]
 ```
 
-## v6 (16-22 Oct): the site as a product, and more free data
+**What the planner writes.** Here is a real example from the planner's own instructions. It is the third turn of a
+chat that started with *"Why did Oppenheimer do so well?"* and continued with *"Compare that with Barbie."*:
 
-Every answer-changing piece is a switch, off until its rule (written before the result) passes; site-only
-features that don't change answers are on.
-
-| Piece | File | What it does |
-|---|---|---|
-| Accounts | `web/accounts.py` | Optional sign-up / sign-in (scrypt or Argon2id hashes, HttpOnly session cookie, lockout after 5 failures); a guest's chats, film choices, settings and memory move to the new account; delete-account removes everything. |
-| Sign-in and onboarding | `web/index.html` | One centred flow: Account → You → Taste (11 groups → stated tastes) → Style (length, voice, spoilers, age rating) → All set. Full-screen on phones. |
-| Settings | `web/user_prefs.py` | Length (also a hard `num_predict` cap), voice, spoilers, never-genres, earliest year, longest runtime, US age-rating limit, "about me" note, money / critic lines on or off, memory, recall. Recommendation limits are applied in code before the prompt. |
-| Memory | `web/memory.py` | Notes the person states about themselves (llama3.2, checked against their words); recall of related exchanges from their other chats (word + title overlap, no model call); a line per recent chat when they refer back. Private chat uses none of it. |
-| Film cards and panel | `web/film_info.py` | Posters, cast photos, IMDb / RT / Metacritic, US rating, the four taste buttons, watchlist; panel with trailer, where to watch, review and box-office links. |
-| Links under answers | `web/links.py` | Chosen by the question: where to watch (JustWatch via TMDB), reviews (matched Guardian / NYT review, RT, Metacritic, IMDb, Letterboxd), box office (Box Office Mojo, Wikipedia section), trailers (YouTube, privacy-enhanced, loads on click). |
-| Free data | `fetch_v6_data.py`, `fetch_free_data.py` | Posters / cast photos, IMDb ratings, Wikipedia pageviews before release; TMDB trailers, watch providers and certifications; OMDb critic scores; Guardian and NYT reviews; YouTube trailer stats, descriptions, review videos and comments; Netflix engagement reports; MovieLens 32M. `python fetch_free_data.py coverage`. |
-| Data in answers | `extra_data.py`, `tools.py` (`EXTRA_DATA=1`) | OMDb scores where Wikipedia has none, Guardian / NYT lines, a where-to-watch block, an audience-and-reach block (IMDb, MovieLens, Netflix, trailer lead time; YouTube views labelled as after release). |
-| Review sources | `reviews_analyze.py --kinds pro,ytc` | Aspect counts with quotes from professional reviews and trailer comments, next to TMDB users and Wikipedia's reception text. |
-| Box-office model pf3 | `performance.py` | + trailer timing (pre-release only; used per film only if it beats pf2 on 2016-19), + pre-release Wikipedia views (own 5-fold test, reported only), + OMDb / IMDb in the after-release model. |
-| Date words | `retrieve.py` (`DATE_WORDS=1`) | "late 90s", "seventies", "last 5 years", "last year"; "recent" / "old" only in recommendations; ages ("in her early 20s") are not decades. |
-| Kinds of picks | `retrieve.py` (`DISCOVER=1`) | "highly rated / acclaimed / best" ranks recommendations by a vote-weighted rating; "lesser-known / hidden gems / underrated" keeps well-rated films with 60-2,500 votes; "what came out in 1999" and "highly rated horror" count as browse requests; the catalogue tops up the list with the same year / genre filters. |
-| Planner sees your films | `retrieve.PERSON`, `web/server.py` (`PLAN_PAST=1`, web only) | The person's liked / disliked / watchlist films go to the planner, so "like the last one I liked" resolves. |
-
-```bash
-python fetch_free_data.py tmdb && python fetch_free_data.py movielens && python fetch_free_data.py netflix
-python fetch_free_data.py guardian --again --body     # OMDB_API_KEY / GUARDIAN_API_KEY / NYT_API_KEY / YOUTUBE_API_KEY
-python fetch_free_data.py omdb                        # free key: 1,000 a day, run daily
-python extra_data.py "Oppenheimer"                    # the new answer lines for one film
-python performance.py fit && python performance.py show "Oppenheimer"
-bash run_v6_night.sh                                  # pf3 fit, YouTube, EXTRA_DATA answer test
-bash run_v6_day.sh                                    # nickname rerun, DATE_WORDS test, review sources
+```json
+{"intent": "named_film",
+ "films": [{"title": "Oppenheimer", "year": 2023}, {"title": "Barbie", "year": 2023}],
+ "guesses": [],
+ "search_query": "Compare the production budgets of Oppenheimer (2023) and Barbie (2023)",
+ "guessed_plot": "", "rejected": [], "ambiguous": false, "preferences": []}
 ```
 
-## v7 (23 Oct - 5 Nov): reception, TV, safety, speed
+- **`search_query`** is the message rewritten to make sense on its own: "their" becomes both titles.
+- **`films`** holds what the message refers to, earlier films first. "It", "the first one" and "the one from
+  earlier" are resolved from the conversation state, not from the words alone.
+- **`rejected`:** "no, that's not it" puts the last answer's film here, so it is never offered again, and the
+  description search uses everything said about the film so far.
+- **`guessed_plot`** (descriptions only): two or three sentences written the way a film database would summarise
+  the plot. Searching with it finds films whose summaries *read* like that (HyDE).
+- **`preferences`** are lasting tastes ("I hate jump scares"). They go to the person's profile, not just this chat.
+- **`ambiguous`** is set when "it" could fairly mean two films. Both are kept, most likely first.
 
-Same principle as v6: every answer-changing piece is a switch in `config.yaml`, **off** until its rule (written before
-the result, plan doc "Tests and rules") passes; tune / check may lose at most 1. `python v7_rules.py ...` prints the
-numbers each rule uses and PASS / FAIL; the switch is then set by hand. Code freeze Tue 3 Nov 18:00 (tag
-`v7.0-lock`); sealed run v6.0 vs v7 that night.
+A description with several separate details ("a boarding school… a ghost in the library… it happens in one night")
+is also **split into its details**. Each detail is searched on its own and the lists are fused, so one strong detail
+cannot be drowned out by the rest.
 
-| Piece | File | Switch | Rule to turn it on |
-|---|---|---|---|
-| Critic statements from Wikipedia's Reception sections, with the outlet / critic each `<ref>` cites (R2) | `critics.py` | data | outlet right on >= 90% of 50 hand-checked (`critics.py score`) |
-| Review sentiment (RoBERTa + head fitted on TMDB ratings), joke / sarcasm, bursts / review bombing, rating-text mismatch (R3, R5, H7) | `sentiment.py` | data | macro-F1 >= 0.80 on hand labels and beats llama3.2; flag precision >= 0.8 |
-| Reception card per film: critics vs audiences (0-100), gap, polarisation, trend, legacy, bombing, praise / complaints, summaries (R8, R12, R13, E2-E4, H9) | `reception_cards.py` | data | summary sentences supported >= 95% (`claimcheck.py summaries`) |
-| Review scores stated on Wikidata (E1) | `v7_data.py wd-scores` | data | coverage reported |
-| Evidence search over critic statements, standfirsts, user reviews, TV reviews, analysis videos (R14) | `evidence.py` | with RECEPTION | evidence hit@5 reported (`evidence.py hit`) |
-| Reception answers: card + cited evidence + numbered sources (R15) | `tools.py`, `chat.py` | `RECEPTION=1` | reception set (40): judge passes >= off + 6, unsupported rate not higher, grounding not lower |
-| Claim checker (NLI): unsupported rate, citation precision / recall (R16) | `claimcheck.py` | measure | - |
-| Video essays from 23 allow-listed channels: title, description, chapters only (R11) | `youtube_analysis.py` | data | right film >= 90% of 50 checked |
-| Nightly refresh, purge (YouTube 30 days), rebuild (R17) | `nightly.sh` | cron | dry run clean |
-| Connectors registry + tests on saved samples (R1); Letterboxd stays off until API approval | `connectors/` | - | `python -m pytest tests/` |
-| TV shows: search, answers, cards (D1) | `tv.py` | `TV=1` | TV set >= 20 / 30; tune / check / analytic each lose <= 1 |
-| Director / actor filters (D2) | `people.py` | `PEOPLE=1` | every film returned has the person (`people.py check`) |
-| IMDb rating line; IMDb alternate titles as aliases (D2) | `tools.py`, `aliases.py` | `IMDB=1`, `ALIAS_IMDB=1` | regression rule (tested with the D arm on Thursday) |
-| Recall earlier chats by meaning (D3) | `web/memory.py`, `memory_eval.py` | `MEM_EMBED=1` | hit@1 higher, false recall not higher |
-| Two users at once: per-request state (D4) | `request_state.py` | always | `tests/test_two_users.py` |
-| Injection defences: spotlighting, sanitising, link allow-list, leak check (D5) | `safety.py` | `GUARD=1` | >= 36 / 40 attacks defended (`attack_eval.py`); normal sets lose <= 1 |
-| Moderation: Llama Guard 3 1B + Detoxify (D6) | `moderation.py` | `MODERATION=1` | <= 1 false block across the normal sets |
-| Fact fast path from facts.db (D7) | `fastpath.py` | `FAST=1` | every fast answer holds the required facts; no non-factual question takes it |
-| Recommendation clean-up: no TV movies, concerts, shorts, unreleased, low-vote, off-genre (D8) | `rec_clean.py` | `REC_CLEAN=1` | 0 bad items in the 10 discovery prompts' top 10 |
-| Ollama speed A/B: flash attention, q8_0 KV cache, 2 parallel (D9) | `speed_ab.sh` | Ollama env | faster with tune / check within 1 |
-| Context builder, prompt order (D10) | `chat.py` | `CTX_BUILDER=1`, `PROMPT_ORDER=1` | regression rule |
-| Semantic answer cache (D11) | `web/semcache.py` | `SEMCACHE=1` | 0 wrong reuses on 20 near-miss pairs |
-| MRR and per-retriever hit rates (D12) | `metrics.py` | report | - |
-| Confidence model refit on identify questions (D13) | `confidence.py fit --identify` | report | calibration error down |
-| Personal taste weights on MovieLens 32M (D14) | `personal.py sweep32` | `PERSONAL_W` | bootstrap CI beats the live weights |
-| Money: euro legacy currencies, nearest-year fallback (H2) | `money_extra.py` | data | `money_extra.py diagnose` |
-| Reception panel in the film details (E5) | `web/index.html`, `web/film_info.py` | site | - |
-| Judge check: 30 answers graded by hand vs gemma3 (E7) | `judge_check.py` | report | >= 80% agreement and kappa >= 0.6 |
-| Licensing register (E6) | `v7_data.py register` | docs | - |
-
-Terms decisions (E8, 27 Oct): New York Times text never goes into a prompt or through a model (only critic, date,
-Critic's Pick and a link are shown); Guardian article bodies are not analysed until the text-mining terms are
-confirmed (stars and standfirsts are shown and may be quoted with a link); YouTube data is refreshed or deleted within
-30 days and captions / comments are not analysed. Letterboxd is used only if API access is approved in writing.
-
-```bash
-bash run_v7_night.sh TUE            # reception data, critics, sentiment, flags, samples, aspects, cards, summaries
-bash run_v7_night.sh WED            # evidence, cards, reception A/B, claim check, hit@5, analytic regression, rules
-bash run_v7_night.sh THU            # TV build + TV set A/B, people, discovery, aliases, fast path, recall, attacks
-bash run_v7_night.sh FRI            # speed A/B, context builder / prompt order, recent A/B, confidence, sweep32
-python v7_data.py register          # rewrite the licensing register below and on the About page
-python judge_check.py sample results/v3eval_<tag>.json   # E7 grading page
+```mermaid
+sequenceDiagram
+  participant P as Person
+  participant C as conv.py
+  participant L as Planner
+  participant R as Retrieval
+  P->>C: "movie where a con-artist family gets jobs with a rich family"
+  C->>L: message + (no earlier turns)
+  L-->>R: intent identify, guessed_plot, search = whole description
+  R-->>P: Parasite (2019)
+  P->>C: "no, it's older and not Korean"
+  C->>L: message + turn 1 + films so far [Parasite]
+  L-->>R: intent identify, rejected [Parasite], search = turn 1 + "older, not Korean"
+  R-->>P: a different film - Parasite cannot come back
 ```
 
-## Quick start (a machine that already has the data)
+## How retrieval works
 
-```bash
-cd ~/movie-buff/rag
-source ~/venvs/movie-rag/bin/activate
-python mb.py check           # every line should say ok; fix any FAIL first
-python mb.py build-cache     # once, and again whenever movies.db or wiki.db change (1-3 min)
-python mb.py ask "that movie where a guy relives the same day over and over"
-python mb.py chat            # the terminal chat
+Retrieval turns the plan into a short list of films. It runs several different searches at once and merges their
+rankings.
+
+```mermaid
+flowchart TB
+  Q["Search text + guessed plot + details"] --> E["Embed<br/>mxbai-embed-large"]
+  E --> A1["q: question vectors over<br/>TMDB records and plots"]
+  E --> A2["q: Wikipedia lead, plot<br/>and section passages"]
+  E --> A3["hyde: guessed plot vs<br/>TMDB plots"]
+  E --> A4["wq: generated 'tip of the<br/>tongue' descriptions"]
+  Q --> K1["kw: keyword search<br/>TMDB records · SQLite FTS5"]
+  Q --> K2["wkw: keyword search<br/>Wikipedia passages"]
+  Q --> D1["dv / dkw: one vector and one<br/>keyword search per detail"]
+  A1 & A2 & A3 & A4 & K1 & K2 & D1 --> F["Reciprocal rank fusion<br/>score = Σ weight / (60 + rank)"]
+  F --> H["Hydrate: film records + best<br/>Wikipedia passage per film"]
+  H --> LIM{"Hard limits<br/>query plan → SQL"}
+  LIM -- fails a limit --> X[Removed for good]
+  LIM -- passes --> G{"Confident?<br/>top-2 gap ≥ 0.03"}
+  G -- yes --> TOP[Top films]
+  G -- no --> RR["Re-rank: the chat model reads the top 50<br/>films' passages and picks the match"]
+  RR --> TOP
+  TOP --> CTX[Context builder]
 ```
 
-## Setting it up somewhere new
+- **Why several searches?** Each one fails differently. Vectors find meaning ("a man relives one day"), keywords find
+  rare exact words ("Bill Murray", "groundhog"), Wikipedia catches scenes that TMDB summaries leave out, and the
+  generated descriptions match the vague way people remember films.
+- **Why reciprocal rank fusion?** It merges rankings using positions only (k = 60), so scores from very different
+  searches never need calibrating against each other. Per-list weights are set by `RRF_WEIGHTS`.
+- **In-memory vectors.** The vectors are cached in memory (`vec_cache/`), which gives the same results as sqlite-vec
+  about 7 times faster. `mb.py check` refuses to run if the embedder differs from the one that built the vectors.
+- **The re-ranker only runs when needed.** When the top two results are far apart, the re-ranker is skipped. This
+  saved it on about a third of tuning questions without losing a single correct answer.
+- **Hard limits are not suggestions.** Saved settings and limits stated in the chat ("nothing scary, under two
+  hours, on Netflix") become a validated query plan (schema 1.1) compiled to parameterised SQL. On all 33,041 films
+  and 8,043 shows it matches a plain-Python reference **100%** of the time. In strict mode an unknown fact fails the
+  limit.
 
-**Hardware.** Default: an NVIDIA GPU with 24 GB (the 27B model takes ~17 GB). With less
-memory, set `ANSWER_MODEL` in `config.yaml` to a smaller Ollama model (answers lose the
-persona, and the re-ranker gets weaker). CPU-only works but each answer takes minutes.
+## How the answer is written and checked
 
-**Software.**
+```mermaid
+flowchart LR
+  TOP[Top films] --> RT{"Tool router<br/>tools.py"}
+  RT --> T1[Facts: budget, gross,<br/>crew, awards, ratings]
+  RT --> T2[Comparison table]
+  RT --> T3[Reception: critics with<br/>outlets, audiences, aspects]
+  RT --> T4[Market context:<br/>release window, genre-year]
+  RT --> T5[Where to watch,<br/>now playing, upcoming]
+  T1 & T2 & T3 & T4 & T5 --> CB["Context builder<br/>records + Wikipedia + memory<br/>of earlier chats, if allowed"]
+  CB --> ANS["movie-buff<br/>27B persona model<br/>streamed to the page"]
+  ANS --> CHK["Checks: numbers against the records,<br/>spoiler rules, same-name title,<br/>source credits"]
+  CHK --> SAVE[Cache + chat history<br/>unless the chat is private]
+```
+
+| Model | Job | Why this one |
+| --- | --- | --- |
+| `movie-buff` (LoRA on a 27B Qwen model) | Planning, re-ranking, answers | A consistent persona; runs locally |
+| `mxbai-embed-large` | Every vector | One embedder for everything, checked at start-up |
+| `llama-guard3:1b` | Safety | Small and fast |
+| `llama3.2` | Generated descriptions, review aspects, small jobs | Cheap for bulk work at night |
+| `gemma3:27b` | Evaluation judge only | A different model family, so the system is not graded by its own kind |
+
+## Recommendations and Pick Tonight
+
+```mermaid
+flowchart LR
+  CH["Five choices<br/>movie or show · who · mood ·<br/>time · familiar or different"] --> LIMS["Hard limits<br/>age rating, runtime, mood genre,<br/>never-genres, services"]
+  LIMS --> CAND["Candidates<br/>search + MovieLens neighbours<br/>+ well-known films that fit"]
+  CAND --> SC["Score: content match · neighbours ·<br/>popularity · your likes and dislikes"]
+  SC --> CHECK["Second check on the page<br/>an unknown fact fails"]
+  CHECK --> TOP3["Top 3 + 'Why these picks?'<br/>one line per film"]
+  CHECK -- "fewer than 3" --> LOOSEN["Says why, offers to loosen ONE limit<br/>nothing changes until you choose"]
+```
+
+- **Films** go through the normal pipeline with strict filters. **Shows** are ranked in code from IMDb ratings
+  weighted by votes, with no model call.
+- **The "why"** for each pick appears once, at the bottom, in one line per film. It uses only sentences that name
+  that film and no other. If the answer has no such sentence, it is built from what is known about the film (genre,
+  length, service, rating).
+- **A better ranking failed three tests (14-16 Nov), so the current ranking stays.** Against random films,
+  "people who liked X" and popularity look strong. Against popular films, they are weak or useless. No single set of
+  weights won on both tests. The next try is measured on real use: a pre-registered two-week baseline from the
+  anonymous event log (20 Nov to 4 Dec), described in [RECOMMENDATIONS.md](docs/guide/RECOMMENDATIONS.md).
+
+## Box-office forecasting
+
+```mermaid
+flowchart LR
+  F1["Only facts known before release<br/>budget, genre, rating, season, competition,<br/>director / cast / producer track record,<br/>trailer lead time, pre-release press"] --> M["LightGBM model<br/>target: log worldwide gross"]
+  M --> CQR["Conformalised quantile ranges<br/>50% and 80%"]
+  CQR --> PANEL["Film page panel:<br/>range first, middle estimate after,<br/>every warning"]
+```
+
+- **Leak-proof inputs.** Every input carries an "as of" date. Anything learned after release, such as audience
+  votes, reviews or opening weekend, is excluded from the before-release model.
+- **Results on 2016-2019 films:** the 80% range held 77-79% of the time and the 50% range 47-48%. The typical miss
+  is about 3x either way, and the ranges are wide (about x35). For 2020-2023, after the streaming shift, the model
+  over-predicts and its ranges hold less often. The panel says so. Details: [BOX_OFFICE.md](docs/guide/BOX_OFFICE.md).
+
+## The data and the nightly refresh
+
+```mermaid
+flowchart TB
+  CRON["04:17 nightly.sh"] --> FETCH["Fetch: new and upcoming releases, streaming services,<br/>OMDb scores, Guardian / NYT reviews, Wikipedia reception,<br/>TVmaze schedules, YouTube refresh"]
+  FETCH --> PURGE["Purge: YouTube rows older than 30 days<br/>(their terms)"]
+  PURGE --> REBUILD["Rebuild only what changed:<br/>critic statements, sentiment, review aspects<br/>(50 min a night), reception cards, summaries"]
+  REBUILD --> LIGHT["Every night, even during evaluations:<br/>TVmaze, Trakt sync (only adds what is missing),<br/>email digests"]
+  LIGHT --> REP["results/nightly_DATE.txt<br/>+ event-log baseline report"]
+  EVE["18:00 Guardian top-up<br/>spends the day's unused calls<br/>before the midnight UTC reset"] --> FETCH2[Pre-release press for forecasting]
+```
+
+| Store | Holds |
+| --- | --- |
+| `facts.db` | 33,041 films and 8,043 shows with seasons and episodes; people and credits; keywords; age ratings; streaming services; budgets and grosses; awards; IMDb ratings; critic reviews; trailers |
+| `wiki.db` | Wikipedia lead, plot, production, reception and box-office passages, with vectors and a keyword index |
+| `movies.db` | Film vectors, generated descriptions, MovieLens neighbours |
+| `logs/*.db` | Per-person data: accounts, chats, likes, watchlists, follows, email settings, Trakt links, anonymous events |
+
+**One id per title.** A TMDB number is not unique: 1,072 numbers belong to both a film and a show. Every title gets
+one id, `movie:<tmdb>` or `tv:<tmdb>`, and 125,484 outside ids (IMDb, Wikidata, TVDB) are each rated `ok`, `stale`,
+`wrong_type` or `shared`.
+
+## The website and its switches
+
+One Python server (`web/server.py`, FastAPI) and plain-JavaScript pages (`web/v8/`), with no build step. The pages
+are home, chat, film and show pages, Pick Tonight, Release Calendar, watchlist, profile and settings, and friends.
+`MOVIE_BUFF_MOCK=1` runs the whole site with a fake model and sample data, so it can be tested without a GPU.
+
+Every v8.1 feature has its own switch. A route whose switch is off answers 404, exactly as if it did not exist.
+
+| Switch | What it adds | State |
+| --- | --- | --- |
+| `FORECAST_PANEL` | Box-office forecast on the film page | on |
+| `FOLLOW_PEOPLE` | Follow an actor or director | on |
+| `REC_EVENTS` | Anonymous "shown / opened / saved" events, for testing rankings (no account id, no text) | on |
+| `GUARDIAN_LIVE` | "In the Guardian" on film pages: stored first, at most 20 live lookups a day | on |
+| `SEARCH_NEWS` | Stored news and reviews under search results, with no API call | on with round 55 |
+| `RECS_V2` | The new ranking | off: failed its tests |
+| `QUERY_PLAN_SHADOW` | Logs where the new query plan and the older filter path disagree | off: not connected yet |
+| `TOOL_ROUTER` | Four typed tools the chat model may call | off: needs a GPU test |
+| `DEALS` | Rental and purchase prices (Watchmode pilot) | off: being built |
+
+Switches for answers are listed in `v7_lock.env` and `v8_lock.env`, and the website-only ones in `site.env`.
+
+## How it is tested
+
+```mermaid
+flowchart LR
+  RULE["Write the rule first<br/>planning/.../IMPLEMENTATION_PLAN_LOCKED.md"] --> ARM["Two arms that differ<br/>by ONE switch"]
+  ARM --> TUNE["Tuning sets<br/>(seen while building)"]
+  TUNE --> SEAL["Sealed sets<br/>md5-hashed, run once"]
+  SEAL --> SCORE["Deterministic checks<br/>+ a judge from another family"]
+  SCORE --> STATS["Paired bootstrap 95% intervals<br/>Holm correction"]
+  STATS --> DEC{"Rule met?"}
+  DEC -- yes --> ON[Switch on]
+  DEC -- no --> OFF["Stays off, reported as FAIL"]
+```
+
+| Sealed v8 test (12 Nov), v7 → v8 | v7 | v8 |
+| --- | --- | --- |
+| Same-name titles: right title named first (of 15) | 11 | 13 |
+| Invented films presented as real (of 10, lower is better) | 1 | 0 |
+| Memory: refer-backs recalled correctly (of 16) | 12 | 15 |
+
+There are 46 unit-test modules (`tests/`) plus page-module tests run with Node (`tests/js/`). Every result, including
+every failure, is in [EVALUATION_AND_RESULTS.md](docs/guide/EVALUATION_AND_RESULTS.md).
+
+## How changes reach the server
+
+```mermaid
+flowchart LR
+  BUILD["Build a 'round'<br/>package + todo.sh"] --> SYNC["sync.cmd<br/>copies to the server, runs todo.sh"]
+  SYNC --> GUARD{"Guards: expected version of<br/>every file, clean worktree,<br/>no night job running"}
+  GUARD -- fail --> STOP[Nothing changes]
+  GUARD -- ok --> WT["Install into the v8.1 worktree<br/>tests → commit"]
+  WT --> LIVE["Fast-forward the live folder,<br/>backup, restart"]
+  LIVE --> CHECK{"Live checks"}
+  CHECK -- fail --> BACK[Put back automatically]
+  CHECK -- pass --> DONE[Live]
+```
+
+The live site runs from its own folder. New work is built in a separate worktree (branch `v8.1`) and reaches the live
+folder only by fast-forward, after the tests pass. Every round can be run again safely: a second run only collects
+results.
+
+## Running it
 
 ```bash
 python3 -m venv ~/venvs/movie-rag && source ~/venvs/movie-rag/bin/activate
 pip install -r requirements.txt
-ollama pull mxbai-embed-large          # the embedder the vectors were built with
-ollama pull llama3.2                   # only to build the generated descriptions
+ollama pull mxbai-embed-large && ollama pull llama3.2      # + the movie-buff model, or set ANSWER_MODEL
+python mb.py check           # every line should say ok
+python mb.py build           # the data build steps, with status and commands (needs your own API keys)
+python mb.py build-cache     # in-memory vectors
+python mb.py ask "that movie where a guy relives the same day over and over"
+MOVIE_BUFF_CODE=pick-a-code python mb.py serve              # the website on port 49151
+MOVIE_BUFF_MOCK=1 python web/server.py                      # the website with a fake model, no GPU
 ```
 
-The `movie-buff` model is created from the persona LoRA with `ollama create` (see the
-Step-by-Step Build Guide). Without it, point `ANSWER_MODEL` at any chat model Ollama has.
-
-**Data.** Either copy `movies.db` and `wiki.db` into this folder, or build them:
-
-```bash
-python mb.py build           # lists every build step, whether it's done, and its command
-```
-
-The Wikipedia steps need the TREC Tip-of-the-Tongue 2023 corpus (`corpus.jsonl.zip` and
-`wikipage_id_to_imdb.json.zip`). The two long steps are embedding the passages (~40 min on
-an A10) and generating descriptions with llama3.2 (~6 h); both are resumable.
-
-Then `python mb.py check` and `python mb.py build-cache`.
-
-## Commands
+**Hardware:** a 24 GB GPU for the 27B model (about 17 GB). With less memory, set `ANSWER_MODEL` to a smaller Ollama
+model. **Data:** none is included in this repository. Fetch your own copy under each source's terms; see
+[REPRODUCE.md](docs/guide/REPRODUCE.md) and [DATA_SOURCES.md](DATA_SOURCES.md).
 
 | Command | Does |
-|---|---|
-| `python mb.py check` | Checks packages, Ollama and the models, both databases, that the embedder matches the one that built the vectors, the vector cache, and the GPU. Exit code 1 on any FAIL. `--quick` skips loading the embedder. |
-| `python mb.py settings` | Every setting in effect and where it came from (shell, config.yaml, or code default). |
-| `python mb.py build` | The data build steps in order, with status and command. |
-| `python mb.py build-cache` | Builds `vec_cache/` (in-memory copies of the vectors) and compares it with sqlite-vec. |
-| `python mb.py ask "…"` | One question through the whole pipeline; prints the films found and the answer. `--think` shows reasoning. |
-| `python mb.py chat` | The terminal chat (`chat.py`). `/think` toggles reasoning. |
-| `python mb.py serve` | The website (`web/server.py`); set `MOVIE_BUFF_CODE` first. See `web/RUN.md`. |
-| `python mb.py eval …` | `stage_scores.py` with the same arguments, e.g. `python mb.py eval --split tune --tag mytest`. |
+| --- | --- |
+| `python mb.py check` | Packages, Ollama and models, databases, embedder match, vector cache, GPU. Exit 1 on any FAIL |
+| `python mb.py settings` | Every setting in effect and where it came from |
+| `python mb.py ask "…"` | One question through the whole pipeline (`--think` shows reasoning) |
+| `python mb.py chat` | Terminal chat |
+| `python mb.py eval …` | `stage_scores.py`: which stage found or lost the expected film |
+| `bash nightly.sh --dry` | The nightly steps without running them |
+| `python -m unittest tests.<name>` | One test module (`node tests/js/<name>.mjs` for page modules) |
 
-## Settings
+## Repository map
 
-All settings are environment variables read by `retrieve.py` and `chat.py`. `config.yaml`
-holds the chosen values (the ones locked after experiments E1-E9); a variable set in the
-shell wins over the file, so one-off experiments need no edits:
-
-```bash
-RERANK_N=30 python mb.py eval --split tune --tag rerank30
-```
-
-`MB_CONFIG=other.yaml` uses another file; `MB_CONFIG=none` ignores it. The most useful ones:
-
-| Setting | Default | What it does |
-|---|---|---|
-| `ANSWER_MODEL` | movie-buff | Answers, title guesses and the re-ranker |
-| `QUERY_MODEL` | = ANSWER_MODEL | Reads the question first (the planner) |
-| `EMBED_MODEL` | mxbai-embed-large | Must match the model that built the vectors |
-| `WIKI` | 1 | Search Wikipedia passages |
-| `WIKI_Q` | rrf | Generated descriptions as their own ranked list |
-| `HYDE` | 1 | Search with a guessed plot for descriptions |
-| `VEC_MEM` | 1 | In-memory vector search: same results as sqlite-vec, ~7x faster. Falls back to sqlite-vec when `vec_cache/` is missing or stale |
-| `RERANK` | auto | 1 always re-rank, 0 never, auto skip when the search is confident |
-| `RERANK_N` | 50 | Films the re-ranker reads |
-| `RERANK_WIKI_CHARS` | 400 | Characters of Wikipedia text per film for the re-ranker |
-| `ANSWER_WIKI` | 1 | Answers include Wikipedia details |
-
-`config.yaml` lists the rest with a note on the experiment behind each.
-
-## Evaluating
-
-`stage_scores.py` scores every stage (is the expected film in the search pool, does it reach
-the re-ranker, is it first after re-ranking, is it in the final answer), for the question
-sets in `sets/` (`tune`, `check`; `final` is sealed and runs once with `--final`). Model
-calls are cached in `results/llm_cache.sqlite`, so re-running with unchanged prompts makes
-0 new calls. `--no-cache` measures real timings. `compare_stage.py A.json B.json` compares
-two runs question by question.
-
-## Files
-
-| File | Role |
-|---|---|
-| `retrieve.py` | Planning, search, fusion, re-ranking |
-| `chat.py` | Answer prompt and the terminal chat |
-| `vecmem.py` | In-memory vector search (`vec_cache/`) |
-| `mbconfig.py`, `config.yaml` | Settings |
-| `mb.py` | This command-line entry point |
-| `web/` | The website (`server.py`, `pipeline.py`, `site_cache.py`) |
-| `wiki_*.py` | Wikipedia link, chunk, embed, keyword index, generated descriptions |
-| `build_db.py`, `fetch_credits.py`, `rebuild_embeddings.py`, `build_plot_vectors.py`, `build_fts.py` | TMDB database |
-| `stage_scores.py`, `compare_stage.py`, `judge.py`, `factcheck.py` | Evaluation |
-| `run_e*.sh` | The experiments, each writing `results/eN_summary.txt` |
-| `run_v4.sh` | v4 steps and their decision rules (`results/v4_summary.txt`) |
+| Path | What |
+| --- | --- |
+| `retrieve.py` | Planner, searches, fusion, hard limits, re-ranker |
+| `conv.py` | Conversation state for the planner |
+| `chat.py`, `tools.py`, `tv.py` | Answer prompt, tool router, TV answers |
+| `facts_db.py`, `fetch_*.py`, `v7_data.py` | Data layer and licence register |
+| `web/server.py`, `web/pipeline.py`, `web/v8/` | Website server, answer pipeline wrapper, pages |
+| `web/query_plan.py`, `web/plan_sql*.py`, `web/media_identity.py` | Hard limits compiled to SQL; one id per title |
+| `personal.py`, `web/recs.py`, `web/rec_events.py` | Recommendations and the event log |
+| `performance.py`, `boxoffice_asof.py`, `web/forecast_api.py` | Box-office forecasting |
+| `web/guardian_live.py`, `web/news_search.py` | Guardian articles on film pages; news in search |
+| `web/emailer.py`, `web/trakt_sync.py`, `web/trakt_missing.py` | Email alerts; Trakt import and nightly sync |
+| `nightly.sh`, `reviews_analyze.py` | Nightly refresh; review aspects |
+| `stage_scores.py`, `eval_v3.py`, `judge*.py`, `tools/v81_*.py` | Evaluation; one tool per v8.1 measurement |
+| `tests/`, `tests/js/` | Unit tests and page-module tests |
+| `planning/cinemack-v8.1/` | Rules written before each run, and the results |
+| `docs/guide/` | The plain-language guide |
+| `docs/HISTORY.md`, `docs/BUILD_NOTES.md` | Every commit; the version-by-version build log |
 
 ## Data and licences
 
-Film records: TMDB (via the Kaggle "TMDB movies dataset", and in v3 the TMDB API: details, credits,
-user reviews, current and upcoming films); this product uses the TMDB API but is not endorsed or
-certified by TMDB. Wikipedia text: the TREC Tip-of-the-Tongue 2023 corpus, CC BY-SA. Film links,
-awards, box office and cost: Wikidata (CC0). News headlines (v4): The New York Times Archive API
-("Data provided by The New York Times"; headline, abstract, date and link only) and Wikipedia's dated
-event lists (CC BY-SA). Audience ratings: MovieLens (F. Maxwell Harper and
-Joseph A. Konstan, 2015, ACM TiiS 5(4)), used under the GroupLens licence.
+The code and documentation are MIT licensed (`LICENSE`). **The data is not included and is not covered by that
+licence.** Each source has its own terms, summarised below and in [DATA_SOURCES.md](DATA_SOURCES.md). This product
+uses the TMDB API but is not endorsed or certified by TMDB. Streaming availability data is by JustWatch. Wikipedia
+text is CC BY-SA 4.0. MovieLens data: F. M. Harper and J. A. Konstan, ACM TiiS 5(4), 2015.
 
-### Licensing register (v7, from `v7_data.py SOURCES`)
+### Licensing register (from `v7_data.py SOURCES`)
 
 <!-- register:start -->
 | Source | What | Tables | Terms and our rule | Credit | Refresh (days) |

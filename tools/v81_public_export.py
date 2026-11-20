@@ -26,6 +26,13 @@ addresses / home folders / key values, plus any quoted or KEY=... value that loo
 REDACTED, and every file the publish check would flag by its name is left out). Commits left empty by the rules are
 skipped. Author and committer of every commit become --name / --email. Uses only git itself (no extra tools).
 --snapshot gives the old single-commit copy.
+BRANCHES (round 56, 20 Nov, owner's request): --branches "main=v8.1,v1=v1.0,v2=v2,..." replays several branches or
+tags into the same copy - one public branch per version, `main` being the current best version. Shared history is
+shared (each source commit is re-made once, with git's own plumbing: no working-tree checkout per commit), every
+branch ends with the same "public copy" commit (LICENSE, DATA_SOURCES.md, ignore rules; docs/HISTORY.md on main).
+--replace keeps the copy's `origin` remote, and --push pushes every branch (force-with-lease: the branches are
+re-made each time) without ever asking for a password: if the server holds no working GitHub login, it says so and
+prints the command for the owner.
 """
 import argparse
 import datetime
@@ -328,6 +335,169 @@ def replay(src, out, branch, secrets, name, email, progress=200):
     return len(commits), made
 
 
+class _Plumb:
+    """Builds commits in `out` without a working tree: a private index file + hash-object / update-index /
+    write-tree / commit-tree. Cleaned blobs are cached by source blob id."""
+    def __init__(self, src, out, secrets, name, email):
+        self.src, self.out, self.secrets = src, out, secrets
+        self.env = dict(os.environ, GIT_INDEX_FILE=os.path.join(out, ".git", "export-index"))
+        self.ident = dict(GIT_AUTHOR_NAME=name, GIT_AUTHOR_EMAIL=email, GIT_COMMITTER_NAME=name, GIT_COMMITTER_EMAIL=email)
+        self.blob = {}
+        self.blobs = _Blobs(src)
+        sys.path.insert(0, os.path.join(HERE, "tools"))
+        import v81_publish_check as PC
+        rules = compile_rules()
+        self.skip = lambda p: dropped(p, rules) or bool(PC.kind_of_name(p))
+
+    def git(self, args, input=None, env=None):
+        p = subprocess.run(["git"] + args, cwd=self.out, input=input, capture_output=True, text=isinstance(input, str) or input is None,
+                           env=env or self.env)
+        if p.returncode:
+            err = p.stderr if isinstance(p.stderr, str) else p.stderr.decode("utf-8", "replace")
+            raise RuntimeError("git %s failed: %s" % (args[0], err[-300:]))
+        return p.stdout
+
+    def clean_blob(self, sha, mode):
+        """-> cleaned blob id in `out`, or None when the file must be left out."""
+        if (sha, mode) in self.blob:
+            return self.blob[(sha, mode)]
+        data = self.blobs.get(sha)
+        new = None
+        if data is not None and len(data) <= MAX_BYTES:
+            if mode != "120000":
+                try:
+                    data = scrub(data.decode("utf-8"), self.secrets).encode("utf-8")
+                except UnicodeDecodeError:
+                    pass
+            p = subprocess.run(["git", "hash-object", "-w", "--stdin"], cwd=self.out, input=data, capture_output=True)
+            new = p.stdout.decode().strip() if p.returncode == 0 else None
+        self.blob[(sha, mode)] = new
+        return new
+
+    def tree_of(self, commit):
+        return self.git(["rev-parse", commit + "^{tree}"]).strip()
+
+    def commit(self, tree, parents, msg, date_a=None, date_c=None):
+        env = dict(self.env, **self.ident)
+        if date_a:
+            env.update(GIT_AUTHOR_DATE=date_a, GIT_COMMITTER_DATE=date_c or date_a)
+        args = ["commit-tree", tree]
+        for p in parents:
+            args += ["-p", p]
+        return self.git(args, input=msg, env=env).strip()
+
+
+def replay_refs(src, out, refs, secrets, name, email, progress=200):
+    """refs: [(public branch, source ref)]. Each ref's first-parent line, oldest first, re-made once per source
+    commit (shared history stays shared). -> ({public branch: commit in out}, source commits, made)."""
+    os.makedirs(out, exist_ok=True)
+    run(["git", "init", "-q", "-b", "main"], cwd=out)
+    run(["git", "config", "core.autocrlf", "false"], cwd=out)
+    P = _Plumb(src, out, secrets, name, email)
+    mapped, heads, seen, made = {}, {}, 0, 0
+    empty_tree = P.git(["mktree"], input="").strip()
+    try:
+        for branch, ref in refs:
+            if run(["git", "rev-parse", "--verify", "-q", ref + "^{commit}"], cwd=src, check=False).returncode:
+                heads[branch] = None                                  # no such branch or tag: left out, reported
+                continue
+            commits = run(["git", "rev-list", "--reverse", "--first-parent", ref], cwd=src).stdout.split()
+            prev = None
+            for c in commits:
+                if c in mapped:
+                    prev = c
+                    continue
+                seen += 1
+                base = mapped.get(prev)
+                if base:
+                    P.git(["read-tree", base])
+                else:
+                    P.git(["read-tree", empty_tree])
+                if prev is None:
+                    raw = run(["git", "ls-tree", "-r", "-z", c], cwd=src).stdout.split("\0")
+                    changes = []
+                    for e in raw:
+                        if e:
+                            meta, path = e.split("\t", 1)
+                            mode, typ, sha = meta.split()
+                            if typ == "blob":
+                                changes.append(("A", path, mode, sha))
+                else:
+                    parts = run(["git", "diff-tree", "-r", "-z", "--raw", "--no-renames", prev, c], cwd=src).stdout.split("\0")
+                    changes, k = [], 0
+                    while k + 1 < len(parts):
+                        meta, path = parts[k], parts[k + 1]
+                        k += 2
+                        if meta.startswith(":"):
+                            _om, nm, _os, ns, st = meta[1:].split()
+                            changes.append((st[0], path, nm, ns))
+                lines = []
+                for st, path, mode, sha in changes:
+                    if P.skip(path) or mode == "160000" or "\n" in path:
+                        continue
+                    new = None if st == "D" else P.clean_blob(sha, mode)
+                    if new is None:
+                        lines.append("0 %s\t%s" % ("0" * 40, path))      # remove (a no-op when absent)
+                    else:
+                        lines.append("%s %s\t%s" % (mode, new, path))
+                if lines:
+                    P.git(["update-index", "--index-info"], input="\n".join(lines) + "\n")
+                tree = P.git(["write-tree"]).strip()
+                if base and tree == P.tree_of(base):
+                    mapped[c] = base                                  # nothing left after the rules
+                else:
+                    f = run(["git", "log", "-1", "--format=%aI%x00%cI%x00%B", c], cwd=src).stdout.split("\0", 2)
+                    msg = scrub(f[2].strip(), secrets) or "(no message)"
+                    mapped[c] = P.commit(tree, [base] if base else [], msg + "\n", f[0], f[1])
+                    made += 1
+                prev = c
+                if progress and seen % progress == 0:
+                    print("  replayed %d commits" % seen, flush=True)
+            heads[branch] = mapped[commits[-1]] if commits else None
+    finally:
+        P.blobs.close()
+    return heads, seen, made, P
+
+
+def finish_branch(P, out, branch, head, holder, year, history_text=None):
+    """The "public copy" commit on top of one branch: LICENSE, DATA_SOURCES.md, ignore rules (+ docs/HISTORY.md)."""
+    P.git(["read-tree", head])
+    files = {"LICENSE": LICENSE_MIT.format(year=year, holder=holder), "DATA_SOURCES.md": DATA_SOURCES}
+    try:
+        old = P.git(["cat-file", "-p", head + ":.gitignore"])
+    except RuntimeError:
+        old = ""
+    add = [x for x in ("*.db", "*.sqlite", "*.env", "!*lock*.env", "logs/", "inbox/", "facts.db", "sets/sealed_*") if x not in old.split("\n")]
+    files[".gitignore"] = old + (("\n" if old and not old.endswith("\n") else "") + "# public copy (v81_public_export.py)\n" + "\n".join(add) + "\n" if add else "")
+    if history_text:
+        files["docs/HISTORY.md"] = history_text
+    lines = []
+    for path, text in files.items():
+        p = subprocess.run(["git", "hash-object", "-w", "--stdin"], cwd=out, input=text.encode("utf-8"), capture_output=True, check=True)
+        lines.append("100644 %s\t%s" % (p.stdout.decode().strip(), path))
+    P.git(["update-index", "--add", "--index-info"], input="\n".join(lines) + "\n")
+    tree = P.git(["write-tree"]).strip()
+    c = P.commit(tree, [head], "Public copy: MIT licence, data sources, ignore rules%s (branch %s)\n\n"
+                 "Made by tools/v81_public_export.py from the private repository. Sealed test sets, databases, data files, logs\n"
+                 "and personal details were removed from every commit; see DATA_SOURCES.md.\n"
+                 % (", commit list" if history_text else "", branch))
+    P.git(["update-ref", "refs/heads/" + branch, c])
+    return c
+
+
+def push_all(out, branches):
+    """Push every branch to origin without ever prompting. -> (ok, text)."""
+    url = run(["git", "remote", "get-url", "origin"], cwd=out, check=False).stdout.strip()
+    if not url:
+        return False, "no origin remote in the copy"
+    env = dict(os.environ, GIT_TERMINAL_PROMPT="0", GIT_ASKPASS="true", SSH_ASKPASS="true",
+               GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=20")
+    run(["git", "fetch", "-q", "origin"], cwd=out, check=False, env=env)
+    p = run(["git", "push", "--force-with-lease", "origin"] + ["refs/heads/%s:refs/heads/%s" % (b, b) for b in branches],
+            cwd=out, check=False, env=env)
+    return p.returncode == 0, (p.stderr or p.stdout).strip()[-600:]
+
+
 def snapshot(src, out, branch, secrets, name, email):
     os.makedirs(out, exist_ok=True)
     files = [f for f in run(["git", "ls-files", "-z"], cwd=src).stdout.split("\0") if f]
@@ -372,6 +542,9 @@ def main(argv=None):
     ap.add_argument("--keys", default=None, help="KEY=value file whose values must not appear anywhere")
     ap.add_argument("--replace", action="store_true")
     ap.add_argument("--snapshot", action="store_true", help="one commit of the current files instead of the whole history")
+    ap.add_argument("--branches", default=None, help='public branch=source ref, comma separated; the first is checked out, '
+                    'e.g. "main=v8.1,v1=v1.0,v2=v2"')
+    ap.add_argument("--push", action="store_true", help="push every branch to the copy's origin (never prompts)")
     a = ap.parse_args(argv)
     out = os.path.abspath(os.path.expanduser(a.out))
     src = os.path.abspath(os.path.expanduser(a.src))
@@ -380,8 +553,51 @@ def main(argv=None):
     name = a.name or run(["git", "config", "user.name"], cwd=src, check=False).stdout.strip() or "Cinemack author"
     holder = a.holder or name
     secrets = secret_values(os.path.expanduser(a.keys) if a.keys else None)
+    origin = run(["git", "remote", "get-url", "origin"], cwd=out, check=False).stdout.strip() \
+        if os.path.isdir(os.path.join(out, ".git")) else ""
     prepare_out(out, a.replace)
     year = datetime.date.today().year
+    if a.branches:
+        refs = [tuple(x.strip().split("=", 1)) for x in a.branches.split(",") if "=" in x]
+        heads, total, made, P = replay_refs(src, out, refs, secrets, name, a.email)
+        print("branches: %d source commits, %d re-made (%d left empty by the rules)" % (total, made, total - made))
+        main_branch, main_ref = refs[0]
+        for b, ref in refs:
+            if not heads.get(b):
+                print("  %s <- %s: no commits, left out" % (b, ref))
+                continue
+            c = finish_branch(P, out, b, heads[b], holder, year, history_md(src, main_ref, secrets) if b == main_branch else None)
+            n = run(["git", "rev-list", "--count", c], cwd=out).stdout.strip()
+            print("  %-6s <- %-14s %s commits, head %s" % (b, ref, n, c[:7]))
+        run(["git", "symbolic-ref", "HEAD", "refs/heads/" + main_branch], cwd=out)
+        run(["git", "reset", "-q", "--hard", main_branch], cwd=out)
+        try:
+            os.remove(os.path.join(out, ".git", "export-index"))
+        except OSError:
+            pass
+        if origin:
+            run(["git", "remote", "add", "origin", origin], cwd=out)
+        files = len([x for x in run(["git", "ls-files"], cwd=out).stdout.splitlines() if x])
+        size = run(["du", "-sh", os.path.join(out, ".git")], check=False).stdout.split("\t")[0]
+        print("public copy: %s | mode branches | %d branches | main %s commits | %d files | .git %s | %d key value(s) "
+              "searched for (values not shown)" % (out, len([b for b, _ in refs if heads.get(b)]),
+                                                    run(["git", "rev-list", "--count", "HEAD"], cwd=out).stdout.strip(),
+                                                    files, size, len(secrets)))
+        sys.path.insert(0, os.path.join(HERE, "tools"))
+        import v81_publish_check as PC
+        text = PC.report(PC.scan(out, history=True, deep=True))
+        print(text)
+        with open(os.path.join(out, MARK), "w") as f:
+            f.write(text)
+        ready = "NOT ready" not in text
+        if a.push and ready:
+            ok, msg = push_all(out, [b for b, _ in refs if heads.get(b)])
+            print("push: %s\n%s" % ("OK" if ok else "NOT pushed", msg))
+            if not ok:
+                print("To push yourself: cd %s && git push --force-with-lease origin %s" % (out, " ".join(b for b, _ in refs if heads.get(b))))
+        elif a.push:
+            print("push: NOT pushed (the publish check is not READY)")
+        return 0 if ready else 1
     if a.snapshot:
         mode = "snapshot"
         n = snapshot(src, out, a.branch, secrets, name, a.email)
