@@ -19,7 +19,13 @@ What the copy holds: the current files of the v8.1 branch, as one commit, with t
            record of how the project was built, without publishing the old commits themselves.
 At the end the publish check runs on the copy and its verdict is printed. Nothing is pushed: pushing is the owner's
 step, and the commands for it are printed.
-(Keeping the old commits themselves would need a history rewrite with git-filter-repo; not done here.)
+HISTORY (default since 19 Nov, owner's request): instead of one commit, every commit of the branch is replayed into
+the copy, oldest first (first-parent line), with its original date and message - so the public repository shows how
+the project was built, step by step. Each replayed commit gets the same rules as above (removed paths, replaced
+addresses / home folders / key values, plus any quoted or KEY=... value that looks like a key is replaced by
+REDACTED, and every file the publish check would flag by its name is left out). Commits left empty by the rules are
+skipped. Author and committer of every commit become --name / --email. Uses only git itself (no extra tools).
+--snapshot gives the old single-commit copy.
 """
 import argparse
 import datetime
@@ -138,9 +144,15 @@ def secret_values(keys_path):
     return sorted(set(vals), key=len, reverse=True)
 
 
+R_KEYLIT = re.compile(r"""(?ix)((?:api[_-]?key|apikey|token|secret|passwd|password|client[_-]?secret|bearer)[a-z0-9_]*["']?\s*[=:]\s*["'])((?=[^"']*[0-9])[A-Za-z0-9_\-./+]{16,})(["'])""")
+R_KEYENV = re.compile(r"(?im)^(\s*(?:export\s+)?[A-Z0-9_]*(?:KEY|TOKEN|SECRET|PASSWORD)[A-Z0-9_]*=)(?=\S*[0-9])[^\s$\"'<{]{12,}(\s*)$")
+
+
 def scrub(text, secrets=()):
     for v in secrets:
         text = text.replace(v, "REDACTED")
+    text = R_KEYLIT.sub(lambda m: m.group(1) + "REDACTED" + m.group(3), text)
+    text = R_KEYENV.sub(lambda m: m.group(1) + "REDACTED" + m.group(2), text)
     text = re.sub(R_MAIL, PLACEHOLDER_EMAIL, text)
     return re.sub(R_HOME, "/home/you/", text)
 
@@ -176,7 +188,7 @@ def write_extras(out, holder, year):
 def commit_extras(out, name, email):
     env = dict(os.environ, GIT_AUTHOR_NAME=name, GIT_AUTHOR_EMAIL=email, GIT_COMMITTER_NAME=name, GIT_COMMITTER_EMAIL=email)
     run(["git", "add", "-A", "--", ".", ":!" + MARK], cwd=out)
-    run(["git", "commit", "-q", "-m", "Public copy: MIT licence, data sources, ignore rules\n\n"
+    run(["git", "commit", "-q", "-m", "Public copy: MIT licence, data sources, commit list, ignore rules\n\n"
          "Made by tools/v81_public_export.py from the private repository. Sealed test sets, databases, data files, logs\n"
          "and personal details were removed from every commit; see DATA_SOURCES.md."], cwd=out, env=env)
 
@@ -195,6 +207,125 @@ def history_md(src, branch, secrets):
             day = d
         out.append("- " + scrub(subj, secrets).replace("|", "/"))
     return "\n".join(out) + "\n"
+
+
+class _Blobs:
+    """One `git cat-file --batch` process: blob contents by id, without a process per file."""
+    def __init__(self, repo):
+        self.p = subprocess.Popen(["git", "cat-file", "--batch"], cwd=repo, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+
+    def get(self, sha):
+        self.p.stdin.write(sha.encode() + b"\n")
+        self.p.stdin.flush()
+        head = self.p.stdout.readline().split()
+        if len(head) < 3 or head[1] == b"missing":
+            return None
+        n = int(head[2])
+        data = self.p.stdout.read(n)
+        self.p.stdout.read(1)
+        return data
+
+    def close(self):
+        try:
+            self.p.stdin.close()
+            self.p.wait(timeout=10)
+        except Exception:  # noqa: BLE001
+            self.p.kill()
+
+
+def _write(out, path, data, mode, secrets):
+    dst = os.path.join(out, path)
+    if os.path.lexists(dst):
+        os.remove(dst)
+    os.makedirs(os.path.dirname(dst) or out, exist_ok=True)
+    if mode == "120000":                                   # a symbolic link: its blob is the target
+        os.symlink(data.decode("utf-8", "replace"), dst)
+        return
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        with open(dst, "wb") as f:
+            f.write(data)
+    else:
+        with open(dst, "w", encoding="utf-8", newline="") as f:
+            f.write(scrub(text, secrets))
+    if mode == "100755":
+        os.chmod(dst, 0o755)
+
+
+def _remove(out, path):
+    dst = os.path.join(out, path)
+    if os.path.lexists(dst):
+        os.remove(dst)
+        d = os.path.dirname(dst)
+        while d.startswith(out + os.sep) and os.path.isdir(d) and not os.listdir(d):
+            os.rmdir(d)
+            d = os.path.dirname(d)
+
+
+def replay(src, out, branch, secrets, name, email, progress=200):
+    """Every first-parent commit of `branch`, oldest first, re-made in `out` with the rules. -> (source commits, made)."""
+    sys.path.insert(0, os.path.join(HERE, "tools"))
+    import v81_publish_check as PC
+    rules = compile_rules()
+
+    def skip(p):
+        return dropped(p, rules) or bool(PC.kind_of_name(p))
+    commits = run(["git", "rev-list", "--reverse", "--first-parent", branch], cwd=src).stdout.split()
+    os.makedirs(out, exist_ok=True)
+    run(["git", "init", "-q", "-b", "main"], cwd=out)
+    run(["git", "config", "core.autocrlf", "false"], cwd=out)
+    blobs = _Blobs(src)
+    made, prev = 0, None
+    try:
+        for i, c in enumerate(commits, 1):
+            if prev is None:
+                raw = run(["git", "ls-tree", "-r", "-z", c], cwd=src).stdout.split("\0")
+                changes = []
+                for e in raw:
+                    if not e:
+                        continue
+                    meta, path = e.split("\t", 1)
+                    mode, typ, sha = meta.split()
+                    if typ == "blob":
+                        changes.append(("A", path, mode, sha))
+            else:
+                parts = run(["git", "diff-tree", "-r", "-z", "--raw", "--no-renames", prev, c], cwd=src).stdout.split("\0")
+                changes, k = [], 0
+                while k + 1 < len(parts):
+                    meta, path = parts[k], parts[k + 1]
+                    k += 2
+                    if not meta.startswith(":"):
+                        continue
+                    _om, nm, _os, ns, st = meta[1:].split()
+                    changes.append((st[0], path, nm, ns))
+            for st, path, mode, sha in changes:
+                if skip(path) or mode == "160000":
+                    continue
+                if st == "D":
+                    _remove(out, path)
+                    continue
+                data = blobs.get(sha)
+                if data is None or len(data) > MAX_BYTES:
+                    _remove(out, path)
+                    continue
+                _write(out, path, data, mode, secrets)
+            run(["git", "add", "-A"], cwd=out)
+            prev = c
+            if run(["git", "diff", "--cached", "--quiet"], cwd=out, check=False).returncode == 0 and made:
+                continue                                    # nothing left in this commit after the rules
+            f = run(["git", "log", "-1", "--format=%aI%x00%cI%x00%B", c], cwd=src).stdout.split("\0", 2)
+            env = dict(os.environ, GIT_AUTHOR_NAME=name, GIT_AUTHOR_EMAIL=email, GIT_COMMITTER_NAME=name,
+                       GIT_COMMITTER_EMAIL=email, GIT_AUTHOR_DATE=f[0], GIT_COMMITTER_DATE=f[1])
+            msg = scrub(f[2].strip(), secrets) or "(no message)"
+            subprocess.run(["git", "commit", "-q", "--allow-empty", "-F", "-"], cwd=out, env=env, input=msg,
+                           text=True, check=True, capture_output=True)
+            made += 1
+            if progress and i % progress == 0:
+                print("  replayed %d of %d commits" % (i, len(commits)), flush=True)
+    finally:
+        blobs.close()
+    return len(commits), made
 
 
 def snapshot(src, out, branch, secrets, name, email):
@@ -240,6 +371,7 @@ def main(argv=None):
     ap.add_argument("--holder", default=None, help="copyright holder for the MIT licence (default: --name)")
     ap.add_argument("--keys", default=None, help="KEY=value file whose values must not appear anywhere")
     ap.add_argument("--replace", action="store_true")
+    ap.add_argument("--snapshot", action="store_true", help="one commit of the current files instead of the whole history")
     a = ap.parse_args(argv)
     out = os.path.abspath(os.path.expanduser(a.out))
     src = os.path.abspath(os.path.expanduser(a.src))
@@ -250,9 +382,17 @@ def main(argv=None):
     secrets = secret_values(os.path.expanduser(a.keys) if a.keys else None)
     prepare_out(out, a.replace)
     year = datetime.date.today().year
-    mode = "snapshot"
-    n = snapshot(src, out, a.branch, secrets, name, a.email)
-    print("snapshot: %d files copied" % n)
+    if a.snapshot:
+        mode = "snapshot"
+        n = snapshot(src, out, a.branch, secrets, name, a.email)
+        print("snapshot: %d files copied" % n)
+    else:
+        mode = "history"
+        total, made = replay(src, out, a.branch, secrets, name, a.email)
+        print("history: %d commits replayed (%d left empty by the rules and skipped)" % (made, total - made))
+        os.makedirs(os.path.join(out, "docs"), exist_ok=True)
+        with open(os.path.join(out, "docs", "HISTORY.md"), "w", encoding="utf-8") as fh:
+            fh.write(history_md(src, a.branch, secrets))
     write_extras(out, holder, year)
     commit_extras(out, name, a.email)
     commits = run(["git", "rev-list", "--count", "HEAD"], cwd=out).stdout.strip()

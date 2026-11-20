@@ -15,6 +15,7 @@ import v81_public_export as X  # noqa: E402
 
 FAKE_VALUE = "-".join(["fakevalue", "for", "this", "test", "only", "0000"])   # what the key file holds
 MAIL = "dev" + "@" + "uni.example-mail.org"                                   # an address that must disappear
+OLD_KEYLIKE = "".join(["abcd", "1234", "efgh", "5678", "ijkl"])               # looks like a key; only in an old commit
 
 
 def sh(cwd, *cmd):
@@ -69,9 +70,10 @@ class TestExport(unittest.TestCase):
         w("results/llm_cache.sqlite", "x")
         w("results/v81_recs_v3.txt", "rule FAIL")
         w("web/settings.py", "VALUE = '%s'\n# contact %s\n" % (FAKE_VALUE, MAIL))
+        w("web/old.py", "api_key = '%s'\n" % OLD_KEYLIKE)                 # key-like, NOT in the key file
         sh(src, "git", "add", "-A")
         sh(src, "git", "commit", "-q", "-m", "first, by %s" % MAIL)
-        sh(src, "git", "rm", "-q", "sets/sealed_v8_an.json", "results/llm_cache.sqlite")
+        sh(src, "git", "rm", "-q", "sets/sealed_v8_an.json", "results/llm_cache.sqlite", "web/old.py")
         w("web/settings.py", "import os\nVALUE = os.environ.get('VALUE')\n")
         w("README.md", "# Demo\n")
         sh(src, "git", "add", "-A")
@@ -83,19 +85,20 @@ class TestExport(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
-    def check(self, out):
+    def check(self, out, history=False):
         everything = sh(out, "git", "log", "--all", "-p", "--format=%ae %an %s%n%b")
         self.assertNotIn(MAIL, everything)
         self.assertNotIn(FAKE_VALUE, everything)
         self.assertNotIn("sealed_v8_an", everything)
         self.assertNotIn("llm_cache", everything)
+        self.assertNotIn(OLD_KEYLIKE, everything)
         files = sh(out, "git", "ls-files").split()
         for f in ("LICENSE", "DATA_SOURCES.md", "docs/HISTORY.md", "README.md", "sets/tune_v8.json", "results/v81_recs_v3.txt", "web/settings.py"):
             self.assertIn(f, files)
         self.assertNotIn(X.MARK, files)
         self.assertIn("MIT License", open(os.path.join(out, "LICENSE")).read())
         self.assertEqual(sh(out, "git", "branch", "--show-current").strip(), "main")
-        self.assertEqual(int(sh(out, "git", "rev-list", "--count", "HEAD")), 2)
+        self.assertEqual(int(sh(out, "git", "rev-list", "--count", "HEAD")), 3 if history else 2)
         hist = open(os.path.join(out, "docs", "HISTORY.md")).read()
         self.assertIn("- first, by you@example.edu", hist)
         self.assertIn("- second", hist)
@@ -105,21 +108,38 @@ class TestExport(unittest.TestCase):
         self.assertEqual(len(before.splitlines()), 2)
         self.assertEqual(sh(out, "git", "remote").strip(), "")
         self.assertIn("Dev Person", sh(out, "git", "log", "-1", "--format=%an"))
-        self.assertIn("me@users.noreply.github.com", sh(out, "git", "log", "--format=%ae"))
+        self.assertEqual(set(sh(out, "git", "log", "--format=%ae").split()), {"me@users.noreply.github.com"})
 
     def test_snapshot_mode(self):
         out = os.path.join(self.tmp, "pub")
-        X.main(["--src", self.src, "--out", out, "--email", "me@users.noreply.github.com", "--keys", self.values])
+        X.main(["--src", self.src, "--out", out, "--snapshot", "--email", "me@users.noreply.github.com", "--keys", self.values])
         self.check(out)
         with self.assertRaises(SystemExit):                       # never over a folder it did not make
             os.makedirs(os.path.join(self.tmp, "other"))
             open(os.path.join(self.tmp, "other", "f"), "w").close()
             X.main(["--src", self.src, "--out", os.path.join(self.tmp, "other"), "--replace"])
-        X.main(["--src", self.src, "--out", out, "--replace", "--email", "me@users.noreply.github.com", "--keys", self.values])
+        X.main(["--src", self.src, "--out", out, "--replace", "--snapshot", "--email", "me@users.noreply.github.com", "--keys", self.values])
         self.check(out)
         with self.assertRaises(SystemExit):
             X.main(["--src", self.src, "--out", os.path.join(self.src, "inside")])
 
+
+    def test_history_mode_keeps_every_commit_cleaned(self):
+        out = os.path.join(self.tmp, "pub")
+        X.main(["--src", self.src, "--out", out, "--email", "me@users.noreply.github.com", "--name", "Dev Person",
+                "--holder", "Dev Person", "--keys", self.values])
+        self.check(out, history=True)
+        subjects = sh(out, "git", "log", "--reverse", "--format=%s").splitlines()
+        self.assertEqual(subjects[:2], ["first, by you@example.edu", "second"])
+        src_dates = sh(self.src, "git", "log", "--reverse", "--format=%aI %cI").splitlines()
+        self.assertEqual(sh(out, "git", "log", "--reverse", "--format=%aI %cI").splitlines()[:2], src_dates)
+        first = sh(out, "git", "show", "--name-only", "--format=", "HEAD~2").split()
+        self.assertIn("sets/tune_v8.json", first)
+        self.assertNotIn("sets/sealed_v8_an.json", first)
+        self.assertIn("REDACTED", sh(out, "git", "show", "HEAD~2:web/old.py"))
+        import v81_publish_check as PC
+        self.assertTrue(PC.scan(out, history=True, deep=True)["ready"])
+        self.assertEqual(len(sh(self.src, "git", "log", "--format=%H").split()), 2)   # the source is untouched
 
 if __name__ == "__main__":
     unittest.main()
