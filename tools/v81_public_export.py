@@ -477,10 +477,12 @@ def finish_branch(P, out, branch, head, holder, year, history_text=None):
         lines.append("100644 %s\t%s" % (p.stdout.decode().strip(), path))
     P.git(["update-index", "--add", "--index-info"], input="\n".join(lines) + "\n")
     tree = P.git(["write-tree"]).strip()
+    # round 58: dated like the branch's last commit, so remaking an unchanged branch gives the same commit (no force push)
+    da, dc = P.git(["log", "-1", "--format=%aI%x00%cI", head]).strip().split("\0")
     c = P.commit(tree, [head], "Public copy: MIT licence, data sources, ignore rules%s (branch %s)\n\n"
                  "Made by tools/v81_public_export.py from the private repository. Sealed test sets, databases, data files, logs\n"
                  "and personal details were removed from every commit; see DATA_SOURCES.md.\n"
-                 % (", commit list" if history_text else "", branch))
+                 % (", commit list" if history_text else "", branch), da, dc)
     P.git(["update-ref", "refs/heads/" + branch, c])
     return c
 

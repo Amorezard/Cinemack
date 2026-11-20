@@ -75,13 +75,14 @@ function searchBox(input, pop, onPick) {
     pop.hidden = false; input.setAttribute('aria-expanded', 'true');
     news(r, q);
   };
+  // Round 57: q goes along, so the server may run ONE live Guardian search when the film's title is typed out.
   // Round 55: stored news and reviews about the films found (SEARCH_NEWS; no live call; the first 404 = off for this visit)
   const news = async (r, q) => {
     const ids = (r.films || []).slice(0, 3).map(f => f.id).filter(i => i > 0);
     if (!ids.length || searchBox.newsOff) return;
     const my = seq;
     let j;
-    try { j = await api('/api/v8/news?ids=' + ids.join(',')); } catch (e) { if (e?.status === 404) searchBox.newsOff = true; return; }
+    try { j = await api('/api/v8/news?ids=' + ids.join(',') + '&q=' + encodeURIComponent(q)); } catch (e) { if (e?.status === 404) searchBox.newsOff = true; return; }
     if (my !== seq || pop.hidden || input.value.trim() !== q || !(j.articles || []).length) return;
     pop.append(h('div', { class: 'grp', role: 'presentation' }, 'News and reviews'));
     for (const a of j.articles) {

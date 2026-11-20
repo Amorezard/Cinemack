@@ -18,6 +18,7 @@ is optional: a missing one just leaves that field out, so the page works before
 """
 import json
 import os
+import re
 import sqlite3
 
 import dbsafe   # 10 Nov: shared connection, one call at a time (see dbsafe.py)
@@ -212,6 +213,25 @@ def enrich(cards, user=""):
     return cards
 
 
+# Round 57 (owner, 20 Nov): the page said "acting (audience 6 of 11; ...)" and showed a COMPLAINT as the quote for a
+# praised aspect ("cinematography ... 'monster CGI is not good'"), because the stored quotes are not split by
+# sentiment. On the page: "acting (6 of 11 reviews; ...)" for viewer reviews, "(3 of 5 critic reviews; ...)" for
+# critics, and the quote is taken from review_aspects with the SAME sentiment (praise -> a positive quote,
+# criticism -> a negative one); no matching quote -> no quote. The answer text (reception_cards.py) is unchanged.
+_ASPECT = re.compile(r'^(?P<a>.+?) \((?P<who>audience|critics) (?P<k>\d+) of (?P<n>\d+)(?:; ".*")?\)$', re.S)
+
+
+def _aspect_line(f, fid, s, sign):
+    m = _ASPECT.match(s or "") if isinstance(s, str) else None
+    if not m:
+        return s
+    st = "audience" if m["who"] == "audience" else "critic"
+    q = _q(f, "select quote from review_aspects where tmdb_id = ? and source_type = ? and aspect = ? and sentiment = ? "
+              "and length(quote) between 12 and 160 order by length(quote) desc limit 1", (fid, st, m["a"], sign))
+    quote = '; "%s"' % q[0][0].strip() if q and q[0][0] else ""
+    return "%s (%s of %s %s%s)" % (m["a"], m["k"], m["n"], "reviews" if st == "audience" else "critic reviews", quote)
+
+
 def detail(fid, user=""):
     f = _ro(FACTS)
     out = {"id": fid}
@@ -283,8 +303,8 @@ def detail(fid, user=""):
                             "gap": gap, "gap_label": gl, "polar": pl, "trend": tl, "legacy": lg,
                             "n_critic_statements": ncs, "n_audience_reviews": nau,
                             "audience_split": {"positive": ap, "mixed": am, "negative": an} if nau else None,
-                            "bombing": bomb, "praise": (data.get("praise") or [])[:4],
-                            "complaints": (data.get("complaints") or [])[:4],
+                            "bombing": bomb, "praise": [_aspect_line(f, fid, x, 1) for x in (data.get("praise") or [])[:4]],
+                            "complaints": [_aspect_line(f, fid, x, -1) for x in (data.get("complaints") or [])[:4]],
                             "named": [{"outlet": o, "critic": c, "tone": t} for o, c, t in (data.get("critics") or {}).get("named", [])[:6]],
                             "videos": data.get("videos")}
     out["mine"] = user_choices(user, [fid]).get(fid, "")
